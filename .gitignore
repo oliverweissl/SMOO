@@ -1,5 +1,6 @@
 *.csv
 *.pt
+*.pth
 *.ckpt
 *.pkl
 **/_*.ipynb
