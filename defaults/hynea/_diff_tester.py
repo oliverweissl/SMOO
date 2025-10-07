@@ -28,7 +28,7 @@ from ._experiment_config import ExperimentConfig
 
 
 class DiffTester(SMOO):
-    """A diffusion-based tester."""
+    """A tester class for mimicry with diffusion models."""
 
     _manipulator: SiTManipulator
     _optimizer: PymooOptimizer
@@ -46,7 +46,7 @@ class DiffTester(SMOO):
         early_termination: TEarlyTermCallable,
     ):
         """
-        Initialize the Diffusion Tester.
+        Initialize the HyNeA Tester.
 
         :param sut: The system-under-test.
         :param manipulator: The manipulator object.
@@ -199,13 +199,11 @@ class DiffTester(SMOO):
                 budget_used += xs.shape[0]  # add budget based on how many images are evaluated.
 
                 self._objectives.evaluate_all(
-                    {
-                        "images": [origin_batch, xs],
-                        "logits": predictions,
-                        "label_targets": class_pair,
-                        "solution_archive": [],
-                        "batch_dim": 0,
-                    }
+                    images=[origin_batch, xs],
+                    logits=predictions,
+                    label_targets=class_pair,
+                    solution_archive=list(),
+                    batch_dim=0,
                 )
                 results = self._objectives.results
 

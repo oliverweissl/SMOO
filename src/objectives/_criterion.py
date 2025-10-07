@@ -24,10 +24,11 @@ class Criterion(ABC):
         self._name = self._name + "Inv" if inverse else self._name
 
     @abstractmethod
-    def evaluate(self, **kwargs: Any) -> Union[float, list[float]]:
+    def evaluate(self, *args: Any, **kwargs: Any) -> Union[float, list[float]]:
         """
         Evaluate the criterion in question.
 
+        :param args: The arguments parsed.
         :param kwargs: The KW-Args parsed.
         :returns: The value(s).
         """

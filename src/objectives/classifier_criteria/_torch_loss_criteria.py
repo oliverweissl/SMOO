@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, override
 
 from torch import Tensor
 from torch.nn.modules.loss import _Loss
@@ -21,12 +21,12 @@ class TorchLossCriterion(ClassifierCriterion):
         self._name += str(loss_fn.__class__.__name__)
         self._loss_fn = loss_fn
 
+    @override
     def evaluate(self, *, logits: Tensor, target: Tensor, **kwargs: Any) -> Tensor:
         """
         Calculate the loss.
 
         :param logits: Logits tensor.
-        :param target: Target tensor.
         :param kwargs: Other Kwargs to use.
         :returns: The value.
         """

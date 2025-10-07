@@ -22,14 +22,15 @@ class CriterionCollection:
         self._criteria = list(criteria)
         self._results = dict()
 
-    def evaluate_all(self, iargs: dict[str, Any]) -> None:
+    def evaluate_all(self, *args: Any, **kwargs: Any) -> None:
         """
         Evaluate all criteria in the collection.
 
-        :param iargs: The input arguments.
+        :param args: Positional arguments to parse.
+        :param kwargs: keyword arguments to parse.
         """
         for criterion in self._criteria:
-            self._results[criterion.name] = criterion.evaluate(**iargs)
+            self._results[criterion.name] = criterion.evaluate(*args, **kwargs)
 
     def precondition_all(self, iargs: dict[str, Any]) -> None:
         """
@@ -69,3 +70,12 @@ class CriterionCollection:
         :returns: The names of the criteria.
         """
         return [c.name for c in self._criteria]
+
+    @property
+    def num_objectives(self) -> int:
+        """
+        Get the number of objectives in the collection.
+
+        :returns: The number of objectives in the collection.
+        """
+        return len(self._criteria)

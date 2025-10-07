@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any, Optional, override
 
 from torch import Tensor
 
@@ -21,6 +21,7 @@ class NaiveConfidenceBalance(ClassifierCriterion):
         super().__init__(inverse=inverse)
         self._target_primary = target_primary
 
+    @override
     def evaluate(self, *, logits: Tensor, label_targets: list[int], **_: Any) -> float:
         """
         Calculate the confidence balance of two confidence values.

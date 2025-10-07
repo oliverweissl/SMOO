@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Union
 
 import torch
 from torch import Tensor
@@ -12,20 +12,22 @@ class MatrixDistance(ImageCriterion):
     _name: str = "MatrixDistance"
     _all_norms: list[str] = ["fro", "nuc", "inf", "-inf", "1", "-1", "2", "-2"]
 
-    def __init__(self, inverse: bool = False, norm: str = "fro") -> None:
+    def __init__(self, inverse: bool = False, norm: str = "fro", return_tensor: bool = False) -> None:
         """
         Initialize the MatrixDistance criterion.
 
         :param inverse: Whether the measure should be inverted (default: False).
         :param norm: Which norm to use (default: fro).
+        :param return_tensor: Whether tensor should be returned instead of list.
         """
         super().__init__(inverse, allow_batched=True)
         assert norm in self._all_norms, f"Norm {norm} not in supported norms: {self._all_norms}"
         self.norm = norm
         self._name += f"_{norm}"
+        self._return_tensor = return_tensor
 
     @torch.no_grad()
-    def evaluate(self, *, images: list[Tensor], **_: Any) -> list[float]:
+    def evaluate(self, *, images: list[Tensor], **_: Any) -> Union[list[float], Tensor]:
         """
         Calculate the normalized matrix distance between two tensors that range [0,1].
 
@@ -43,5 +45,5 @@ class MatrixDistance(ImageCriterion):
         scaled = frob / ub
 
         channel_wise = scaled.mean(dim=1)
-        results: list[float] = torch.abs(self._inverse.real - channel_wise).float().tolist()
-        return results
+        results = torch.abs(self._inverse.real - channel_wise)
+        return results if self._return_tensor else results.float().tolist()
