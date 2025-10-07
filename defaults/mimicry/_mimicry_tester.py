@@ -281,20 +281,18 @@ class MimicryTester(SMOO):
         origin_batch = self._img_rgb.expand(images_tensor.shape[0], *self._img_rgb.shape[1:])
 
         self._objectives.evaluate_all(
-            {
-                "images": [origin_batch, images_tensor],
-                "logits": predictions,
-                "label_targets": [c1, c2],
-                "solution_archive": [],
-                "batch_dim": 0,
-            }
+            images=[origin_batch, images_tensor],
+            logits=predictions,
+            label_targets=[c1, c2],
+            solution_archive=list(),
+            batch_dim=0,
         )
         results = self._objectives.results
         fitness = tuple(np.asarray(f) for f in results.values())
 
         early_term, term_cond = self._early_termination(results)
         self._term_early = early_term
-        if early_term and term_cond:
+        if early_term and (term_cond is not None):
             logging.info(f"Early termination condition met by: {term_cond.sum()} individuals")
 
         # Create generation data row for CSV logging
