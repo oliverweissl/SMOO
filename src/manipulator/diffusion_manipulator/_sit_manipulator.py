@@ -378,8 +378,8 @@ class SiTManipulator(Manipulator):
 
         :param device: The torch device to use if applicable.
         """
-        torch.backends.cuda.matmul.allow_tf32 = True
-        torch.backends.cudnn.allow_tf32 = True
+        torch.backends.cuda.matmul.fp32_precision = "ieee"
+        torch.backends.fp32_precision = "ieee"
         torch.backends.cudnn.benchmark = True
         assert (
             torch.cuda.is_available()

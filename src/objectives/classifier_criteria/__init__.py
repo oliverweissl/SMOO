@@ -6,8 +6,8 @@ from ._binary_change import BinaryChange
 from ._dynamic_confidence_balance import DynamicConfidenceBalance
 from ._is_misclassified import IsMisclassified
 from ._naive_confidence_balance import NaiveConfidenceBalance
-from ._uncertainty_threshold import UncertaintyThreshold
 from ._torch_loss_criteria import TorchLossCriterion
+from ._uncertainty_threshold import UncertaintyThreshold
 
 __all__ = [
     "Accuracy",
@@ -17,5 +17,5 @@ __all__ = [
     "DynamicConfidenceBalance",
     "AdversarialDistance",
     "BinaryChange",
-    "TorchLossCriterion"
+    "TorchLossCriterion",
 ]

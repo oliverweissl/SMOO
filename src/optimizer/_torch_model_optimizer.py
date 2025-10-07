@@ -43,6 +43,7 @@ class TorchModelOptimizer(Optimizer):
         :param _: Unused KW-Args.
         """
         logging.info(f"Assigning fitness (loss) to {self.__class__.__name__}")
+        print(fitness)
         fitness = tuple(fitness)
         assert (
             len(fitness) == self._num_objectives

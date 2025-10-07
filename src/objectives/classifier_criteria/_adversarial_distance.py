@@ -32,7 +32,7 @@ class AdversarialDistance(ClassifierCriterion):
             raise NotImplementedError("Inverse does not function properly yet.")
 
     @override
-    def evaluate(self,*, logits: Tensor, label_targets: list[int], **_: Any) -> list[float]:
+    def evaluate(self, *, logits: Tensor, label_targets: list[int], **_: Any) -> list[float]:
         """
         Calculate the confidence balance of 2 confidence values.
 

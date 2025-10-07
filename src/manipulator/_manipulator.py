@@ -17,3 +17,12 @@ class Manipulator(ABC):
         :returns: The result of the manipulation.
         """
         ...
+
+    def gradient_checkpointing(self, enable: bool = False) -> None:
+        """
+        Toggle gradient checkpointing if implemented.
+
+        :param enable: Whether to enable gradient checkpointing.
+        :raises NotImplementedError: This method is not implemented.
+        """
+        raise NotImplementedError("This method is not implemented.")

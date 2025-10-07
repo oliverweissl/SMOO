@@ -22,15 +22,14 @@ class CriterionCollection:
         self._criteria = list(criteria)
         self._results = dict()
 
-    def evaluate_all(self, *args: Any, **kwargs: Any) -> None:
+    def evaluate_all(self, **kwargs: Any) -> None:
         """
         Evaluate all criteria in the collection.
 
-        :param args: Positional arguments to parse.
         :param kwargs: keyword arguments to parse.
         """
         for criterion in self._criteria:
-            self._results[criterion.name] = criterion.evaluate(*args, **kwargs)
+            self._results[criterion.name] = criterion.evaluate(**kwargs)
 
     def precondition_all(self, iargs: dict[str, Any]) -> None:
         """

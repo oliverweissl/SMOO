@@ -81,7 +81,7 @@ class SMOO(ABC):
         :param tensor: The tensor to save.
         :param path: The directory to save the image to.
         """
-        array = tensor.cpu().numpy() if isinstance(tensor, torch.Tensor) else tensor
+        array = tensor.cpu().detach().numpy() if isinstance(tensor, torch.Tensor) else tensor
         image = array.squeeze().transpose(1, 2, 0)  # C x H x W  -> H x W x C
         image = (image * 255).astype(np.uint8)  # [0,1] -> [0, 255]
         Image.fromarray(image).save(path)
