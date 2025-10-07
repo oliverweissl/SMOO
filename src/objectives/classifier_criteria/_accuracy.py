@@ -1,4 +1,4 @@
-from typing import Any, override
+from typing import Any
 
 import torch
 from torch import Tensor
@@ -11,7 +11,6 @@ class Accuracy(ClassifierCriterion):
 
     _name: str = "Accuracy"
 
-    @override
     def evaluate(self, *, logits: Tensor, label_targets: list[int], **_: Any) -> float:
         """
         Calculate the accuracy from prediction probabilities.

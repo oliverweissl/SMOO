@@ -13,8 +13,6 @@ https://github.com/NVlabs/stylegan2/blob/master/training/networks_stylegan2.py""
 
 import numpy as np
 import torch
-import torch.nn.functional as F
-
 
 try:
     from ..torch_utils import misc, persistence
@@ -27,7 +25,6 @@ except ImportError:
         bias_act,
         fma,
     )
-
 
 # ----------------------------------------------------------------------------
 
@@ -224,6 +221,81 @@ class Conv2dLayer(torch.nn.Module):
             down=self.down,
             padding=self.padding,
             flip_weight=flip_weight,
+        )
+
+        act_gain = self.act_gain * gain
+        act_clamp = self.conv_clamp * gain if self.conv_clamp is not None else None
+        x = bias_act.bias_act(x, b, act=self.activation, gain=act_gain, clamp=act_clamp)
+        return x
+
+    def extra_repr(self):
+        return " ".join(
+            [
+                f"in_channels={self.in_channels:d}, out_channels={self.out_channels:d}, activation={self.activation:s},",
+                f"up={self.up}, down={self.down}",
+            ]
+        )
+
+
+# ----------------------------------------------------------------------------
+
+
+@persistence.persistent_class
+class Conv2dLayerDepthwise(torch.nn.Module):
+    def __init__(
+        self,
+        in_channels,  # Number of input channels.
+        out_channels,  # Number of output channels.
+        kernel_size,  # Width and height of the convolution kernel.
+        bias=True,  # Apply additive bias before the activation function?
+        activation="linear",  # Activation function: 'relu', 'lrelu', etc.
+        up=1,  # Integer upsampling factor.
+        down=1,  # Integer downsampling factor.
+        resample_filter=[1, 3, 3, 1],  # Low-pass filter to apply when resampling activations.
+        conv_clamp=None,  # Clamp the output to +-X, None = disable clamping.
+        channels_last=False,  # Expect the input to have memory_format=channels_last?
+        trainable=True,  # Update the weights of this layer during training?
+    ):
+        super().__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.activation = activation
+        self.up = up
+        self.down = down
+        self.conv_clamp = conv_clamp
+        self.register_buffer("resample_filter", upfirdn2d.setup_filter(resample_filter))
+        self.padding = kernel_size // 2
+        self.weight_gain = 1 / np.sqrt(in_channels * (kernel_size**2))
+        self.act_gain = bias_act.activation_funcs[activation].def_gain
+
+        memory_format = torch.channels_last if channels_last else torch.contiguous_format
+        weight = torch.randn([in_channels, 1, kernel_size, kernel_size]).to(
+            memory_format=memory_format
+        )
+        bias = torch.zeros([in_channels]) if bias else None
+        if trainable:
+            self.weight = torch.nn.Parameter(weight)
+            self.bias = torch.nn.Parameter(bias) if bias is not None else None
+        else:
+            self.register_buffer("weight", weight)
+            if bias is not None:
+                self.register_buffer("bias", bias)
+            else:
+                self.bias = None
+
+    def forward(self, x, gain=1):
+        w = self.weight * self.weight_gain
+        b = self.bias.to(x.dtype) if self.bias is not None else None
+        flip_weight = self.up == 1  # slightly faster
+        x = conv2d_resample.conv2d_resample(
+            x=x,
+            w=w.to(x.dtype),
+            f=self.resample_filter,
+            up=self.up,
+            down=self.down,
+            padding=self.padding,
+            flip_weight=flip_weight,
+            groups=self.in_channels,
         )
 
         act_gain = self.act_gain * gain
@@ -649,9 +721,8 @@ class SynthesisNetwork(torch.nn.Module):
                 self.num_ws += block.num_torgb
             setattr(self, f"b{res}", block)
 
-    def forward(self, ws, return_feature=False, **block_kwargs):
+    def forward(self, ws, **block_kwargs):
         block_ws = []
-        features = []
         with torch.autograd.profiler.record_function("split_ws"):
             misc.assert_shape(ws, [None, self.num_ws, self.w_dim])
             ws = ws.to(torch.float32)
@@ -665,11 +736,7 @@ class SynthesisNetwork(torch.nn.Module):
         for res, cur_ws in zip(self.block_resolutions, block_ws):
             block = getattr(self, f"b{res}")
             x, img = block(x, img, cur_ws, **block_kwargs)
-            features.append(x)
-        if return_feature:
-            return img, features
-        else:
-            return img
+        return img
 
     def extra_repr(self):
         return " ".join(
@@ -694,9 +761,7 @@ class Generator(torch.nn.Module):
         img_resolution,  # Output resolution.
         img_channels,  # Number of output color channels.
         mapping_kwargs={},  # Arguments for MappingNetwork.
-        synthesis_kwargs={},  # Arguments for SynthesisNetwork.
-        resize=None,
-        **synthesis_kwargs2,  # Arguments for SynthesisNetwork.
+        **synthesis_kwargs,  # Arguments for SynthesisNetwork.
     ):
         super().__init__()
         self.z_dim = z_dim
@@ -704,8 +769,6 @@ class Generator(torch.nn.Module):
         self.w_dim = w_dim
         self.img_resolution = img_resolution
         self.img_channels = img_channels
-        if len(synthesis_kwargs) == 0:
-            synthesis_kwargs = synthesis_kwargs2
         self.synthesis = SynthesisNetwork(
             w_dim=w_dim,
             img_resolution=img_resolution,
@@ -716,56 +779,19 @@ class Generator(torch.nn.Module):
         self.mapping = MappingNetwork(
             z_dim=z_dim, c_dim=c_dim, w_dim=w_dim, num_ws=self.num_ws, **mapping_kwargs
         )
-        self.resize = resize
 
     def forward(
-        self,
-        z,
-        c,
-        truncation_psi=1,
-        truncation_cutoff=None,
-        update_emas=False,
-        input_is_w=False,
-        return_feature=False,
-        **synthesis_kwargs,
+        self, z, c, truncation_psi=1, truncation_cutoff=None, update_emas=False, **synthesis_kwargs
     ):
-        if input_is_w:
-            ws = z
-            if ws.dim() == 2:
-                ws = ws.unsqueeze(1).repeat([1, self.mapping.num_ws, 1])
-        else:
-            ws = self.mapping(
-                z,
-                c,
-                truncation_psi=truncation_psi,
-                truncation_cutoff=truncation_cutoff,
-                update_emas=update_emas,
-            )
-        img = self.synthesis(
-            ws, update_emas=update_emas, return_feature=return_feature, **synthesis_kwargs
+        ws = self.mapping(
+            z,
+            c,
+            truncation_psi=truncation_psi,
+            truncation_cutoff=truncation_cutoff,
+            update_emas=update_emas,
         )
-        if return_feature:
-            img, feature = img
-        if self.resize is not None:
-            img = imresize(img, [self.resize, self.resize])
-        if return_feature:
-            return img, feature
-        else:
-            return img
-
-
-def imresize(image, size):
-    dim = image.dim()
-    if dim == 3:
-        image = image.unsqueeze(1)
-    b, _, h, w = image.shape
-    if size[0] > h:
-        image = F.interpolate(image, size, mode="bilinear")
-    elif size[0] < h:
-        image = F.interpolate(image, size, mode="area")
-    if dim == 3:
-        image = image.squeeze(1)
-    return image
+        img = self.synthesis(ws, update_emas=update_emas, **synthesis_kwargs)
+        return img
 
 
 # ----------------------------------------------------------------------------

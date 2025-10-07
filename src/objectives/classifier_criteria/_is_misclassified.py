@@ -1,4 +1,4 @@
-from typing import Any, override
+from typing import Any
 
 from torch import Tensor
 
@@ -14,7 +14,6 @@ class IsMisclassified(ClassifierCriterion):
         """Initialize the criterion."""
         super().__init__(allow_batched=True)
 
-    @override
     def evaluate(self, *, logits: Tensor, label_targets: list[int], **_: Any) -> list[float]:
         """
         Check if a prediction is incorrect.

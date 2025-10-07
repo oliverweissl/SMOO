@@ -1,4 +1,4 @@
-from typing import Any, Optional, override
+from typing import Any, Optional
 
 import torch
 from torch import Tensor
@@ -31,7 +31,6 @@ class AdversarialDistance(ClassifierCriterion):
         if self._inverse:
             raise NotImplementedError("Inverse does not function properly yet.")
 
-    @override
     def evaluate(self, *, logits: Tensor, label_targets: list[int], **_: Any) -> list[float]:
         """
         Calculate the confidence balance of 2 confidence values.

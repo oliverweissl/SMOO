@@ -1,5 +1,5 @@
 import inspect
-from typing import Any, override
+from typing import Any
 
 import torch
 from torch import Tensor
@@ -24,7 +24,6 @@ class TorchLossCriterion(ClassifierCriterion):
         self._loss_fn = loss_fn
         self._signature = inspect.signature(loss_fn.forward)
 
-    @override
     def evaluate(self, *, logits: Tensor, target: int, **kwargs: Any) -> Tensor:
         """
         Calculate the loss.

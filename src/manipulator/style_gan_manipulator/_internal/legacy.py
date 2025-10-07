@@ -19,9 +19,14 @@ import click
 import numpy as np
 import torch
 
-from .dnnlib import EasyDict
-from .dnnlib.util import open_url
-from .torch_utils import misc
+try:
+    from .dnnlib import EasyDict
+    from .dnnlib.util import open_url
+    from .torch_utils import misc
+except ImportError:
+    from src.manipulator.style_gan_manipulator._internal.dnnlib import EasyDict
+    from src.manipulator.style_gan_manipulator._internal.dnnlib.util import open_url
+    from src.manipulator.style_gan_manipulator._internal.torch_utils import misc
 
 
 # ----------------------------------------------------------------------------
