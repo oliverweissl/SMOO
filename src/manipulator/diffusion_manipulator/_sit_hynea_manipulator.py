@@ -1,18 +1,33 @@
 import gc
-from typing import Optional, Union
+import logging
+from typing import Optional
 
 import torch
 from diffusers import DDPMScheduler
 from torch import Tensor, nn
 
+from .. import Manipulator
+from ._internal.models.sit import SiT
+from ._load_models import load_default_sit
 from ._sit_control_net import SiTControlNet
-from ._sit_manipulator import SiTManipulator
+from ._utils import prepare_cuda
 
 
-class SitHyNeAManipulator(SiTManipulator):  # TODO: probably should not depend on SiT Manipulator!
+class SitHyNeAManipulator(Manipulator):
     """A trainer class for the ControlNet."""
 
+    _device: torch.device
+
+    """Models used."""
+    _vae: nn.Module
+    _model: SiT
     _control_net: SiTControlNet
+
+    # Loaded from SiT
+    _latent_size: int
+    _in_channels: int
+    _latents_scale: Tensor
+    _latents_bias: Tensor
 
     def __init__(
         self,
@@ -20,7 +35,7 @@ class SitHyNeAManipulator(SiTManipulator):  # TODO: probably should not depend o
         control_shape: tuple[int, ...],
         cfg_scale: float = 1.5,
         batch_size: int = 0,
-        device: Union[torch.device, None] = None,
+        device: Optional[torch.device] = None,
         diffusion_steps: int = 50,
     ) -> None:
         """
@@ -33,13 +48,23 @@ class SitHyNeAManipulator(SiTManipulator):  # TODO: probably should not depend o
         :param device: CUDA device to use if available.
         :param diffusion_steps: The number of diffusion steps to use.
         """
-        super().__init__(
-            model_file=model_file,
-            cfg_scale=cfg_scale,
-            batch_size=batch_size,
-            device=device,
-            require_grad=True,
+        self._device = prepare_cuda(device, True)
+        self._batch_size = batch_size
+
+        self._cfg = cfg_scale
+
+        """Loading models and other variables as locals."""
+        loaded = load_default_sit(model_file=model_file, device=device)
+        for name, value in vars(loaded).items():
+            if not name.startswith("__"):
+                setattr(self, f"_{name}", value)
+
+        """Define Embedding lambdas"""
+        self._embed_y = lambda y: self._model.y_embedder(
+            torch.tensor(y, device=self._device), self._model.training
         )
+
+        """ControlNet stuff."""
         self._control_shape = control_shape
         self.make_fresh_control_net()
 
@@ -181,3 +206,28 @@ class SitHyNeAManipulator(SiTManipulator):  # TODO: probably should not depend o
             self._control_net.gradient_checkpointing_enable()
         else:
             self._control_net.gradient_checkpointing_disable()
+
+    def get_image(self, z: Tensor) -> Tensor:
+        """
+        Decode image from latent vector.
+
+        :param z: The latent vector.
+        :return: The decoded image.
+        """
+        logging.info("Sampling Images from denoised Latents.")
+        if z.ndim == 3:  # Ensure batch dimension is present.
+            z = z.unsqueeze(0)
+
+        chunks = (
+            (z.size(0) + self._batch_size - 1) // self._batch_size
+            if self._batch_size > 0
+            else z.size(0)
+        )
+        decoded = []
+        for z_chunk in torch.chunk(z, chunks, dim=0):
+            with torch.enable_grad():
+                decoded_latents = (z_chunk / self._latents_scale) + self._latents_bias
+                element = self._vae.decode(decoded_latents).sample
+                element = torch.clamp(element.mul_(0.5).add_(0.5), 0.0, 1.0)
+                decoded.append(element)
+        return torch.cat(decoded, dim=0)

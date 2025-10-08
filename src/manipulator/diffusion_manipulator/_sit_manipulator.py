@@ -1,5 +1,4 @@
 import logging
-import os
 from typing import Callable, Optional, Union
 
 import torch
@@ -8,7 +7,8 @@ from torch import Tensor, nn
 from .. import Manipulator
 from ._diffusion_candidate import DiffusionCandidateList
 from ._internal.models.sit import SiT
-from ._load_sit import load_hynea_default_sit
+from ._load_models import load_default_sit
+from ._utils import prepare_cuda
 
 
 class SiTManipulator(Manipulator):
@@ -66,18 +66,19 @@ class SiTManipulator(Manipulator):
         :raises ValueError: If manipulation_strategy is not supported.
         """
         self.require_grad = require_grad
-        self._prepare_cuda(device)
+        self._device = prepare_cuda(device, require_grad)
         self._batch_size = batch_size
 
         self._cfg = cfg_scale
 
-        loaded = load_hynea_default_sit(model_file=model_file, device=device)
+        """Loading models and other variables as locals."""
+        loaded = load_default_sit(model_file=model_file, device=device)
         for name, value in vars(loaded).items():
             if not name.startswith("__"):
                 setattr(self, f"_{name}", value)
 
         """Define Embedding lambdas"""
-        if self.require_grad:
+        if require_grad:
             self._embed_y = lambda y: self._model.y_embedder(
                 torch.tensor(y, device=self._device), self._model.training
             )
@@ -371,28 +372,6 @@ class SiTManipulator(Manipulator):
                 element = torch.clamp(element.mul_(0.5).add_(0.5), 0.0, 1.0)
                 decoded.append(element)
         return torch.cat(decoded, dim=0)
-
-    def _prepare_cuda(self, device: Optional[torch.device]) -> None:
-        """
-        Prepare optimized CUDA environment.
-
-        :param device: The torch device to use if applicable.
-        """
-        torch.backends.cuda.matmul.fp32_precision = "ieee"
-        torch.backends.fp32_precision = "ieee"
-        torch.backends.cudnn.benchmark = True
-        assert (
-            torch.cuda.is_available()
-        ), "Sampling with DDP requires at least one GPU. sample.py supports CPU-only usage"
-
-        torch.set_grad_enabled(self.require_grad)
-        self._device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-        # Additional CUDA optimizations
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-            torch.cuda.set_per_process_memory_fraction(0.95)
-        os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
     @staticmethod
     def linear(p: Tensor, q: Tensor, weight: Tensor) -> Tensor:

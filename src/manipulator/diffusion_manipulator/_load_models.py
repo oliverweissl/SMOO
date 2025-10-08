@@ -2,6 +2,7 @@ import gc
 from dataclasses import dataclass
 
 import torch
+from diffusers import DDIMScheduler, UNet2DModel, VQModel
 
 from ._internal.models.autoencoder import vae_models
 from ._internal.models.sit import SiT, SiT_models
@@ -102,7 +103,7 @@ def load_sit(
     return return_container
 
 
-def load_hynea_default_sit(model_file: str, device: torch.device) -> LoadedSiTContainer:
+def load_default_sit(model_file: str, device: torch.device) -> LoadedSiTContainer:
     """
     Loads the default SiT used for HyNeA.
 
@@ -120,3 +121,24 @@ def load_hynea_default_sit(model_file: str, device: torch.device) -> LoadedSiTCo
         device=device,
     )
     return container
+
+
+def load_ldm_celebhq(
+    device: torch.device,
+) -> tuple[torch.nn.Module, torch.nn.Module, DDIMScheduler]:
+    """
+    Loads a pretrained CELEB-HQ LDM (Unet) model.
+
+    :param device: CUDA device to use.
+    :returns: The U-Net, VQ-VAE and DDIM scheduler.
+    """
+    unet = UNet2DModel.from_pretrained("CompVis/ldm-celebahq-256", subfolder="unet")
+    vqvae = VQModel.from_pretrained("CompVis/ldm-celebahq-256", subfolder="vqvae")
+    scheduler = DDIMScheduler.from_config("CompVis/ldm-celebahq-256", subfolder="scheduler")
+
+    unet.to(device=device)
+    vqvae.to(device=device)
+
+    unet.eval()
+    vqvae.eval()
+    return unet, vqvae, scheduler

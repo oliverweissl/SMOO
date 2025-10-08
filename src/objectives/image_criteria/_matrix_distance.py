@@ -46,5 +46,5 @@ class MatrixDistance(ImageCriterion):
         scaled = frob / ub
 
         channel_wise = scaled.mean(dim=1)
-        results = torch.abs(self._inverse.real - channel_wise).mean()
+        results = torch.abs(self._inverse.real - channel_wise)
         return results if self._return_tensor else results.float().tolist()
