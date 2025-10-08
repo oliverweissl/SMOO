@@ -9,8 +9,8 @@ from torch import Tensor, nn
 from .. import Manipulator
 from ._internal.models.sit import SiT
 from ._load_models import load_default_sit
-from ._sit_control_net import SiTControlNet
 from ._utils import prepare_cuda
+from .hypernets import SiTHyperNet
 
 
 class SitHyNeAManipulator(Manipulator):
@@ -21,7 +21,7 @@ class SitHyNeAManipulator(Manipulator):
     """Models used."""
     _vae: nn.Module
     _model: SiT
-    _control_net: SiTControlNet
+    _control_net: SiTHyperNet
 
     # Loaded from SiT
     _latent_size: int
@@ -80,7 +80,7 @@ class SitHyNeAManipulator(Manipulator):
             del self._control_net
             gc.collect()
             torch.cuda.empty_cache()
-        self._control_net = SiTControlNet(self._model, self._control_shape)
+        self._control_net = SiTHyperNet(self._model, self._control_shape)
         self._control_net.to(self._device)
 
     def _sample_control(
@@ -188,7 +188,7 @@ class SitHyNeAManipulator(Manipulator):
         return x
 
     @property
-    def control_net(self) -> SiTControlNet:
+    def control_net(self) -> SiTHyperNet:
         """
         Get the controlnet used.
 

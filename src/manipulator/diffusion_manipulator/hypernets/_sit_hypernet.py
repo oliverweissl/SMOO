@@ -6,7 +6,7 @@ import torch
 from torch import Tensor, nn
 from torch.utils.checkpoint import checkpoint
 
-from ._internal.models.sit import SiT
+from .._internal.models.sit import SiT
 
 
 def mean_flat(x: Tensor) -> Tensor:
@@ -36,8 +36,8 @@ class ZeroLinear(nn.Linear):
             nn.init.zeros_(self.bias)
 
 
-class SiTControlNet(nn.Module):
-    """A ControlNet implementation for SiT."""
+class SiTHyperNet(nn.Module):
+    """A ControlNet-like implementation for SiT."""
 
     _raw_y: bool
 

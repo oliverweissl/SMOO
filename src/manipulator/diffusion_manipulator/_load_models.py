@@ -134,7 +134,7 @@ def load_ldm_celebhq(
     """
     unet = UNet2DModel.from_pretrained("CompVis/ldm-celebahq-256", subfolder="unet")
     vqvae = VQModel.from_pretrained("CompVis/ldm-celebahq-256", subfolder="vqvae")
-    scheduler = DDIMScheduler.from_config("CompVis/ldm-celebahq-256", subfolder="scheduler")
+    scheduler = DDIMScheduler.from_pretrained("CompVis/ldm-celebahq-256", subfolder="scheduler")
 
     unet.to(device=device)
     vqvae.to(device=device)
