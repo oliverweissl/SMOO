@@ -125,7 +125,7 @@ def load_default_sit(model_file: str, device: torch.device) -> LoadedSiTContaine
 
 def load_ldm_celebhq(
     device: torch.device,
-) -> tuple[torch.nn.Module, torch.nn.Module, DDIMScheduler]:
+) -> tuple[UNet2DModel, VQModel, DDIMScheduler]:
     """
     Loads a pretrained CELEB-HQ LDM (Unet) model.
 

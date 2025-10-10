@@ -97,7 +97,7 @@ class SiTHyperNet(nn.Module):
             *self.zero_layers.parameters(),
         ]
 
-    def forward_full(
+    def forward(
         self,
         x: Tensor,
         y: Tensor,
@@ -136,7 +136,7 @@ class SiTHyperNet(nn.Module):
             x_initial = x.clone()
             t = t_cur.expand(x.size(0))
 
-            x, _ = self._denoise_step(x, t, y_embed, control, use_checkpoint=True)
+            x, _ = self._denoise_step(x, t, y_embed, control)
 
             if cond:
                 x_cond, x_uncond = x.chunk(2)
@@ -146,92 +146,7 @@ class SiTHyperNet(nn.Module):
 
         return x.chunk(2)[0] if cond else x
 
-    def forward(
-        self,
-        x: Tensor,
-        y: Tensor,
-        control: Tensor,
-        weighting: str = "uniform",
-        path_type: str = "linear",
-        time_input: Optional[Tensor] = None,
-        noises: Optional[Tensor] = None,
-    ) -> tuple[Tensor, Tensor]:
-        """
-        Single denoising step training - used for training individual timesteps.
-
-        :param x: (N, C, H, W) tensor of spatial inputs (images or latent representations of images UNNORMALIZED).
-        :param y: (N,) tensor of class labels.
-        :param weighting: Weighting scheme for time input (uniform or lognormal).
-        :param path_type: Interpolant path (linear or cosine).
-        :param control: (N, *S) tensor of control tokens to use for the forward pass.
-        :param time_input: Provide an optional tensor of timesteps to use for the forward pass, otherwise sample from a distribution.
-        :param noises: Provide an optional tensor of noises to use for the forward pass, otherwise sample from a distribution.
-        :returns: The results of the forward pass, including the denoising loss.
-        """
-        x = self.base_model.bn(x)
-        time_input = self._time_input(time_input, x, weighting, path_type)
-        time_input = time_input.to(device=x.device, dtype=x.dtype)
-
-        noises = (
-            torch.randn_like(x) if noises is None else noises.to(device=x.device, dtype=x.dtype)
-        )
-        alpha_t, sigma_t, d_alpha_t, d_sigma_t = self.base_model.interpolant(
-            time_input, path_type=path_type
-        )
-        model_input = alpha_t * x + sigma_t * noises
-
-        y_embed = self._get_y_embed(y)
-        pred, x_embedded = self._denoise_step(model_input, time_input.flatten(), y_embed, control)
-
-        model_target = d_alpha_t * x_embedded + d_sigma_t * noises
-        denoising_loss = mean_flat((pred - model_target) ** 2)
-        return pred, denoising_loss
-
-    @torch.no_grad()
-    def inference(self, x: Tensor, t: Tensor, y: Tensor, control: Tensor) -> Tensor:
-        """
-        Single denoising step inference - used for sampling/generation.
-
-        :param x: The noisy latent representations of images.
-        :param t: The timesteps to use for the denoising.
-        :param y: The class labels to use for the denoising.
-        :param control: The control map to use for the denoising.
-        :returns: The one step denoised latent representations of images.
-        """
-        y_embed = self._get_y_embed(y)
-        x, _ = self._denoise_step(x, t, y_embed, control)
-        return x
-
     """Private methods in the ControlNet."""
-
-    def _time_input(
-        self, time_input: Optional[Tensor], normalized_x: Tensor, weighting: str, path_type: str
-    ) -> Tensor:
-        """
-        Generates time input for the forward pass.
-
-        :param time_input: The time input tensor, if provided.
-        :param normalized_x: The normalized input tensor.
-        :param weighting: Weighting scheme for time input (uniform or lognormal).
-        :param path_type: Interpolant parth (linear or cosine).
-        :returns: The time input tensor.
-        :raises NotImplementedError: If the weighting scheme is not supported.
-        """
-        if time_input is None:
-            if weighting == "uniform":
-                time_input = torch.rand((normalized_x.shape[0], 1, 1, 1))
-            elif weighting == "lognormal":
-                rnd_normal = torch.randn((normalized_x.shape[0], 1, 1, 1))
-                sigma = rnd_normal.exp()
-                if path_type == "linear":
-                    time_input = sigma / (1 + sigma)
-                elif path_type == "cosine":
-                    time_input = 2 / torch.pi * torch.atan(sigma)
-            else:
-                raise NotImplementedError(f"Weighting scheme {weighting} not implemented.")
-        elif time_input.ndim == 1:
-            time_input = time_input[:, None, None, None]
-        return time_input
 
     def _get_y_embed(self, y: Tensor) -> Tensor:
         """
@@ -256,7 +171,7 @@ class SiTHyperNet(nn.Module):
         return control_tokens
 
     def _denoise_step(
-        self, x: Tensor, t: Tensor, y_embed: Tensor, control: Tensor, use_checkpoint: bool = False
+        self, x: Tensor, t: Tensor, y_embed: Tensor, control: Tensor
     ) -> tuple[Tensor, Tensor]:
         """
         Core denoising step logic shared by all methods.
@@ -265,7 +180,6 @@ class SiTHyperNet(nn.Module):
         :param t: Timestep tensor.
         :param y_embed: Y embedding tensor.
         :param control: Control tensor.
-        :param use_checkpoint: Whether to use gradient checkpointing.
         :returns: Denoised output tensor and initial embedded x tensor.
         """
         x_embed = self.base_model.x_embedder(x) + self.base_model.pos_embed
@@ -275,12 +189,7 @@ class SiTHyperNet(nn.Module):
         t_embed = self.base_model.t_embedder(t)
         c = t_embed + y_embed
 
-        if use_checkpoint:
-            controlnet_outputs = checkpoint(
-                self._control_forward, x_control, c, use_reentrant=False
-            )
-        else:
-            controlnet_outputs = self._control_forward(x_control, c)
+        controlnet_outputs = checkpoint(self._control_forward, x_control, c, use_reentrant=False)
 
         x = self._backbone_forward(controlnet_outputs, x_embed, c)
         x = self.base_model.final_layer(x, c)
