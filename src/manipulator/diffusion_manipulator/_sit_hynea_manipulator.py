@@ -6,14 +6,15 @@ import torch
 from diffusers import DDPMScheduler
 from torch import Tensor, nn
 
-from .. import Manipulator
+from ._diffusion_candidate import DiffusionCandidateList
+from ._diffusion_manipulator import DiffusionManipulator
 from ._internal.models.sit import SiT
 from ._load_models import load_default_sit
 from ._utils import prepare_cuda
 from .hypernets import SiTHyperNet
 
 
-class SitHyNeAManipulator(Manipulator):
+class SitHyNeAManipulator(DiffusionManipulator):
     """A trainer class for the ControlNet."""
 
     _device: torch.device
@@ -83,21 +84,70 @@ class SitHyNeAManipulator(Manipulator):
         self._control_net = SiTHyperNet(self._model, self._control_shape)
         self._control_net.to(self._device)
 
-    def manipulate(self, x: Tensor, y: list[int], c: Tensor) -> Tensor:
+    def get_diff_steps(
+        self, class_labels: list[int], n_steps: int = 50, x_0: Optional[Tensor] = None
+    ) -> tuple[Tensor, Tensor]:
+        """
+        Get latent information for all diffusion steps with optimized memory usage.
+
+        :param class_labels: Class label to generate diffusion steps for.
+        :param n_steps: Number of steps in the denoising.
+        :param x_0: Optional starting latent vector if sampled differently.
+        :returns: A list of latent vectors through denoising and the class embedding.
+        """
+        batch_size = len(class_labels)
+
+        x_cur = (
+            x_0.to(self._device)
+            if x_0 is not None
+            else torch.randn(
+                batch_size,
+                self._in_channels,
+                self._latent_size,
+                self._latent_size,
+                device=self._device,
+            )
+        )
+
+        t_steps = torch.linspace(1, 0, n_steps + 1, device=self._device)
+        y_cur = self._embed_y(class_labels)
+
+        xs = torch.empty(
+            n_steps + 1,
+            *x_cur.shape,
+            device=self._device,
+        )
+        xs[0] = x_cur  # Store the initial Noise.
+
+        # Optimized diffusion loop with in-place updates
+        for i, (t_cur, t_next) in enumerate(zip(t_steps[:-1], t_steps[1:])):
+            x_cur = self._sample(t=t_cur, x=x_cur, y=y_cur, step=t_next - t_cur)
+            xs[i + 1] = x_cur
+
+        return xs.detach(), y_cur
+
+    def manipulate(self, candidates: DiffusionCandidateList, **kwargs) -> Tensor:
         """
         Manipulate inputs with their respective control signals.
 
-        :param x: Tensor of shape `(B, C, H, W)`.
-        :param y: The labels for each X (len=B).
-        :param c: The control signals for each X.
+        :param candidates: The candidates to manipulate.
+        :param kwargs: Additional KW-Args.
         :return: The sampled outputs.
         """
-        y_cur = self._embed_y(y)
-        y_null = self._embed_y([1000] * y_cur.shape[0])
-        x = self._control_net.forward(
-            x=x, y=y_cur, control=c, cfg=self._cfg, guidance_bounds=(0.0, 1.0), y_null=y_null
-        )
-        return x
+        xs = []
+        for c in candidates:
+            y_cur = self._embed_y(c.y)
+            y_null = self._embed_y([1000] * y_cur.shape[0])
+            x = self._control_net.forward(
+                x=c.xt[0],
+                y=y_cur,
+                control=c.control,
+                cfg=self._cfg,
+                guidance_bounds=(0.0, 1.0),
+                y_null=y_null,
+            )
+            xs.append(x)
+        return torch.cat(xs, dim=0)
 
     @property
     def control_net(self) -> SiTHyperNet:
@@ -119,12 +169,12 @@ class SitHyNeAManipulator(Manipulator):
         else:
             self._control_net.gradient_checkpointing_disable()
 
-    def get_image(self, z: Tensor) -> Tensor:
+    def get_images(self, z: Tensor) -> Tensor:
         """
         Decode image from latent vector.
 
         :param z: The latent vector.
-        :return: The decoded image.
+        :return: The decoded image, color-range [0,1].
         """
         logging.info("Sampling Images from denoised Latents.")
         if z.ndim == 3:  # Ensure batch dimension is present.
@@ -143,3 +193,45 @@ class SitHyNeAManipulator(Manipulator):
                 element = torch.clamp(element.mul_(0.5).add_(0.5), 0.0, 1.0)
                 decoded.append(element)
         return torch.cat(decoded, dim=0)
+
+    def _sample(
+        self,
+        t: Tensor,
+        x: Tensor,
+        y: Tensor,
+        step: float,
+        guidance_bounds: tuple[float, float] = (0.0, 1.0),
+        **_,
+    ) -> Tensor:
+        """
+        Sampling new outputs based on euler_sampler in REPA-E repo.
+
+        :param t: The current time step.
+        :param x: The current state of the diffusion process.
+        :param y: The current class embedding of the diffusion process.
+        :param step: The step size.
+        :param guidance_bounds: Guidance bounds for conditions in the sampling.
+        :param _: Unused keyword arguments.
+        :returns: The sampled outputs for the current timestep.
+        """
+        cond = self._cfg > 1.0 and guidance_bounds[1] >= t >= guidance_bounds[0]
+
+        with torch.enable_grad():
+            t_curr = torch.full(size=(y.size(0),), fill_value=t.item(), device=self._device)
+            if cond:
+                model_input = x.repeat(2, *([1] * (x.ndim - 1)))
+                null_embedding_cache = self._embed_y([1000] * y.shape[0])
+
+                y_curr = torch.cat((y, null_embedding_cache), dim=0)
+                t_curr = t_curr.repeat(2, *([1] * (t_curr.ndim - 1)))
+            else:
+                model_input, y_curr = x, y
+            d_cur = self._model.partial_inference(
+                x=model_input, t=t_curr, y=y_curr, require_grad=True
+            )
+
+        if cond:
+            d_cur_cond, d_cur_uncond = d_cur.chunk(2)
+            d_cur = d_cur_uncond + self._cfg * (d_cur_cond - d_cur_uncond)
+
+        return x + step * d_cur

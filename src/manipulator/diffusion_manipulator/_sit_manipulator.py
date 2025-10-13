@@ -4,14 +4,14 @@ from typing import Callable, Optional, Union
 import torch
 from torch import Tensor, nn
 
-from .. import Manipulator
 from ._diffusion_candidate import DiffusionCandidateList
+from ._diffusion_manipulator import DiffusionManipulator
 from ._internal.models.sit import SiT
 from ._load_models import load_default_sit
 from ._utils import prepare_cuda
 
 
-class SiTManipulator(Manipulator):
+class SiTManipulator(DiffusionManipulator):
     """A Manipulator made for REPA-E trained SiT diffusion models."""
 
     _device: torch.device
@@ -102,22 +102,18 @@ class SiTManipulator(Manipulator):
     def manipulate(
         self,
         candidates: DiffusionCandidateList,
-        weights_x: Tensor,
-        weights_y: Tensor,
-        return_manipulation_history: bool = False,
+        **kwargs,
     ) -> Union[Tensor, tuple[Tensor, DiffusionCandidateList]]:
         """
         Manipulate the diffusion processes of candidates.
 
         :param candidates: Candidates to manipulate.
-        :param weights_x: Weights to manipulate diffusion process.
-        :param weights_y: Weights to manipulate class embeddings.
-        :param return_manipulation_history: Whether to return a candidate representing the manipulation history.
+        :param kwargs: Additional KW-Args, needs `weights_x: Tensor` and `weights_y: Tensor` to work.
         :returns: The resulting diffusion result.
         :raises IndexError: If candidates have no origin or targets.
         """
-        weights_x = weights_x.to(self._device)
-        weights_y = weights_y.to(self._device)
+        weights_x = kwargs["weights_x"].to(self._device)
+        weights_y = kwargs["weights_y"].to(self._device)
 
         logging.info(f"Manipulating {len(candidates)} candidates.")
         t_steps = torch.linspace(
@@ -164,7 +160,7 @@ class SiTManipulator(Manipulator):
         """Return a candidate with the manipulation history if wanted."""
         return (
             (manip_cand.xts[:, -1, ...], manip_cand)
-            if return_manipulation_history
+            if kwargs.get("return_manipulation_history", False)
             else manip_cand.xts[:, -1, ...]
         )
 
@@ -348,7 +344,7 @@ class SiTManipulator(Manipulator):
 
         return xs.detach(), y_cur
 
-    def get_image(self, z: Tensor) -> Tensor:
+    def get_images(self, z: Tensor) -> Tensor:
         """
         Decode image from latent vector.
 

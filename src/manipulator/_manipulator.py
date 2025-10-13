@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
+from torch import Tensor
+
 from ._candidate import Candidate, CandidateList
 
 
@@ -26,3 +28,13 @@ class Manipulator(ABC):
         :raises NotImplementedError: This method is not implemented.
         """
         raise NotImplementedError("This method is not implemented.")
+
+    @abstractmethod
+    def get_images(self, z: Tensor) -> Tensor:
+        """
+        Get images from latent vector.
+
+        :param z: The latent vector.
+        :return: The decoded image, color-range [0,1] (BxCxHxW).
+        """
+        ...

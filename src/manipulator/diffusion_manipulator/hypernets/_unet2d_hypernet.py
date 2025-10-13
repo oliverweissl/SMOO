@@ -269,3 +269,11 @@ class UNet2DHyperNet(nn.Module):
                 x, res_samples = downsample_block(hidden_states=x, temb=emb)
             down_block_res_samples += res_samples
         return down_block_res_samples, x
+
+    def set_timesteps(self, steps: int) -> None:
+        """
+        Set timesteps for scheduler.
+
+        :param steps: The number of timesteps.
+        """
+        self._scheduler.set_timesteps(steps)
