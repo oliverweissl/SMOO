@@ -11,7 +11,8 @@ from torch import Tensor
 from src import SMOO
 from src.manipulator.diffusion_manipulator import (
     DiffusionCandidate,
-    SitHyNeAManipulator,
+    DiffusionCandidateList,
+    DiffusionManipulator,
 )
 from src.objectives import CriterionCollection
 from src.optimizer import TorchModelOptimizer
@@ -23,7 +24,7 @@ from ._experiment_config import ExperimentConfig
 class HyNeATester(SMOO):
     """A tester class that implements the HyNeA method."""
 
-    _manipulator: SitHyNeAManipulator
+    _manipulator: DiffusionManipulator
     _optimizer: TorchModelOptimizer
     _sut: ClassifierSUT
     _config: ExperimentConfig
@@ -32,7 +33,7 @@ class HyNeATester(SMOO):
         self,
         *,
         sut: ClassifierSUT,
-        manipulator: SitHyNeAManipulator,
+        manipulator: DiffusionManipulator,
         optimizer: TorchModelOptimizer,
         objectives: CriterionCollection,
         config: ExperimentConfig,
@@ -55,7 +56,6 @@ class HyNeATester(SMOO):
             restrict_classes=config.restrict_classes,
             use_wandb=False,
         )
-        # TODO: fix checkpointing for better memory usage
         self._sut.gradient_checkpointing(enable=True)
         self._manipulator.gradient_checkpointing(enable=True)
 
@@ -74,15 +74,15 @@ class HyNeATester(SMOO):
             target_class = int(second.item()) if self._config.run_targeted else class_id
             control = torch.zeros(1, 1000, device=self._manipulator._device)
             control[:, target_class] = 1
+            cand_i.control = control
+            cand_list = DiffusionCandidateList(cand_i)
 
             xf_best, if_best, yf_best, budget = cand_i.xt, i0, y0, 0
             gen_data, best_fitness = [], {}
             iter_start = time()
             for i in range(self._config.generations * self._config.pop_size):  # * 100 is pop size
-                x_f = self._manipulator.manipulate(
-                    x=cand_i.xt[0].unsqueeze(0), y=[class_id], c=control
-                )
-                i_f = self._manipulator.get_image(x_f)
+                x_f = self._manipulator.manipulate(cand_list)
+                i_f = self._manipulator.get_images(x_f)
 
                 y_f = self._process(i_f)
                 budget += i_f.size(0)
@@ -147,7 +147,7 @@ class HyNeATester(SMOO):
         """
         while True:
             xt, emb = self._manipulator.get_diff_steps([class_id])
-            image = self._manipulator.get_image(xt[-1])
+            image = self._manipulator.get_images(xt[-1])
             y_hat = self._process(image)
             if torch.argmax(y_hat) == class_id:
                 break
@@ -156,5 +156,5 @@ class HyNeATester(SMOO):
             )
             del xt, emb, image, y_hat
             torch.cuda.empty_cache()
-        candidate = DiffusionCandidate(xt.squeeze(), emb, is_origin=is_origin)
+        candidate = DiffusionCandidate(xt.squeeze(), emb, is_origin=is_origin, y=class_id)
         return candidate, y_hat, image
