@@ -14,18 +14,18 @@ class IsMisclassified(ClassifierCriterion):
         """Initialize the criterion."""
         super().__init__(allow_batched=True)
 
-    def evaluate(self, *, logits: Tensor, label_targets: list[int], **_: Any) -> list[float]:
+    def evaluate(self, *, logits: Tensor, initial_predictions: Tensor, **_: Any) -> list[float]:
         """
         Check if a prediction is incorrect.
 
         This function assumes an input range of [0, 1].
 
         :param logits: Tensor of predictions.
-        :param label_targets: Label targets.
+        :param initial_predictions: Initial predictions of labels.
         :param _: Unused kwargs.
         :returns: The value.
         """
-        c1 = label_targets[0]
+        c1 = initial_predictions[0]
 
         tensor_results: Tensor = (
             (logits.argmax(dim=1) == c1) if self._inverse else (logits.argmax(dim=1) != c1)

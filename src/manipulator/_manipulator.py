@@ -1,3 +1,4 @@
+import logging
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -25,9 +26,10 @@ class Manipulator(ABC):
         Toggle gradient checkpointing if implemented.
 
         :param enable: Whether to enable gradient checkpointing.
-        :raises NotImplementedError: This method is not implemented.
         """
-        raise NotImplementedError("This method is not implemented.")
+        logging.warning(
+            f"Gradient checkpointing is not implemented for {self.__class__.__name__}. Gradients will be computed for the whole forward pass."
+        )
 
     @abstractmethod
     def get_images(self, z: Tensor) -> Tensor:

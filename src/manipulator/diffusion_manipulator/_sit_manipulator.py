@@ -300,17 +300,18 @@ class SiTManipulator(DiffusionManipulator):
         return x + step * d_cur
 
     def get_diff_steps(
-        self, class_labels: list[int], n_steps: int = 50, x_0: Optional[Tensor] = None
+        self, class_labels: list[int], n_steps: Optional[int] = None, x_0: Optional[Tensor] = None
     ) -> tuple[Tensor, Tensor]:
         """
         Get latent information for all diffusion steps with optimized memory usage.
 
         :param class_labels: Class label to generate diffusion steps for.
-        :param n_steps: Number of steps in the denoising.
+        :param n_steps: Number of steps in the denoising (Default=50).
         :param x_0: Optional starting latent vector if sampled differently.
         :returns: A list of latent vectors through denoising and the class embedding.
         """
         batch_size = len(class_labels)
+        n_steps = n_steps or 50
 
         x_cur = (
             x_0.to(self._device)

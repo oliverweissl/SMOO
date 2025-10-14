@@ -48,7 +48,15 @@ class DiffusionCandidateList(CandidateList[DiffusionCandidate]):
         """
         super().__init__(*initial_candidates)
         self._candidates = list(initial_candidates)
-        self._xts = torch.stack([c.xt for c in self._candidates], dim=0)
+
+        if len(self._candidates) > 0:
+            self._xts = torch.stack([c.xt for c in self._candidates], dim=0)
+            self._class_embeddings = torch.stack(
+                [c.class_embedding for c in self._candidates], dim=0
+            )
+        else:
+            self._xts = None
+            self._class_embeddings = None
 
         if separate_candidates:
             self._origin = DiffusionCandidateList(
@@ -57,8 +65,6 @@ class DiffusionCandidateList(CandidateList[DiffusionCandidate]):
             self._target = DiffusionCandidateList(
                 *(c for c in self._candidates if not c.is_origin), separate_candidates=False
             )
-
-        self._class_embeddings = torch.stack([c.class_embedding for c in self._candidates], dim=0)
 
     @property
     def class_embeddings(self) -> Tensor:

@@ -85,7 +85,7 @@ class SitHyNeAManipulator(DiffusionManipulator):
         self._control_net.to(self._device)
 
     def get_diff_steps(
-        self, class_labels: list[int], n_steps: int = 50, x_0: Optional[Tensor] = None
+        self, class_labels: list[int], n_steps: Optional[int] = None, x_0: Optional[Tensor] = None
     ) -> tuple[Tensor, Tensor]:
         """
         Get latent information for all diffusion steps with optimized memory usage.
@@ -96,6 +96,7 @@ class SitHyNeAManipulator(DiffusionManipulator):
         :returns: A list of latent vectors through denoising and the class embedding.
         """
         batch_size = len(class_labels)
+        n_steps = n_steps or self._n_steps
 
         x_cur = (
             x_0.to(self._device)
@@ -118,8 +119,6 @@ class SitHyNeAManipulator(DiffusionManipulator):
             device=self._device,
         )
         xs[0] = x_cur  # Store the initial Noise.
-
-        # Optimized diffusion loop with in-place updates
         for i, (t_cur, t_next) in enumerate(zip(t_steps[:-1], t_steps[1:])):
             x_cur = self._sample(t=t_cur, x=x_cur, y=y_cur, step=t_next - t_cur)
             xs[i + 1] = x_cur
@@ -135,11 +134,12 @@ class SitHyNeAManipulator(DiffusionManipulator):
         :return: The sampled outputs.
         """
         xs = []
+        # TODO: could be run all together instead of for loop ?? -> maybe too much memory usage tho.
         for c in candidates:
-            y_cur = self._embed_y(c.y)
+            y_cur = self._embed_y([c.y])
             y_null = self._embed_y([1000] * y_cur.shape[0])
             x = self._control_net.forward(
-                x=c.xt[0],
+                x=c.xt[0].unsqueeze(0),  # Here we add a pseudo-batch dimension.
                 y=y_cur,
                 control=c.control,
                 cfg=self._cfg,
@@ -164,10 +164,7 @@ class SitHyNeAManipulator(DiffusionManipulator):
 
         :param enable: Whether to enable gradient checkpointing.
         """
-        if enable:
-            self._control_net.gradient_checkpointing_enable()
-        else:
-            self._control_net.gradient_checkpointing_disable()
+        self._control_net.use_checkpoints = enable
 
     def get_images(self, z: Tensor) -> Tensor:
         """

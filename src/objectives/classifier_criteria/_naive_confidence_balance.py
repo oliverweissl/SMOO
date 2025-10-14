@@ -21,22 +21,22 @@ class NaiveConfidenceBalance(ClassifierCriterion):
         super().__init__(inverse=inverse)
         self._target_primary = target_primary
 
-    def evaluate(self, *, logits: Tensor, label_targets: list[int], **_: Any) -> float:
+    def evaluate(self, *, logits: Tensor, initial_predictions: Tensor, **_: Any) -> float:
         """
         Calculate the confidence balance of two confidence values.
 
         This functions assumes input range of [0, 1].
 
         :param logits: The predicted logits.
-        :param label_targets: The target labels in question.
+        :param initial_predictions: The initially predicted labels, sorted by probability.
         :param _: Unused kwargs.
         :returns: The value.
         """
-        # TODO: investigate to improve this since |d| makes this non-linear.
-        c1, c2 = label_targets[:2]
+        c1, c2, *_ = initial_predictions[:2]
         y1p, y2p = logits[c1], logits[c2]
 
         s = y1p + y2p
+        # TODO: investigate to improve this since |d| makes this non-linear.
         d = abs(y1p - y2p)
 
         if self._target_primary is None:

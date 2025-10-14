@@ -16,7 +16,7 @@ from src.manipulator.diffusion_manipulator import (
 )
 from src.objectives import CriterionCollection
 from src.optimizer import TorchModelOptimizer
-from src.sut import ClassifierSUT
+from src.sut import BinaryClassifierSUT, ClassifierSUT, YoloSUT
 
 from ._experiment_config import ExperimentConfig
 
@@ -62,18 +62,47 @@ class HyNeATester(SMOO):
         self._config = config
 
     def test(self) -> None:
-        """Start the HyNeA-based testing."""
+        """
+        Start the HyNeA-based testing.
+
+        :raises NotImplementedError: This method is not implemented for a specific SUT.
+        """
         script_dir = os.path.dirname(os.path.abspath(__file__))
         for class_id, sample_idx in product(
             self._config.classes, range(self._config.samples_per_class)
         ):
             logging.info(f"Test class {class_id}, sample idx {sample_idx}.")
             cand_i, y0, i0 = self._find_valid_candidate(class_id, is_origin=True)
-            _, second, *_ = torch.argsort(y0[0], descending=True)
+            initial_pred = torch.argsort(y0[0], descending=True)
+            control = torch.zeros(1, *self._manipulator._control_shape, device=cand_i.xt.device)
+            assert (
+                control.shape == y0.shape
+            ), f"Error in Control shape. Got {control.shape} instead of {y0.shape}."
 
-            target_class = int(second.item()) if self._config.run_targeted else class_id
-            control = torch.zeros(1, 1000, device=self._manipulator._device)
-            control[:, target_class] = 1
+            # Adapt the functionality of testing based on the SUT.
+            if isinstance(self._sut, ClassifierSUT):
+                target = int(initial_pred[1].item()) if self._config.run_targeted else class_id
+                control[:, target] = 1
+
+                # Updates solution if the prediction of target increases.
+                update_solution_func = lambda curr, best: curr[:target] > best[:target]
+                # Terminates early if the prediction is the target.
+                found_solution_func = lambda curr: curr.argmax().item() == target
+            elif isinstance(self._sut, BinaryClassifierSUT):
+                curr_pred = (y0[0][class_id] > 0).real
+                target = 1 - curr_pred
+                control[:, class_id] = target
+
+                # Updates solution if it wanders closer to a sign flip.
+                update_solution_func = lambda curr, best: curr[:class_id] < best[:class_id]
+                # Terminates early if the sign flipped.
+                found_solution_func = lambda curr: torch.all(
+                    (((curr[:class_id] / torch.abs(curr[:class_id])) + 1) / 2).eq(target)
+                )
+            else:
+                raise NotImplementedError(
+                    f"Tester does not support SUTs of type {type(self._sut)} yet."
+                )
             cand_i.control = control
             cand_list = DiffusionCandidateList(cand_i)
 
@@ -87,10 +116,9 @@ class HyNeATester(SMOO):
                 y_f = self._process(i_f)
                 budget += i_f.size(0)
 
-                # We need to unsqueeze the target to match batch size.
                 self._objectives.evaluate_all(
                     logits=y_f,
-                    target=class_id,
+                    initial_predictions=initial_pred,
                     images=[i0, i_f],
                     batch_dim=0,
                 )
@@ -99,11 +127,13 @@ class HyNeATester(SMOO):
                 row |= self._objectives.results
                 gen_data.append(row)
                 self._optimizer.assign_fitness(self._objectives.results.values())
-                if y_f[:, target_class] > yf_best[:, target_class]:
+
+                """Check conditions to either update best solution or terminate early."""
+                if update_solution_func(y_f, yf_best):
                     xf_best, if_best, yf_best = x_f, i_f, y_f
                     best_fitness = self._objectives.results
 
-                if y_f.argmax().item() == target_class:
+                if found_solution_func(y_f):
                     logging.info(f"Found solution after {i} steps")
                     break
 
@@ -123,7 +153,7 @@ class HyNeATester(SMOO):
             df.to_csv(log_dir + "/data.csv", index=False)
 
             self._save_tensor_as_image(i0, log_dir + f"/origin_{class_id}.png")
-            self._save_tensor_as_image(if_best, log_dir + f"/taget_{target_class}.png")
+            self._save_tensor_as_image(if_best, log_dir + f"/taget_{target}.png")
 
             with open(f"{log_dir}/stats.json", "w") as f:
                 f.write(json.dumps(stats))
@@ -148,13 +178,10 @@ class HyNeATester(SMOO):
         while True:
             xt, emb = self._manipulator.get_diff_steps([class_id])
             image = self._manipulator.get_images(xt[-1])
-            y_hat = self._process(image)
-            if torch.argmax(y_hat) == class_id:
+            valid, y0 = self._sut.input_valid(image, class_id)
+            if valid:
                 break
-            logging.warning(
-                f"Failed to find candidate for {class_id}, predicted {torch.argmax(y_hat)}"
-            )
-            del xt, emb, image, y_hat
+            del xt, emb, image, y0
             torch.cuda.empty_cache()
         candidate = DiffusionCandidate(xt.squeeze(), emb, is_origin=is_origin, y=class_id)
-        return candidate, y_hat, image
+        return candidate, y0, image

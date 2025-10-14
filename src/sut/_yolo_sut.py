@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional
 
 import torch
 from torch import Tensor
@@ -111,3 +111,13 @@ class YoloSUT(SUT):
         return_indices = self._return_indices or torch.arange(sorted_data.shape[-1])
         return_data = sorted_data[:, :, return_indices]
         return return_data if len(return_indices) > 1 else return_data.squeeze(-1)
+
+    def input_valid(self, inpt: Any, cond: Any) -> tuple[bool, Any]:
+        """
+        Validate input for YOLO:
+
+        :param inpt: Input tensor.
+        :param cond: The condition to check against.
+        :raises NotImplementedError: If not implemented.
+        """
+        raise NotImplementedError("input_valid not implemented for this function.")

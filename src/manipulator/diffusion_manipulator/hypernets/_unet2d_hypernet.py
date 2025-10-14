@@ -55,6 +55,8 @@ class ControlProjector(nn.Module):
 class UNet2DHyperNet(nn.Module):
     """A hypernet class for UNet2D models."""
 
+    use_checkpoints: bool = True
+
     def __init__(
         self,
         model: UNet2DModel,
@@ -179,9 +181,12 @@ class UNet2DHyperNet(nn.Module):
         emb = self._model.time_embedding(t_emb)
 
         # Get control residuals and control x from down sampling control network.
-        control_down_residuals, control_x = checkpoint(
-            self._control_down, x, control, emb, use_reentrant=False
-        )
+        if self.use_checkpoints:
+            control_down_residuals, control_x = checkpoint(
+                self._control_down, x, control, emb, use_reentrant=False
+            )
+        else:
+            control_down_residuals, control_x = self._control_down(x, control, emb)
         # Get residuals and current x from down sampling network.
         down_residuals, x = self._down(x, emb)
 

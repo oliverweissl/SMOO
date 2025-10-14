@@ -115,29 +115,32 @@ class MimicryTester(SMOO):
             Note this can be extended to any n predictions, but for this approach we limited it to 2.
             Additionally this can be generalized to N w0 vectors, but now we only consider one.
             """
-            first, second, *_ = torch.argsort(w0_ys, descending=True)[0]
+            initial_pred = torch.argsort(w0_ys, descending=True)[0]
             self._img_rgb = w0_images[0]
 
-            exclude = [first.item()] if (unique_generation and class_idx != -1) else list()
+            exclude = (
+                [initial_pred[0].item()] if (unique_generation and class_idx != -1) else list()
+            )
             wn_tensors, wn_images, wn_ys, wn_trials = (
                 self._generate_noise(self._num_ws)
                 if validity_domain
                 else self._generate_seeds(
                     self._num_ws,
-                    second.item() if self._config.conditional else -1,
+                    initial_pred[1].item() if self._config.conditional else -1,
                     exclude=exclude,
                 )
             )
-            second, *_ = torch.argsort(wn_ys, descending=True)[0]
             """
             Note that the w0s and ws' do not have to share a label, but for this implementation we do not control the labels separately.
             """
             # We parse the cached tensors of w vectors as we generated them already for getting the initial prediction.
             w0c = [
-                MixCandidate(label=first.item(), is_w0=True, w_tensor=tensor)
+                MixCandidate(label=initial_pred[0].item(), is_w0=True, w_tensor=tensor)
                 for tensor in w0_tensors
             ]
-            wsc = [MixCandidate(label=second.item(), w_tensor=tensor) for tensor in wn_tensors]
+            wsc = [
+                MixCandidate(label=initial_pred[1].item(), w_tensor=tensor) for tensor in wn_tensors
+            ]
             candidates = MixCandidateList(*w0c, *wsc)
 
             # Track generation history for comprehensive logging
@@ -158,7 +161,7 @@ class MimicryTester(SMOO):
                 )
 
                 images, fitness, preds, term_cond, gen_data = self._inner_loop(
-                    candidates, first.item(), second.item(), gen + 1
+                    candidates, initial_pred, gen + 1
                 )
                 budget_used += images.shape[0]  # Add budget based on how many images are evaluated
                 all_gen_data.append(gen_data)
@@ -178,7 +181,7 @@ class MimicryTester(SMOO):
             else:
                 # Evaluate the last generation.
                 images, fitness, preds, term_cond, gen_data = self._inner_loop(
-                    candidates, first.item(), second.item(), self._config.generations
+                    candidates, initial_pred[0], self._config.generations
                 )
                 budget_used += images.shape[0]
                 all_gen_data.append(gen_data)
@@ -188,7 +191,7 @@ class MimicryTester(SMOO):
 
             """Save data."""
             log_dir = os.path.join(
-                script_dir, f"runs/{self._config.save_as}_class_{first.item()}_{time()}"
+                script_dir, f"runs/{self._config.save_as}_class_{initial_pred[0].item()}_{time()}"
             )
             os.makedirs(log_dir, exist_ok=True)
 
@@ -204,7 +207,7 @@ class MimicryTester(SMOO):
                 "w0_predictions": w0_ys.cpu().squeeze().tolist(),
                 "wn_predictions": wn_ys.cpu().squeeze().tolist(),
                 "budget_used": budget_used,
-                "expected_target": second.item(),
+                "expected_target": initial_pred[1].item(),
                 "seed": seeds[sample_id],
             }
 
@@ -226,9 +229,13 @@ class MimicryTester(SMOO):
                     stats[f"best_{i}_fitness"] = list(bc.fitness)
 
             # Save origin and target images
-            self._save_tensor_as_image(self._img_rgb, log_dir + f"/origin_{first.item()}.png")
+            self._save_tensor_as_image(
+                self._img_rgb, log_dir + f"/origin_{initial_pred[0].item()}.png"
+            )
             if wn_images.shape[0] > 0:
-                self._save_tensor_as_image(wn_images[0], log_dir + f"/target_{second.item()}.png")
+                self._save_tensor_as_image(
+                    wn_images[0], log_dir + f"/target_{initial_pred[1].item()}.png"
+                )
 
             # Save stats as JSON
             with open(f"{log_dir}/stats.json", "w") as f:
@@ -244,16 +251,14 @@ class MimicryTester(SMOO):
     def _inner_loop(
         self,
         candidates: MixCandidateList,
-        c1: int,
-        c2: int,
+        initial_pred: Tensor,
         generation: int,
     ) -> tuple[Tensor, tuple[NDArray, ...], Tensor, Optional[NDArray], dict[str, Any]]:
         """
         The inner loop for the learner.
 
         :param candidates: The mixing candidates to be used.
-        :param c1: The base class label.
-        :param c2: The second most likely label.
+        :param initial_pred: The initial prediction (Classes sorted by probability).
         :param generation: The current generation number.
         :returns: The images generated, the corresponding fitness, the softmax predictions, termination condition, and generation data.
         """
@@ -283,7 +288,7 @@ class MimicryTester(SMOO):
         self._objectives.evaluate_all(
             images=[origin_batch, images_tensor],
             logits=predictions,
-            label_targets=[c1, c2],
+            initial_predictions=initial_pred,
             solution_archive=list(),
             batch_dim=0,
         )

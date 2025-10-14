@@ -46,6 +46,15 @@ class ContextFilter(logging.Filter):
         return True
 
 
+class SafeFormatter(logging.Formatter):
+    """A formatter that safely handles unknown context."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        if not hasattr(record, "context"):
+            record.context = "unknown:0"
+        return super().format(record)
+
+
 def get_default_handler() -> logging.Handler:
     """
     Get a default handler.
@@ -54,7 +63,7 @@ def get_default_handler() -> logging.Handler:
     """
     handler = logging.StreamHandler()
     handler.setFormatter(
-        logging.Formatter(
+        SafeFormatter(
             "\033[94m[%(asctime)s]\033[0m - %(levelname)s - \033[90m%(context)s\033[0m - %(message)s"
         )
     )
@@ -68,7 +77,8 @@ def setup_logging() -> logging.Logger:
     :returns: The logger.
     """
     logger = logging.getLogger()
-    logger.setLevel(level=logging.INFO)
+    logger.handlers.clear()
     logger.addHandler(get_default_handler())
     logger.addFilter(ContextFilter())
+    logger.setLevel(logging.INFO)
     return logger

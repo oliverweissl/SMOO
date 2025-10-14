@@ -5,48 +5,35 @@ import torch
 from torch import Tensor, nn
 
 from ._sut import SUT
-from .auxiliary_components import MonteCarloDropoutScaffold
 
 
-class ClassifierSUT(SUT):
-    """A multi-class classifier SUT."""
+class BinaryClassifierSUT(SUT):
+    """A binary classifier SUT."""
 
     _model: nn.Module
-    _softmax: nn.Softmax
-
-    _apply_softmax: bool
-    _batch_size: int
 
     def __init__(
         self,
         model: nn.Module,
-        apply_softmax: bool = False,
-        use_mcd: bool = False,
         batch_size: int = 0,
         device: Optional[torch.device] = None,
         require_grad: bool = False,
     ) -> None:
         """
-        Initialize the classifier SUT.
+        Initialize a binary classifier SUT.
 
         :param model: The model to use.
-        :param apply_softmax: Whether to apply softmax or not.
-        :param use_mcd: Whether to use Monte Carlo Dropout or not.
         :param batch_size: The batch size to use for prediction.
         :param device: The device to use if available.
         :param require_grad: Whether to require gradients or not.
         """
-        self._apply_softmax = apply_softmax
         self._batch_size = batch_size
         self._device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-        self._model = MonteCarloDropoutScaffold(model) if use_mcd else model
-        self._model.eval()
-        self._softmax = nn.Softmax(dim=-1)
-
         self._require_grad = require_grad
+
+        self._model = model
+        self._model.eval()
         self._model.to(self._device)
-        self._softmax.to(self._device)
 
     def process_input(self, inpt: Tensor) -> Tensor:
         """
@@ -70,28 +57,20 @@ class ClassifierSUT(SUT):
         with torch.set_grad_enabled(self._require_grad):
             for c in chunks:
                 logits = self._model(c)
-                output = self._softmax(logits) if self._apply_softmax else logits
-                results.append(output)
+                results.append(logits)
         res = torch.cat(results, dim=0)
         return res
 
     def gradient_checkpointing(self, enable: bool = False) -> None:
         """
-        Toggle gradient checkpointing if available in API.
+        Toggle gradient checkpointing.
 
         :param enable: Whether to enable gradient checkpointing.
         """
-        if hasattr(self._model, "gradient_checkpointing_enable") and enable:
+        if enable:
             self._model.gradient_checkpointing_enable()
-            return
-
-        if hasattr(self._model, "gradient_checkpointing_disable") and not enable:
+        else:
             self._model.gradient_checkpointing_disable()
-            return
-
-        logging.warning(
-            f"Gradient checkpointing not exposed in {type(self._model)} API - gradients will be computed on whole forward pass."
-        )
 
     def input_valid(self, inpt: Tensor, cond: int) -> tuple[bool, Tensor]:
         """
@@ -99,10 +78,10 @@ class ClassifierSUT(SUT):
 
         :param inpt: Input tensor.
         :param cond: The condition to check against (Class label).
-        :returns: Whether the input is valid wrt. condition.
+        :returns: Always valid!!!.
         """
         pred = self.process_input(inpt)
-        if not torch.all(pred.argmax(dim=-1).eq(cond)):
-            logging.info(f"Inputs not valid, got: {pred.argmax(dim=-1)}, Need: {cond}")
-            return False, pred
+        logging.warning(
+            "Binary Classifier SUT always returns valid -> check if condition meets requirement."
+        )
         return True, pred

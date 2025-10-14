@@ -40,6 +40,7 @@ class SiTHyperNet(nn.Module):
     """A ControlNet-like implementation for SiT."""
 
     _raw_y: bool
+    use_checkpoints: bool = True
 
     def __init__(
         self,
@@ -189,7 +190,12 @@ class SiTHyperNet(nn.Module):
         t_embed = self.base_model.t_embedder(t)
         c = t_embed + y_embed
 
-        controlnet_outputs = checkpoint(self._control_forward, x_control, c, use_reentrant=False)
+        if self.use_checkpoints:
+            controlnet_outputs = checkpoint(
+                self._control_forward, x_control, c, use_reentrant=False
+            )
+        else:
+            controlnet_outputs = self._control_forward(x_control, c)
 
         x = self._backbone_forward(controlnet_outputs, x_embed, c)
         x = self.base_model.final_layer(x, c)
@@ -219,9 +225,10 @@ class SiTHyperNet(nn.Module):
         :param c: The conditioning tensor.
         :returns: The output of the frozen backbone.
         """
-        for block in self.base_model.blocks:
-            controlnet_out: Union[Tensor, float] = (
-                controlnet_outputs.pop(0) if controlnet_outputs else 0.0
-            )
-            x = block(x + controlnet_out, c)  # (N, T, D)
+        with torch.no_grad():
+            for block in self.base_model.blocks:
+                controlnet_out: Union[Tensor, float] = (
+                    controlnet_outputs.pop(0) if controlnet_outputs else 0.0
+                )
+                x = block(x + controlnet_out, c)  # (N, T, D)
         return x

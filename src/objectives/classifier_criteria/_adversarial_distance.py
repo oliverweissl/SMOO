@@ -31,18 +31,18 @@ class AdversarialDistance(ClassifierCriterion):
         if self._inverse:
             raise NotImplementedError("Inverse does not function properly yet.")
 
-    def evaluate(self, *, logits: Tensor, label_targets: list[int], **_: Any) -> list[float]:
+    def evaluate(self, *, logits: Tensor, initial_predictions: Tensor, **_: Any) -> list[float]:
         """
         Calculate the confidence balance of 2 confidence values.
 
         This function assumes an input range of [0, 1].
 
         :param logits: Logits tensor.
-        :param label_targets: Label targets used to determine targets of balance.
+        :param initial_predictions: Initial predictions (labels).
         :param _: Unused kwargs.
         :returns: The value in range [0,1].
         """
-        origin, target, *_ = label_targets  # type: ignore [assignment]
+        origin, target, *_ = initial_predictions
 
         if self._target_pair:
             second_term = logits[target].item()

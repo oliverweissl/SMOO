@@ -11,7 +11,7 @@ class DiffusionManipulator(Manipulator, ABC):
 
     @abstractmethod
     def get_diff_steps(
-        self, class_labels: list[int], n_steps: int, x_0: Optional[Tensor]
+        self, class_labels: list[int], n_steps: Optional[int] = None, x_0: Optional[Tensor] = None
     ) -> tuple[Tensor, Tensor]:
         """
         Get latent information for all diffusion steps with optimized memory usage.
