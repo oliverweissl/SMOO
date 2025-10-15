@@ -59,6 +59,8 @@ class SitHyNeAManipulator(DiffusionManipulator):
         for name, value in vars(loaded).items():
             if not name.startswith("__"):
                 setattr(self, f"_{name}", value)
+        for p in self._vae.parameters():
+            p.requires_grad_(False)  # Freeze vae parameters
 
         """Define Embedding lambdas"""
         self._embed_y = lambda y: self._model.y_embedder(
@@ -184,11 +186,10 @@ class SitHyNeAManipulator(DiffusionManipulator):
         )
         decoded = []
         for z_chunk in torch.chunk(z, chunks, dim=0):
-            with torch.enable_grad():
-                decoded_latents = (z_chunk / self._latents_scale) + self._latents_bias
-                element = self._vae.decode(decoded_latents).sample
-                element = torch.clamp(element.mul_(0.5).add_(0.5), 0.0, 1.0)
-                decoded.append(element)
+            decoded_latents = (z_chunk / self._latents_scale) + self._latents_bias
+            element = self._vae.decode(decoded_latents).sample
+            element = torch.clamp(element.mul_(0.5).add_(0.5), 0.0, 1.0)
+            decoded.append(element)
         return torch.cat(decoded, dim=0)
 
     def _sample(

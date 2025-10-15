@@ -85,7 +85,7 @@ class HyNeATester(SMOO):
                 control[:, target] = 1
 
                 # Updates solution if the prediction of target increases.
-                update_solution_func = lambda curr, best: curr[:target] > best[:target]
+                update_solution_func = lambda curr, best: (curr[:, target] > best[:, target]).item()
                 # Terminates early if the prediction is the target.
                 found_solution_func = lambda curr: curr.argmax().item() == target
             elif isinstance(self._sut, BinaryClassifierSUT):
@@ -94,7 +94,9 @@ class HyNeATester(SMOO):
                 control[:, class_id] = target
 
                 # Updates solution if it wanders closer to a sign flip.
-                update_solution_func = lambda curr, best: curr[:class_id] < best[:class_id]
+                update_solution_func = lambda curr, best: (
+                    curr[:, class_id] < best[:, class_id]
+                ).item()
                 # Terminates early if the sign flipped.
                 found_solution_func = lambda curr: torch.all(
                     (((curr[:class_id] / torch.abs(curr[:class_id])) + 1) / 2).eq(target)
@@ -122,26 +124,34 @@ class HyNeATester(SMOO):
                     images=[i0, i_f],
                     batch_dim=0,
                 )
-
-                row = {"generation": i}
-                row |= self._objectives.results
-                gen_data.append(row)
                 self._optimizer.assign_fitness(self._objectives.results.values())
+                self._optimizer.update()
+                row = {"generation": i}
+                # Detach tensors to reduce memory load.
+                results_detached = {
+                    k: v.detach().item() if torch.is_tensor(v) else v
+                    for k, v in self._objectives.results.items()
+                }
+                row |= results_detached
+                gen_data.append(row)
 
                 """Check conditions to either update best solution or terminate early."""
+                # TODO: is this correct? does it update??
                 if update_solution_func(y_f, yf_best):
-                    xf_best, if_best, yf_best = x_f, i_f, y_f
-                    best_fitness = self._objectives.results
+                    xf_best, if_best, yf_best = x_f.detach(), i_f.detach(), y_f.detach()
+                    best_fitness = results_detached
 
                 if found_solution_func(y_f):
                     logging.info(f"Found solution after {i} steps")
                     break
+                del x_f, i_f, y_f
+                self._cleanup()
 
             """Save data."""
             stats = {
                 "runtime": time() - iter_start,
                 "y_0": y0.cpu().detach().squeeze().tolist(),
-                "y_hat": yf_best.cpu().detach().squeeze().tolist(),
+                "y_hat": yf_best.cpu().squeeze().tolist(),
                 "budget_used": budget,
             }
             log_dir = os.path.join(
@@ -162,7 +172,7 @@ class HyNeATester(SMOO):
                 f"\tBest candidate(s) have a fitness of: {', '.join([str(k) + ': ' + str(v) for k, v in best_fitness.items()])}"
             )
 
-            del x_f, i_f, y_f, i0, y0, cand_i, if_best, yf_best, xf_best
+            del i0, y0, cand_i, if_best, yf_best, xf_best
             torch.cuda.empty_cache()
 
     def _find_valid_candidate(

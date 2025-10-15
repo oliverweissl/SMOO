@@ -134,7 +134,10 @@ class SiTHyperNet(nn.Module):
             control = control.repeat(2, *([1] * (control.ndim - 1)))
 
         for t_cur, t_next in zip(time_inputs[:-1], time_inputs[1:]):
-            x_initial = x.clone()
+            x_initial = x
+            # Attention: This requires x_initial to not change
+            # If inplace operations are done later on use x.clone() instead.
+            # To reduce computation-graph do not use inplace operations!
             t = t_cur.expand(x.size(0))
 
             x, _ = self._denoise_step(x, t, y_embed, control)
@@ -190,13 +193,7 @@ class SiTHyperNet(nn.Module):
         t_embed = self.base_model.t_embedder(t)
         c = t_embed + y_embed
 
-        if self.use_checkpoints:
-            controlnet_outputs = checkpoint(
-                self._control_forward, x_control, c, use_reentrant=False
-            )
-        else:
-            controlnet_outputs = self._control_forward(x_control, c)
-
+        controlnet_outputs = self._control_forward(x_control, c)
         x = self._backbone_forward(controlnet_outputs, x_embed, c)
         x = self.base_model.final_layer(x, c)
         return self.base_model.unpatchify(x), x_embed
@@ -211,7 +208,11 @@ class SiTHyperNet(nn.Module):
         """
         controlnet_outputs = []
         for block, zero_layer in zip(self.control_layers, self.zero_layers):
-            x_control = block(x_control, c)
+            if self.use_checkpoints:
+                x_control = checkpoint(block, x_control, c, use_reentrant=False)
+                # control_residual = checkpoint(zero_layer, x_control, use_reentrant=False)
+            else:
+                x_control = block(x_control, c)
             control_residual = zero_layer(x_control)
             controlnet_outputs.append(control_residual)
         return controlnet_outputs
@@ -225,10 +226,10 @@ class SiTHyperNet(nn.Module):
         :param c: The conditioning tensor.
         :returns: The output of the frozen backbone.
         """
-        with torch.no_grad():
-            for block in self.base_model.blocks:
-                controlnet_out: Union[Tensor, float] = (
-                    controlnet_outputs.pop(0) if controlnet_outputs else 0.0
-                )
-                x = block(x + controlnet_out, c)  # (N, T, D)
+        for block in self.base_model.blocks:
+            control: Union[Tensor, float] = controlnet_outputs.pop(0) if controlnet_outputs else 0.0
+            if self.use_checkpoints:
+                x = checkpoint(block, x + control, c, use_reentrant=False)
+            else:
+                x = block(x + control, c)
         return x
