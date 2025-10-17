@@ -22,7 +22,7 @@ class LDMHyNeAManipulator(DiffusionManipulator):
     _vae: nn.Module
     _model: UNet2DModel
     _scheduler: DDIMScheduler
-    _control_net: UNet2DHyperNet
+    _hyper_net: UNet2DHyperNet
 
     def __init__(
         self,
@@ -53,13 +53,13 @@ class LDMHyNeAManipulator(DiffusionManipulator):
     def make_fresh_hyper_net(self) -> None:
         """Create a new ControlNet for the current model. ATTENTION: Deletes old one if exists!."""
         if hasattr(self, "_control_net"):
-            del self._control_net
+            del self._hyper_net
             gc.collect()
             torch.cuda.empty_cache()
-        self._control_net = UNet2DHyperNet(
+        self._hyper_net = UNet2DHyperNet(
             model=self._model, scheduler=self._scheduler, control_shape=self.control_shape
         )
-        self._control_net.to(self._device)
+        self._hyper_net.to(self._device)
 
     def manipulate(self, candidates: DiffusionCandidateList, **kwargs) -> Tensor:
         """
@@ -72,7 +72,9 @@ class LDMHyNeAManipulator(DiffusionManipulator):
         xs = []
         for c in candidates:
             # We need to add a mock batch dimension here.
-            x = self._control_net.forward(x=c.xt[0].unsqueeze(0), control=c.control)
+            x = self._hyper_net.forward(
+                x=c.xt[0].unsqueeze(0), control=c.control, timesteps=self._diffusion_steps
+            )
             xs.append(x)
         return torch.cat(xs, dim=0)
 
@@ -82,7 +84,7 @@ class LDMHyNeAManipulator(DiffusionManipulator):
 
         :param enable: Whether to enable gradient checkpointing.
         """
-        self._control_net.use_checkpoints = enable
+        self._hyper_net.use_checkpoints = enable
 
     def get_diff_steps(
         self, class_labels: list[int], n_steps: Optional[int] = None, x_0: Optional[Tensor] = None
@@ -149,10 +151,10 @@ class LDMHyNeAManipulator(DiffusionManipulator):
         return torch.cat(decoded, dim=0)
 
     @property
-    def control_net(self) -> UNet2DHyperNet:
+    def hyper_net(self) -> UNet2DHyperNet:
         """
-        Get the controlnet used.
+        Get the HyperNet used.
 
-        :return: The controlnet used.
+        :return: The HyperNet used.
         """
-        return self._control_net
+        return self._hyper_net

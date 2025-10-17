@@ -21,7 +21,7 @@ class SitHyNeAManipulator(DiffusionManipulator):
     """Models used."""
     _vae: nn.Module
     _model: SiT
-    _control_net: SiTHyperNet
+    _hyper_net: SiTHyperNet
 
     # Loaded from SiT
     _latent_size: int
@@ -74,11 +74,11 @@ class SitHyNeAManipulator(DiffusionManipulator):
     def make_fresh_hyper_net(self) -> None:
         """Create a new ControlNet for the current model. ATTENTION: Deletes old one if exists!."""
         if hasattr(self, "_control_net"):
-            del self._control_net
+            del self._hyper_net
             gc.collect()
             torch.cuda.empty_cache()
-        self._control_net = SiTHyperNet(self._model, self.control_shape)
-        self._control_net.to(self._device)
+        self._hyper_net = SiTHyperNet(self._model, self.control_shape)
+        self._hyper_net.to(self._device)
 
     def get_diff_steps(
         self, class_labels: list[int], n_steps: Optional[int] = None, x_0: Optional[Tensor] = None
@@ -134,7 +134,7 @@ class SitHyNeAManipulator(DiffusionManipulator):
         for c in candidates:
             y_cur = self._embed_y([c.y])
             y_null = self._embed_y([1000] * y_cur.shape[0])
-            x = self._control_net.forward(
+            x = self._hyper_net.forward(
                 x=c.xt[0].unsqueeze(0),  # Here we add a pseudo-batch dimension.
                 y=y_cur,
                 control=c.control,
@@ -146,13 +146,13 @@ class SitHyNeAManipulator(DiffusionManipulator):
         return torch.cat(xs, dim=0)
 
     @property
-    def control_net(self) -> SiTHyperNet:
+    def hyper_net(self) -> SiTHyperNet:
         """
-        Get the controlnet used.
+        Get the HyperNet used.
 
-        :return: The controlnet used.
+        :return: The HyperNet used.
         """
-        return self._control_net
+        return self._hyper_net
 
     def gradient_checkpointing(self, enable: bool = False) -> None:
         """
@@ -160,7 +160,7 @@ class SitHyNeAManipulator(DiffusionManipulator):
 
         :param enable: Whether to enable gradient checkpointing.
         """
-        self._control_net.use_checkpoints = enable
+        self._hyper_net.use_checkpoints = enable
 
     def get_images(self, z: Tensor, eps: float = 1e-6) -> Tensor:
         """

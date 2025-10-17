@@ -140,31 +140,16 @@ class UNet2DHyperNet(nn.Module):
         :param timesteps: (B, *S) tensor of timesteps to use for the forward pass.
         :returns: The results of the forward pass.
         """
-        # DDIM scheduling based on diffusers.DDIMScheduler.from_pretrained("CompVis/ldm-celebahq-256", subfolder="scheduler")
-        betas = torch.linspace(0.0015**0.5, 0.0195**0.5, 1000, dtype=torch.float32) ** 2
-        alphas_cumprod = torch.cumprod(1.0 - betas, dim=0)
-
-        idx = torch.linspace(0, 999, steps=timesteps, dtype=torch.long, device=control.device)
         if x is None:
             x = torch.randn((control.size(0), *self.in_shape), device=control.device)
 
-        for j in range(timesteps):
-            i = idx[j].item()
-            residual = self._diffusion_step(x, control, i)
-
-            prev_t = idx[j - 1].item() if j > 0 else -1
-            alpha_prod_t = alphas_cumprod[i]
-            alpha_prod_t_prev = (
-                alphas_cumprod[prev_t] if prev_t >= 0 else torch.tensor(1.0, device=x.device)
-            )
-            beta_prod_t = 1 - alpha_prod_t
-
-            pred_x0 = (x - beta_prod_t.sqrt() * residual) / alpha_prod_t.sqrt()
-            dir_term = (1 - alpha_prod_t_prev).sqrt() * residual
-            x = alpha_prod_t_prev.sqrt() * pred_x0 + dir_term
+        self._scheduler.set_timesteps(timesteps)
+        for t in self._scheduler.timesteps:
+            residual = self._diffusion_step(x, control, t)
+            x, *_ = self._scheduler.step(residual, t, x, eta=0.0, return_dict=False)
         return x
 
-    def _diffusion_step(self, x: Tensor, control: Tensor, t: int) -> Tensor:
+    def _diffusion_step(self, x: Tensor, control: Tensor, t: int | Tensor) -> Tensor:
         """
         A single diffusion step including control.
 
@@ -179,7 +164,13 @@ class UNet2DHyperNet(nn.Module):
         if self._model.config.get("center_input_sample", False):
             x = 2 * x - 1.0
 
-        tt = torch.tensor([t], dtype=torch.long, device=x.device)
+        if not isinstance(t, Tensor):
+            tt = torch.tensor([t], dtype=torch.long, device=x.device)
+        else:
+            if len(t.shape) == 0:
+                tt = t[None].to(x.device)
+            else:
+                tt = t
 
         # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
         tt = tt * torch.ones(x.shape[0], dtype=tt.dtype, device=tt.device)

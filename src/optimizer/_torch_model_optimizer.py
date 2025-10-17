@@ -1,7 +1,8 @@
 import logging
-from typing import Any, Callable, Iterable, NoReturn, Optional
+from typing import Any, Callable, Iterable, NoReturn, Optional, Type
 
 from torch import Tensor
+from torch.nn import Parameter
 from torch.optim import Optimizer as TorchOptimizer
 from torch.optim.lr_scheduler import LRScheduler
 
@@ -21,24 +22,35 @@ class TorchModelOptimizer(Optimizer):
 
     def __init__(
         self,
-        grad_optimizer: TorchOptimizer,
+        grad_optimizer: Type[TorchOptimizer],
+        grad_optimizer_params: dict[str, Any],
         num_objectives: int,
         loss_reductor: Callable[[tuple[Tensor, ...]], Tensor],
-        scheduler: Optional[LRScheduler] = None,
+        scheduler: Optional[Type[LRScheduler]] = None,
+        scheduler_params: Optional[dict[str, Any]] = None,
     ) -> None:
         """
         Initialize the hypernetwork optimizer.
 
-        :param grad_optimizer: The gradient optimizer.
+        :param grad_optimizer: The gradient optimizer type.
+        :param grad_optimizer_params: The gradient optimizer parameters.
         :param num_objectives: The number of objectives.
         :param loss_reductor: The loss reductor function that ensures we get a scalar loss per batch element.
-        :param scheduler: An optional learning rate scheduler.
+        :param scheduler: An optional learning rate scheduler type.
+        :param scheduler_params: The learning rate scheduler parameters.
         """
         super().__init__(num_objectives)
-        self._grad_optimizer = grad_optimizer
-        self._optimizer_type = type(self._grad_optimizer)
+        self._grad_optimizer_t = self._optimizer_type = grad_optimizer
+        self._grad_optimizer_p = grad_optimizer_params
+
         self._loss_reductor = loss_reductor
-        self._scheduler = scheduler
+
+        self._scheduler_t = scheduler
+        self._scheduler_p = scheduler_params
+        if scheduler is not None:
+            assert (
+                scheduler_params is not None
+            ), "If scheduler is provided, you must parse its arguments."
 
     def assign_fitness(self, fitness: Iterable[Tensor], *_: Any) -> None:
         """
@@ -65,9 +77,22 @@ class TorchModelOptimizer(Optimizer):
             logging.info(f"Current LR: {self._scheduler.get_last_lr()}")
             self._scheduler.step()
 
+    def init_new(self, new_params: list[Parameter]) -> None:
+        """
+        Initialize new torch optimizer.
+
+        :param new_params: The new parameters.
+        """
+        self.reset()
+        self._grad_optimizer = self._grad_optimizer_t(new_params, **self._grad_optimizer_p)
+        if self._scheduler_t:
+            self._scheduler = self._scheduler_t(self._grad_optimizer, **self._scheduler_p)
+
     def reset(self) -> None:
         """Reset the learner to the default."""
-        del self._loss
+        for name in ("_loss", "_grad_optimizer", "_scheduler"):
+            if hasattr(self, name):
+                delattr(self, name)
 
     """Functions that are not implemented for this type of optimizer. Some overwrite default behavior tha is not applicable."""
 
