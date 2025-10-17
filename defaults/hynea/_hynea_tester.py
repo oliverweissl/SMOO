@@ -13,7 +13,8 @@ from src import SMOO
 from src.manipulator.diffusion_manipulator import (
     DiffusionCandidate,
     DiffusionCandidateList,
-    DiffusionManipulator,
+    LDMHyNeAManipulator,
+    SitHyNeAManipulator,
 )
 from src.objectives import CriterionCollection
 from src.optimizer import TorchModelOptimizer
@@ -25,7 +26,7 @@ from ._experiment_config import ExperimentConfig
 class HyNeATester(SMOO):
     """A tester class that implements the HyNeA method."""
 
-    _manipulator: DiffusionManipulator
+    _manipulator: LDMHyNeAManipulator | SitHyNeAManipulator
     _optimizer: TorchModelOptimizer
     _sut: ClassifierSUT
     _config: ExperimentConfig
@@ -34,7 +35,7 @@ class HyNeATester(SMOO):
         self,
         *,
         sut: ClassifierSUT,
-        manipulator: DiffusionManipulator,
+        manipulator: LDMHyNeAManipulator | SitHyNeAManipulator,
         optimizer: TorchModelOptimizer,
         objectives: CriterionCollection,
         config: ExperimentConfig,
@@ -72,98 +73,98 @@ class HyNeATester(SMOO):
         for class_id, sample_idx in product(
             self._config.classes, range(self._config.samples_per_class)
         ):
-            with torch.autograd.set_detect_anomaly(True):
-                logging.info(f"Test class {class_id}, sample idx {sample_idx}.")
-                cand_i, y0, i0 = self._find_valid_candidate(class_id, is_origin=True)
-                initial_pred = torch.argsort(
-                    y0[0], descending=True
-                )  # Only used in multi-class classification
-                control = torch.zeros(1, *self._manipulator.control_shape, device=cand_i.xt.device)
-                assert (
-                    control.shape == y0.shape
-                ), f"Error in Control shape. Got {control.shape} instead of {y0.shape}."
+            logging.info(f"Test class {class_id}, sample idx {sample_idx}.")
+            cand_i, y0, i0 = self._find_valid_candidate(class_id, is_origin=True)
+            initial_pred = torch.argsort(
+                y0[0], descending=True
+            )  # Only used in multi-class classification
+            control = torch.zeros(1, *self._manipulator.control_shape, device=cand_i.xt.device)
+            assert (
+                control.shape == y0.shape
+            ), f"Error in Control shape. Got {control.shape} instead of {y0.shape}."
 
-                # Adapt the functionality of testing based on the SUT.
-                if isinstance(self._sut, ClassifierSUT):
-                    target = int(initial_pred[1].item()) if self._config.run_targeted else class_id
-                    control[:, target] = 1
+            # Adapt the functionality of testing based on the SUT.
+            if isinstance(self._sut, ClassifierSUT):
+                target = int(initial_pred[1].item()) if self._config.run_targeted else class_id
+                control[:, target] = 1
 
-                    # Terminates early if the prediction is the target.
-                    found_solution_func = lambda curr: curr.argmax().item() == target
-                    loss_target = torch.full(
-                        (initial_pred.size(0),), target, dtype=torch.long, device=cand_i.xt.device
-                    )
-                elif isinstance(self._sut, BinaryClassifierSUT):
-                    control = (y0 > 0).float()
-                    target = (1 - control[:, class_id]).item()
-                    control[:, class_id] = target
+                # Terminates early if the prediction is the target.
+                found_solution_func = lambda curr: curr.argmax().item() == target
+                loss_target = torch.full(
+                    (initial_pred.size(0),), target, dtype=torch.long, device=cand_i.xt.device
+                )
+            elif isinstance(self._sut, BinaryClassifierSUT):
+                control = (y0 > 0).float()
+                target = (1 - control[:, class_id]).item()
+                control[:, class_id] = target
 
-                    # Terminates early if the sign flipped.
-                    found_solution_func = lambda curr: (
-                        (curr[:, class_id] > 0).float().eq(target)
-                    ).item()
+                # Terminates early if the sign flipped.
+                found_solution_func = lambda curr: (
+                    (curr[:, class_id] > 0).float().eq(target)
+                ).item()
 
-                    loss_target = control
-                else:
-                    raise NotImplementedError(
-                        f"Tester does not support SUTs of type {type(self._sut)} yet."
-                    )
-                cand_i.control = control
-                cand_list = DiffusionCandidateList(cand_i)
+                loss_target = control
+            else:
+                raise NotImplementedError(
+                    f"Tester does not support SUTs of type {type(self._sut)} yet."
+                )
 
-                # Tracking variables for progress (the current best + budget used)
-                xf_best, if_best, yf_best, budget = cand_i.xt, i0, y0, 0
-                gen_data: list[dict[str, Any]] = list()
-                best_fitness: dict[str, Any] = dict()
-                iter_start = time()
-                for i in range(
-                    self._config.generations * self._config.pop_size
-                ):  # * 100 is pop size
-                    x_f = self._manipulator.manipulate(cand_list)
-                    i_f = self._manipulator.get_images(x_f)
+            """Here we initialize a fresh optimizer for the candidate."""
+            self._optimizer.init_new(self._manipulator.hyper_net.trainable_parameters())
 
-                    y_f = self._process(i_f)
-                    budget += i_f.size(0)
+            cand_i.control = control
+            cand_list = DiffusionCandidateList(cand_i)
 
-                    self._objectives.evaluate_all(
-                        logits=y_f,
-                        initial_predictions=initial_pred,
-                        images=[i0, i_f],
-                        target=loss_target,
-                        batch_dim=0,
-                    )
-                    if isinstance(self._sut, BinaryClassifierSUT):
-                        # If we are in binary classification we only want one logit.
-                        criterion = list(self._objectives.results.keys())[-1]
-                        self._objectives.results[criterion] = self._objectives.results[criterion][
-                            :, class_id
-                        ]
+            # Tracking variables for progress (the current best + budget used)
+            xf_best, if_best, yf_best, budget = cand_i.xt, i0, y0, 0
+            gen_data: list[dict[str, Any]] = list()
+            best_fitness: dict[str, Any] = dict()
+            iter_start = time()
+            for i in range(self._config.generations * self._config.pop_size):  # * 100 is pop size
+                x_f = self._manipulator.manipulate(cand_list)
+                i_f = self._manipulator.get_images(x_f)
 
-                    self._optimizer.assign_fitness(self._objectives.results.values())
-                    self._optimizer.update()
-                    row = {"generation": i}
-                    # Detach tensors to reduce memory load.
-                    results_detached = {
-                        k: v.detach().item() if torch.is_tensor(v) else v
-                        for k, v in self._objectives.results.items()
-                    }
-                    logging.info(
-                        "Fitness values: "
-                        + ", ".join(f"{k}: {v}" for k, v in results_detached.items())
-                    )
-                    row |= results_detached
-                    gen_data.append(row)
+                y_f = self._process(i_f)
+                budget += i_f.size(0)
 
-                    """Check conditions to either update best solution or terminate early."""
-                    if self._dominates(results_detached, best_fitness, strategy="sum"):
-                        xf_best, if_best, yf_best = x_f.detach(), i_f.detach(), y_f.detach()
-                        best_fitness = results_detached
+                self._objectives.evaluate_all(
+                    logits=y_f,
+                    initial_predictions=initial_pred,
+                    images=[i0, i_f],
+                    target=loss_target,
+                    batch_dim=0,
+                )
+                if isinstance(self._sut, BinaryClassifierSUT):
+                    # If we are in binary classification we only want one logit.
+                    criterion = list(self._objectives.results.keys())[-1]
+                    self._objectives.results[criterion] = self._objectives.results[criterion][
+                        :, class_id
+                    ]
 
-                    if found_solution_func(y_f):
-                        logging.info(f"Found solution after {i} steps")
-                        break
-                    del x_f, i_f, y_f
-                    self._cleanup()
+                self._optimizer.assign_fitness(self._objectives.results.values())
+                self._optimizer.update()
+                row = {"generation": i}
+                # Detach tensors to reduce memory load.
+                results_detached = {
+                    k: v.detach().item() if torch.is_tensor(v) else v
+                    for k, v in self._objectives.results.items()
+                }
+                logging.info(
+                    "Fitness values: " + ", ".join(f"{k}: {v}" for k, v in results_detached.items())
+                )
+                row |= results_detached
+                gen_data.append(row)
+
+                """Check conditions to either update best solution or terminate early."""
+                if self._dominates(results_detached, best_fitness, strategy="sum"):
+                    xf_best, if_best, yf_best = x_f.detach(), i_f.detach(), y_f.detach()
+                    best_fitness = results_detached
+
+                if found_solution_func(y_f):
+                    logging.info(f"Found solution after {i} steps")
+                    break
+                del x_f, i_f, y_f
+                self._cleanup()
 
             """Save data."""
             stats = {
@@ -191,6 +192,7 @@ class HyNeATester(SMOO):
             )
             del i0, y0, cand_i, if_best, yf_best, xf_best
             self._cleanup()
+            self._manipulator.make_fresh_hyper_net()  # Make a fresh hypernet for the next candidate.
 
     def _find_valid_candidate(
         self, class_id: int, is_origin: bool = False
