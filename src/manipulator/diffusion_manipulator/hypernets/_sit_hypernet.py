@@ -210,7 +210,6 @@ class SiTHyperNet(nn.Module):
         for block, zero_layer in zip(self.control_layers, self.zero_layers):
             if self.use_checkpoints:
                 x_control = checkpoint(block, x_control, c, use_reentrant=False)
-                # control_residual = checkpoint(zero_layer, x_control, use_reentrant=False)
             else:
                 x_control = block(x_control, c)
             control_residual = zero_layer(x_control)

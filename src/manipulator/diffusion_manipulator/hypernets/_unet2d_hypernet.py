@@ -1,6 +1,6 @@
 from copy import deepcopy
 from math import prod
-from typing import Optional, Union
+from typing import Optional
 
 import torch
 from diffusers import DDIMScheduler, UNet2DModel
@@ -75,13 +75,13 @@ class UNet2DHyperNet(nn.Module):
         self._model = model
         self._scheduler = scheduler
 
-        for param in self._model.parameters():
-            param.requires_grad_(False)  # Freeze parameters
-
         """Initialize the Hypernet stuff."""
         self.control_in = deepcopy(model.conv_in)
         self.control_down = deepcopy(model.down_blocks)
         self.control_mid = deepcopy(model.mid_block)
+
+        for param in self._model.parameters():
+            param.requires_grad_(False)  # Freeze parameters
 
         # Create zero-conv layers for all relevant layers.
         self.zero_in = ZeroConvBlock(model.conv_in.out_channels)
@@ -130,24 +130,41 @@ class UNet2DHyperNet(nn.Module):
         self,
         control: Tensor,
         x: Optional[Tensor] = None,
+        timesteps: int = 50,
     ) -> Tensor:
         """
         Full denoising process - used for end-to-end training.
 
         :param x: (B, C, H, W) tensor of spatial inputs (latent representations of images or None).
         :param control: (B, *S) tensor of control tokens to use for the forward pass.
+        :param timesteps: (B, *S) tensor of timesteps to use for the forward pass.
         :returns: The results of the forward pass.
         """
-        device = control.device
-        x = x or torch.randn((control.size(0), *self.in_shape)).to(device)
+        # DDIM scheduling based on diffusers.DDIMScheduler.from_pretrained("CompVis/ldm-celebahq-256", subfolder="scheduler")
+        betas = torch.linspace(0.0015**0.5, 0.0195**0.5, 1000, dtype=torch.float32) ** 2
+        alphas_cumprod = torch.cumprod(1.0 - betas, dim=0)
 
-        latents = x
-        for t in self._scheduler.timesteps:
-            residual = self._diffusion_step(latents, control, t)
-            latents = self._scheduler.step(residual, t, latents, eta=0.0)["prev_sample"]
-        return latents
+        idx = torch.linspace(0, 999, steps=timesteps, dtype=torch.long, device=control.device)
+        if x is None:
+            x = torch.randn((control.size(0), *self.in_shape), device=control.device)
 
-    def _diffusion_step(self, x: Tensor, control: Tensor, t: Union[Tensor, float, int]) -> Tensor:
+        for j in range(timesteps):
+            i = idx[j].item()
+            residual = self._diffusion_step(x, control, i)
+
+            prev_t = idx[j - 1].item() if j > 0 else -1
+            alpha_prod_t = alphas_cumprod[i]
+            alpha_prod_t_prev = (
+                alphas_cumprod[prev_t] if prev_t >= 0 else torch.tensor(1.0, device=x.device)
+            )
+            beta_prod_t = 1 - alpha_prod_t
+
+            pred_x0 = (x - beta_prod_t.sqrt() * residual) / alpha_prod_t.sqrt()
+            dir_term = (1 - alpha_prod_t_prev).sqrt() * residual
+            x = alpha_prod_t_prev.sqrt() * pred_x0 + dir_term
+        return x
+
+    def _diffusion_step(self, x: Tensor, control: Tensor, t: int) -> Tensor:
         """
         A single diffusion step including control.
 
@@ -162,17 +179,12 @@ class UNet2DHyperNet(nn.Module):
         if self._model.config.get("center_input_sample", False):
             x = 2 * x - 1.0
 
-        # 1. time
-        if not isinstance(t, Tensor):
-            t = torch.tensor([t], dtype=torch.long, device=x.device)
-        else:
-            if len(t.shape) == 0:
-                t = t[None].to(x.device)
+        tt = torch.tensor([t], dtype=torch.long, device=x.device)
 
         # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-        t = t * torch.ones(x.shape[0], dtype=t.dtype, device=t.device)
+        tt = tt * torch.ones(x.shape[0], dtype=tt.dtype, device=tt.device)
 
-        t_emb = self._model.time_proj(t)
+        t_emb = self._model.time_proj(tt)
 
         # timesteps does not contain any weights and will always return f32 tensors
         # but time_embedding might actually be running in fp16. so we need to cast here.
@@ -181,12 +193,7 @@ class UNet2DHyperNet(nn.Module):
         emb = self._model.time_embedding(t_emb)
 
         # Get control residuals and control x from down sampling control network.
-        if self.use_checkpoints:
-            control_down_residuals, control_x = checkpoint(
-                self._control_down, x, control, emb, use_reentrant=False
-            )
-        else:
-            control_down_residuals, control_x = self._control_down(x, control, emb)
+        control_down_residuals, control_x = self._control_down(x, control, emb)
         # Get residuals and current x from down sampling network.
         down_residuals, x = self._down(x, emb)
 
@@ -216,11 +223,11 @@ class UNet2DHyperNet(nn.Module):
         x = self._model.conv_out(x)
 
         if skip_sample is not None:
-            x += skip_sample
+            x = x + skip_sample
 
         if self._model.config.get("time_embedding_type") == "fourier":
-            t = t.reshape((x.shape[0], *([1] * len(x.shape[1:]))))
-            x = x / t
+            tt = tt.reshape((x.shape[0], *([1] * len(x.shape[1:]))))
+            x = x / tt
         return x
 
     def _control_down(
@@ -242,15 +249,32 @@ class UNet2DHyperNet(nn.Module):
         outputs_down = (self.zero_in(x_conditioned),)
 
         for block, zeros in zip(self.control_down, self.zero_downs):
-            if hasattr(block, "skip_conv"):
-                x_conditioned, res_samples, skip_sample = block(
-                    hidden_states=x_conditioned, temb=emb, skip_sample=skip_sample
-                )
-            else:
-                x_conditioned, res_samples = block(hidden_states=x_conditioned, temb=emb)
-            outputs_down += tuple([z(s) for z, s in zip(zeros.modules(), res_samples)])
+            # Caution! These need to be in order as they are parsed as args!
+            # Key-words: hidden_states, temb, skip_sample.
+            b_args = (
+                (x_conditioned, emb, skip_sample)
+                if hasattr(block, "skip_conv")
+                else (x_conditioned, emb)
+            )
 
-        output_mid = self.control_mid(x_conditioned, emb)
+            # This looks sketchy but is cool!
+            # We unpack the functions outputs (can be 2 or 3), if there is only two we keep skip, sample the same.
+            # If there is three outputs we will get 4 elements and as such we take the first 3 to update the variables.
+            if self.use_checkpoints:
+                x_conditioned, res_samples, skip_sample = (
+                    *checkpoint(block, *b_args, use_reentrant=False),
+                    skip_sample,
+                )[:3]
+            else:
+                x_conditioned, res_samples, skip_sample = (*block(*b_args), skip_sample)[:3]
+
+            outputs_down += tuple([z(s) for z, s in zip(zeros, res_samples)])
+
+        output_mid = (
+            checkpoint(self.control_mid, x_conditioned, emb, use_reentrant=False)
+            if self.use_checkpoints
+            else self.control_mid(x_conditioned, emb)
+        )
         return outputs_down, self.zero_mid(output_mid)
 
     def _down(self, x: Tensor, emb: Tensor) -> tuple[tuple[Tensor], Tensor]:
@@ -259,26 +283,26 @@ class UNet2DHyperNet(nn.Module):
 
         :param x: The input.
         :param emb: The embedding (time).
-        :returns: The resisuals collected and the final x.
+        :returns: The residuals collected and the final x.
         """
         skip_sample = x
         x = self._model.conv_in(x)
 
         down_block_res_samples = (x,)
-        for downsample_block in self._model.down_blocks:
-            if hasattr(downsample_block, "skip_conv"):
-                x, res_samples, skip_sample = downsample_block(
-                    hidden_states=x, temb=emb, skip_sample=skip_sample
-                )
+        for block in self._model.down_blocks:
+            # Caution! These need to be in order as they are parsed as args!
+            # Key-words: hidden_states, temb, skip_sample.
+            b_args = (x, emb, skip_sample) if hasattr(block, "skip_conv") else (x, emb)
+
+            # This looks sketchy but is cool!
+            # We unpack the functions outputs (can be 2 or 3), if there is only two we keep skip, sample the same.
+            # If there is three outputs we will get 4 elements and as such we take the first 3 to update the variables.
+            if self.use_checkpoints:
+                x, res_samples, skip_sample = (
+                    *checkpoint(block, *b_args, use_reentrant=False),
+                    skip_sample,
+                )[:3]
             else:
-                x, res_samples = downsample_block(hidden_states=x, temb=emb)
+                x, res_samples, skip_sample = (*block(*b_args), skip_sample)[:3]
             down_block_res_samples += res_samples
         return down_block_res_samples, x
-
-    def set_timesteps(self, steps: int) -> None:
-        """
-        Set timesteps for scheduler.
-
-        :param steps: The number of timesteps.
-        """
-        self._scheduler.set_timesteps(steps)

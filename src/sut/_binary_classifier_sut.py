@@ -67,10 +67,13 @@ class BinaryClassifierSUT(SUT):
 
         :param enable: Whether to enable gradient checkpointing.
         """
-        if enable:
+        if enable and hasattr(self._model, "gradient_checkpointing_enable"):
             self._model.gradient_checkpointing_enable()
-        else:
+        if not enable and hasattr(self._model, "gradient_checkpointing_disable"):
             self._model.gradient_checkpointing_disable()
+        logging.warning(
+            f"Toggling gradient checkpointing is not implemented for {self._model.__class__.__name__}."
+        )
 
     def input_valid(self, inpt: Tensor, cond: int) -> tuple[bool, Tensor]:
         """

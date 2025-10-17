@@ -3,7 +3,6 @@ import logging
 from typing import Optional
 
 import torch
-from diffusers import DDPMScheduler
 from torch import Tensor, nn
 
 from ._diffusion_candidate import DiffusionCandidateList
@@ -68,13 +67,8 @@ class SitHyNeAManipulator(DiffusionManipulator):
         )
 
         """ControlNet stuff."""
-        self._control_shape = control_shape
+        self.control_shape = control_shape
         self.make_fresh_hyper_net()
-
-        self.noise_loss = nn.MSELoss()
-        self.scheduler = DDPMScheduler(
-            num_train_timesteps=50, beta_start=0.0001, beta_end=0.02, beta_schedule="linear"
-        )
         self._n_steps = diffusion_steps
 
     def make_fresh_hyper_net(self) -> None:
@@ -83,7 +77,7 @@ class SitHyNeAManipulator(DiffusionManipulator):
             del self._control_net
             gc.collect()
             torch.cuda.empty_cache()
-        self._control_net = SiTHyperNet(self._model, self._control_shape)
+        self._control_net = SiTHyperNet(self._model, self.control_shape)
         self._control_net.to(self._device)
 
     def get_diff_steps(
@@ -168,11 +162,12 @@ class SitHyNeAManipulator(DiffusionManipulator):
         """
         self._control_net.use_checkpoints = enable
 
-    def get_images(self, z: Tensor) -> Tensor:
+    def get_images(self, z: Tensor, eps: float = 1e-6) -> Tensor:
         """
         Decode image from latent vector.
 
         :param z: The latent vector.
+        :param eps: The epsilon value to avoid gradient instabilities.
         :return: The decoded image, color-range [0,1].
         """
         logging.info("Sampling Images from denoised Latents.")
@@ -188,7 +183,7 @@ class SitHyNeAManipulator(DiffusionManipulator):
         for z_chunk in torch.chunk(z, chunks, dim=0):
             decoded_latents = (z_chunk / self._latents_scale) + self._latents_bias
             element = self._vae.decode(decoded_latents).sample
-            element = torch.clamp(element.mul_(0.5).add_(0.5), 0.0, 1.0)
+            element = (element * 0.5 + 0.5).clamp(0.0 + eps, 1.0 - eps)
             decoded.append(element)
         return torch.cat(decoded, dim=0)
 

@@ -3,6 +3,7 @@ import logging
 import os
 from itertools import product
 from time import time
+from typing import Any
 
 import pandas as pd
 import torch
@@ -71,81 +72,98 @@ class HyNeATester(SMOO):
         for class_id, sample_idx in product(
             self._config.classes, range(self._config.samples_per_class)
         ):
-            logging.info(f"Test class {class_id}, sample idx {sample_idx}.")
-            cand_i, y0, i0 = self._find_valid_candidate(class_id, is_origin=True)
-            initial_pred = torch.argsort(y0[0], descending=True)
-            control = torch.zeros(1, *self._manipulator._control_shape, device=cand_i.xt.device)
-            assert (
-                control.shape == y0.shape
-            ), f"Error in Control shape. Got {control.shape} instead of {y0.shape}."
+            with torch.autograd.set_detect_anomaly(True):
+                logging.info(f"Test class {class_id}, sample idx {sample_idx}.")
+                cand_i, y0, i0 = self._find_valid_candidate(class_id, is_origin=True)
+                initial_pred = torch.argsort(
+                    y0[0], descending=True
+                )  # Only used in multi-class classification
+                control = torch.zeros(1, *self._manipulator.control_shape, device=cand_i.xt.device)
+                assert (
+                    control.shape == y0.shape
+                ), f"Error in Control shape. Got {control.shape} instead of {y0.shape}."
 
-            # Adapt the functionality of testing based on the SUT.
-            if isinstance(self._sut, ClassifierSUT):
-                target = int(initial_pred[1].item()) if self._config.run_targeted else class_id
-                control[:, target] = 1
+                # Adapt the functionality of testing based on the SUT.
+                if isinstance(self._sut, ClassifierSUT):
+                    target = int(initial_pred[1].item()) if self._config.run_targeted else class_id
+                    control[:, target] = 1
 
-                # Updates solution if the prediction of target increases.
-                update_solution_func = lambda curr, best: (curr[:, target] > best[:, target]).item()
-                # Terminates early if the prediction is the target.
-                found_solution_func = lambda curr: curr.argmax().item() == target
-            elif isinstance(self._sut, BinaryClassifierSUT):
-                curr_pred = (y0[0][class_id] > 0).real
-                target = 1 - curr_pred
-                control[:, class_id] = target
+                    # Terminates early if the prediction is the target.
+                    found_solution_func = lambda curr: curr.argmax().item() == target
+                    loss_target = torch.full(
+                        (initial_pred.size(0),), target, dtype=torch.long, device=cand_i.xt.device
+                    )
+                elif isinstance(self._sut, BinaryClassifierSUT):
+                    control = (y0 > 0).float()
+                    target = (1 - control[:, class_id]).item()
+                    control[:, class_id] = target
 
-                # Updates solution if it wanders closer to a sign flip.
-                update_solution_func = lambda curr, best: (
-                    curr[:, class_id] < best[:, class_id]
-                ).item()
-                # Terminates early if the sign flipped.
-                found_solution_func = lambda curr: torch.all(
-                    (((curr[:class_id] / torch.abs(curr[:class_id])) + 1) / 2).eq(target)
-                )
-            else:
-                raise NotImplementedError(
-                    f"Tester does not support SUTs of type {type(self._sut)} yet."
-                )
-            cand_i.control = control
-            cand_list = DiffusionCandidateList(cand_i)
+                    # Terminates early if the sign flipped.
+                    found_solution_func = lambda curr: (
+                        (curr[:, class_id] > 0).float().eq(target)
+                    ).item()
 
-            xf_best, if_best, yf_best, budget = cand_i.xt, i0, y0, 0
-            gen_data, best_fitness = [], {}
-            iter_start = time()
-            for i in range(self._config.generations * self._config.pop_size):  # * 100 is pop size
-                x_f = self._manipulator.manipulate(cand_list)
-                i_f = self._manipulator.get_images(x_f)
+                    loss_target = control
+                else:
+                    raise NotImplementedError(
+                        f"Tester does not support SUTs of type {type(self._sut)} yet."
+                    )
+                cand_i.control = control
+                cand_list = DiffusionCandidateList(cand_i)
 
-                y_f = self._process(i_f)
-                budget += i_f.size(0)
+                # Tracking variables for progress (the current best + budget used)
+                xf_best, if_best, yf_best, budget = cand_i.xt, i0, y0, 0
+                gen_data: list[dict[str, Any]] = list()
+                best_fitness: dict[str, Any] = dict()
+                iter_start = time()
+                for i in range(
+                    self._config.generations * self._config.pop_size
+                ):  # * 100 is pop size
+                    x_f = self._manipulator.manipulate(cand_list)
+                    i_f = self._manipulator.get_images(x_f)
 
-                self._objectives.evaluate_all(
-                    logits=y_f,
-                    initial_predictions=initial_pred,
-                    images=[i0, i_f],
-                    batch_dim=0,
-                )
-                self._optimizer.assign_fitness(self._objectives.results.values())
-                self._optimizer.update()
-                row = {"generation": i}
-                # Detach tensors to reduce memory load.
-                results_detached = {
-                    k: v.detach().item() if torch.is_tensor(v) else v
-                    for k, v in self._objectives.results.items()
-                }
-                row |= results_detached
-                gen_data.append(row)
+                    y_f = self._process(i_f)
+                    budget += i_f.size(0)
 
-                """Check conditions to either update best solution or terminate early."""
-                # TODO: is this correct? does it update??
-                if update_solution_func(y_f, yf_best):
-                    xf_best, if_best, yf_best = x_f.detach(), i_f.detach(), y_f.detach()
-                    best_fitness = results_detached
+                    self._objectives.evaluate_all(
+                        logits=y_f,
+                        initial_predictions=initial_pred,
+                        images=[i0, i_f],
+                        target=loss_target,
+                        batch_dim=0,
+                    )
+                    if isinstance(self._sut, BinaryClassifierSUT):
+                        # If we are in binary classification we only want one logit.
+                        criterion = list(self._objectives.results.keys())[-1]
+                        self._objectives.results[criterion] = self._objectives.results[criterion][
+                            :, class_id
+                        ]
 
-                if found_solution_func(y_f):
-                    logging.info(f"Found solution after {i} steps")
-                    break
-                del x_f, i_f, y_f
-                self._cleanup()
+                    self._optimizer.assign_fitness(self._objectives.results.values())
+                    self._optimizer.update()
+                    row = {"generation": i}
+                    # Detach tensors to reduce memory load.
+                    results_detached = {
+                        k: v.detach().item() if torch.is_tensor(v) else v
+                        for k, v in self._objectives.results.items()
+                    }
+                    logging.info(
+                        "Fitness values: "
+                        + ", ".join(f"{k}: {v}" for k, v in results_detached.items())
+                    )
+                    row |= results_detached
+                    gen_data.append(row)
+
+                    """Check conditions to either update best solution or terminate early."""
+                    if self._dominates(results_detached, best_fitness, strategy="sum"):
+                        xf_best, if_best, yf_best = x_f.detach(), i_f.detach(), y_f.detach()
+                        best_fitness = results_detached
+
+                    if found_solution_func(y_f):
+                        logging.info(f"Found solution after {i} steps")
+                        break
+                    del x_f, i_f, y_f
+                    self._cleanup()
 
             """Save data."""
             stats = {
@@ -171,9 +189,8 @@ class HyNeATester(SMOO):
             logging.info(
                 f"\tBest candidate(s) have a fitness of: {', '.join([str(k) + ': ' + str(v) for k, v in best_fitness.items()])}"
             )
-
             del i0, y0, cand_i, if_best, yf_best, xf_best
-            torch.cuda.empty_cache()
+            self._cleanup()
 
     def _find_valid_candidate(
         self, class_id: int, is_origin: bool = False
@@ -192,6 +209,37 @@ class HyNeATester(SMOO):
             if valid:
                 break
             del xt, emb, image, y0
-            torch.cuda.empty_cache()
+            self._cleanup()
         candidate = DiffusionCandidate(xt.squeeze(), emb, is_origin=is_origin, y=class_id)
         return candidate, y0, image
+
+    @staticmethod
+    def _dominates(curr: dict[str, Any], best: dict[str, Any], strategy: str = "pareto") -> bool:
+        """
+        Check if current solution dominates previous one.
+
+        :param curr: The current solution.
+        :param best: The best solution.
+        :param strategy: The strategy to use (pareto, sum).
+        :return: True if the current solution dominates previous one.
+        :raises NotImplementedError: If strategy is not implemented.
+        """
+        if not best:
+            return True
+
+        curr_vals = torch.stack(
+            [v.detach() if torch.is_tensor(v) else torch.tensor(v) for v in curr.values()]
+        )
+        best_vals = torch.stack(
+            [v.detach() if torch.is_tensor(v) else torch.tensor(v) for v in best.values()]
+        )
+        # min all objectives
+        if strategy == "pareto":
+            better_or_equal: bool = (curr_vals <= best_vals).all().item()
+            strictly_better: bool = (curr_vals < best_vals).any().item()
+            return better_or_equal and strictly_better
+        elif strategy == "sum":
+            better: bool = (curr_vals.sum() < best_vals.sum()).item()
+            return better
+        else:
+            raise NotImplementedError(f"No strategy implemented for {strategy}")

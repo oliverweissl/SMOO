@@ -1,8 +1,9 @@
 import logging
-from typing import Any, Callable, Iterable, NoReturn
+from typing import Any, Callable, Iterable, NoReturn, Optional
 
 from torch import Tensor
 from torch.optim import Optimizer as TorchOptimizer
+from torch.optim.lr_scheduler import LRScheduler
 
 from ._optimizer import Optimizer
 
@@ -14,6 +15,7 @@ class TorchModelOptimizer(Optimizer):
     """
 
     _grad_optimizer: TorchOptimizer
+    _scheduler: Optional[LRScheduler]
     _loss_reductor: Callable[[tuple[Tensor, ...]], Tensor]
     _loss: Tensor
 
@@ -22,18 +24,21 @@ class TorchModelOptimizer(Optimizer):
         grad_optimizer: TorchOptimizer,
         num_objectives: int,
         loss_reductor: Callable[[tuple[Tensor, ...]], Tensor],
+        scheduler: Optional[LRScheduler] = None,
     ) -> None:
         """
         Initialize the hypernetwork optimizer.
 
         :param grad_optimizer: The gradient optimizer.
         :param num_objectives: The number of objectives.
-        :param loss_reductor: The loss reductor function that ensures we get a scalar loss.
+        :param loss_reductor: The loss reductor function that ensures we get a scalar loss per batch element.
+        :param scheduler: An optional learning rate scheduler.
         """
         super().__init__(num_objectives)
         self._grad_optimizer = grad_optimizer
         self._optimizer_type = type(self._grad_optimizer)
         self._loss_reductor = loss_reductor
+        self._scheduler = scheduler
 
     def assign_fitness(self, fitness: Iterable[Tensor], *_: Any) -> None:
         """
@@ -54,7 +59,11 @@ class TorchModelOptimizer(Optimizer):
         """Generate a new population based on fitness of old population."""
         self._grad_optimizer.zero_grad()
         self._loss.backward()
+
         self._grad_optimizer.step()
+        if self._scheduler:
+            logging.info(f"Current LR: {self._scheduler.get_last_lr()}")
+            self._scheduler.step()
 
     def reset(self) -> None:
         """Reset the learner to the default."""

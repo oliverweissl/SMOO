@@ -1,7 +1,6 @@
 import inspect
 from typing import Any
 
-import torch
 from torch import Tensor
 from torch.nn.modules.loss import _Loss
 
@@ -24,16 +23,13 @@ class TorchLossCriterion(ClassifierCriterion):
         self._loss_fn = loss_fn
         self._signature = inspect.signature(loss_fn.forward)
 
-    def evaluate(self, *, logits: Tensor, initial_predictions: Tensor, **kwargs: Any) -> Tensor:
+    def evaluate(self, *, logits: Tensor, **kwargs: Any) -> Tensor:
         """
         Calculate the loss.
 
         :param logits: Logits tensor.
-        :param initial_predictions: The initially predicted labels, sorted by probability.
         :param kwargs: Other Kwargs to use.
         :returns: The value.
         """
-        _, target, *_ = initial_predictions
         filtered_args = {k: v for k, v in kwargs.items() if k in self._signature.parameters}
-        target = torch.full((logits.size(0),), target, dtype=torch.long, device=logits.device)
-        return self._loss_fn(logits, target, **filtered_args)
+        return self._loss_fn(input=logits, **filtered_args)
