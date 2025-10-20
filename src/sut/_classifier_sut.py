@@ -48,6 +48,7 @@ class ClassifierSUT(SUT):
         self._model.to(self._device)
         self._softmax.to(self._device)
 
+    @SUT.standardize_inpt
     def process_input(self, inpt: Tensor) -> Tensor:
         """
         Predict class probabilities from input.
@@ -55,20 +56,9 @@ class ClassifierSUT(SUT):
         :param inpt: Input tensor.
         :return: Predicted class probabilities on CPU.
         """
-        if inpt.device != self._device:
-            inpt = inpt.to(self._device)
-
-        batch_size = max(
-            self._batch_size or inpt.size(0), 1
-        )  # If batchsize == 0 -> do whole input.
-        n_chunks = (inpt.size(0) + batch_size - 1) // batch_size
-        chunks = torch.chunk(inpt, n_chunks, dim=0)
-
-        assert torch.isfinite(inpt).all(), "input has NaNs/Infs"
-
         results = []
         with torch.set_grad_enabled(self._require_grad):
-            for c in chunks:
+            for c in inpt:
                 logits = self._model(c)
                 output = self._softmax(logits) if self._apply_softmax else logits
                 results.append(output)

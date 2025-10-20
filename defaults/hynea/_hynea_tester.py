@@ -90,9 +90,7 @@ class HyNeATester(SMOO):
 
                 # Terminates early if the prediction is the target.
                 found_solution_func = lambda curr: curr.argmax().item() == target
-                loss_target = torch.full(
-                    (initial_pred.size(0),), target, dtype=torch.long, device=cand_i.xt.device
-                )
+                loss_target = torch.tensor([target], device=cand_i.xt.device)
             elif isinstance(self._sut, BinaryClassifierSUT):
                 control = (y0 > 0).float()
                 target = (1 - control[:, class_id]).item()
@@ -120,6 +118,7 @@ class HyNeATester(SMOO):
             gen_data: list[dict[str, Any]] = list()
             best_fitness: dict[str, Any] = dict()
             iter_start = time()
+            v_range = None
             for i in range(self._config.generations * self._config.pop_size):  # * 100 is pop size
                 x_f = self._manipulator.manipulate(cand_list)
                 i_f = self._manipulator.get_images(x_f)
@@ -133,6 +132,7 @@ class HyNeATester(SMOO):
                     images=[i0, i_f],
                     target=loss_target,
                     batch_dim=0,
+                    v_range=v_range,
                 )
                 if isinstance(self._sut, BinaryClassifierSUT):
                     # If we are in binary classification we only want one logit.
@@ -149,6 +149,8 @@ class HyNeATester(SMOO):
                     k: v.detach().item() if torch.is_tensor(v) else v
                     for k, v in self._objectives.results.items()
                 }
+                if v_range is None:
+                    v_range = (0, list(results_detached.values())[-1])
                 logging.info(
                     "Fitness values: " + ", ".join(f"{k}: {v}" for k, v in results_detached.items())
                 )

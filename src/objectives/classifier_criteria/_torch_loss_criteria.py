@@ -1,5 +1,5 @@
 import inspect
-from typing import Any
+from typing import Any, Optional
 
 from torch import Tensor
 from torch.nn.modules.loss import _Loss
@@ -32,4 +32,9 @@ class TorchLossCriterion(ClassifierCriterion):
         :returns: The value.
         """
         filtered_args = {k: v for k, v in kwargs.items() if k in self._signature.parameters}
-        return self._loss_fn(input=logits, **filtered_args)
+        result = self._loss_fn(input=logits, **filtered_args)
+
+        v_range: Optional[tuple[float, float]] = kwargs.get("v_range")
+        if v_range:
+            result = (result - v_range[0]) / (v_range[1] - v_range[0])
+        return result

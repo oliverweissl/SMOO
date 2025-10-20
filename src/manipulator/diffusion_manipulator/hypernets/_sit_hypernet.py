@@ -65,6 +65,7 @@ class SiTHyperNet(nn.Module):
             assert 0 < train_frac <= 1, "Train fraction must be between 0 and 1."
             self.cutoff = int(len(sit_model.blocks) * train_frac)
             assert self.cutoff > 0, "Train fraction must be greater than 0."
+        self.standardize_control = torch.nn.Tanh()
 
         """Define Control Blocks."""
         self.control_layers = nn.ModuleList(deepcopy(sit_model.blocks[: self.cutoff]))
@@ -114,7 +115,7 @@ class SiTHyperNet(nn.Module):
 
         :param x: (N, C, H, W) tensor of spatial inputs (images or latent representations of images UNNORMALIZED).
         :param y: (N) tensor of class labels.
-        :param control: (N, *S) tensor of control tokens to use for the forward pass.
+        :param control: (N, *S) tensor of control tokens to use for the forward pass assumes range (-inf, inf).
         :param cfg: Classifier free guidance scale.
         :param guidance_bounds: For which timesteps guidance should be permitted.
         :param y_null: The null-class tensor if guidance is used.
@@ -127,6 +128,8 @@ class SiTHyperNet(nn.Module):
         time_inputs = torch.linspace(t_start, t_end, timesteps + 1, device=device, dtype=dtype)[1:]
         y_embed = self._get_y_embed(y)
 
+        if control.min() < -1.0 or control.max() > 1.0:
+            control = self.standardize_control(control)
         cond = cfg > 1.0 and guidance_bounds[1] >= t_start > t_end >= guidance_bounds[0]
         if cond and y_null is not None:
             x = x.repeat(2, *([1] * (x.ndim - 1)))

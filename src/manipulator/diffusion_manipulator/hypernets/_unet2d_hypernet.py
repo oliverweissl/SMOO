@@ -109,6 +109,7 @@ class UNet2DHyperNet(nn.Module):
         self.control_projector = ControlProjector(
             input_shape=self.in_shape, control_shape=control_shape
         )
+        self.bound_control = torch.nn.Tanh()
 
     def trainable_parameters(self) -> list[nn.Parameter]:
         """
@@ -136,13 +137,14 @@ class UNet2DHyperNet(nn.Module):
         Full denoising process - used for end-to-end training.
 
         :param x: (B, C, H, W) tensor of spatial inputs (latent representations of images or None).
-        :param control: (B, *S) tensor of control tokens to use for the forward pass.
+        :param control: (B, *S) tensor of control tokens to use for the forward pass assumes range (-inf, inf).
         :param timesteps: (B, *S) tensor of timesteps to use for the forward pass.
         :returns: The results of the forward pass.
         """
         if x is None:
             x = torch.randn((control.size(0), *self.in_shape), device=control.device)
 
+        control = self.bound_control(control)
         self._scheduler.set_timesteps(timesteps)
         for t in self._scheduler.timesteps:
             residual = self._diffusion_step(x, control, t)
