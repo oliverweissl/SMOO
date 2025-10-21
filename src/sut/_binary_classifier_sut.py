@@ -18,6 +18,7 @@ class BinaryClassifierSUT(SUT):
         batch_size: int = 0,
         device: Optional[torch.device] = None,
         require_grad: bool = False,
+        apply_sigmoid: bool = True,
     ) -> None:
         """
         Initialize a binary classifier SUT.
@@ -26,10 +27,15 @@ class BinaryClassifierSUT(SUT):
         :param batch_size: The batch size to use for prediction.
         :param device: The device to use if available.
         :param require_grad: Whether to require gradients or not.
+        :param apply_sigmoid: Whether to apply sigmoid or not.
         """
         self._batch_size = batch_size
         self._device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self._require_grad = require_grad
+        self._apply_sigmoid = apply_sigmoid
+
+        self._sigmoid = nn.Sigmoid()
+        self._sigmoid.to(self._device)
 
         self._model = model
         self._model.eval()
@@ -47,6 +53,7 @@ class BinaryClassifierSUT(SUT):
         with torch.set_grad_enabled(self._require_grad):
             for c in inpt:
                 logits = self._model(c)
+                logits = self._sigmoid(logits) if self._apply_sigmoid else logits
                 results.append(logits)
         res = torch.cat(results, dim=0)
         return res

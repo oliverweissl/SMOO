@@ -21,7 +21,7 @@ from src.manipulator.style_gan_manipulator import (
 )
 from src.objectives import CriterionCollection
 from src.optimizer import Optimizer
-from src.sut import SUT
+from src.sut import SUT, BinaryClassifierSUT, ClassifierSUT
 
 from ._default_df import DefaultDF
 from ._experiment_config import ExperimentConfig
@@ -117,6 +117,22 @@ class MimicryTester(SMOO):
             """
             initial_pred = torch.argsort(w0_ys, descending=True)[0]
             self._img_rgb = w0_images[0]
+
+            """Specific logic for torch-loss based objectives and logit based termination."""
+            if isinstance(self._sut, ClassifierSUT):
+                target = int(initial_pred[1].item())
+                # Terminates early if the prediction is the target.
+                self.found_solution_func = lambda curr: curr.argmax().item() == target
+                self.loss_target = torch.tensor([target], device=w0_ys.device)
+            elif isinstance(self._sut, BinaryClassifierSUT):
+                control = (w0_ys > 0).float()
+                target = (1 - control[:, class_idx]).item()
+
+                # Terminates early if the sign flipped.
+                self.found_solution_func = lambda curr: (
+                    (curr[:, class_idx] > 0).float().eq(target)
+                ).item()
+                self.loss_target = control
 
             exclude = (
                 [initial_pred[0].item()] if (unique_generation and class_idx != -1) else list()
@@ -288,15 +304,19 @@ class MimicryTester(SMOO):
         self._objectives.evaluate_all(
             images=[origin_batch, images_tensor],
             logits=predictions,
+            target=self.loss_target.repeat(predictions.size(0)),  # Make same as batch size.
             initial_predictions=initial_pred,
             solution_archive=list(),
             batch_dim=0,
         )
         results = self._objectives.results
-        fitness = tuple(np.asarray(f) for f in results.values())
+        fitness = tuple(
+            f.cpu().numpy() if isinstance(f, Tensor) else np.asarray(f) for f in results.values()
+        )
 
         early_term, term_cond = self._early_termination(results)
-        self._term_early = early_term
+        found_solution = self.found_solution_func(predictions)
+        self._term_early = early_term or found_solution
         if early_term and (term_cond is not None):
             logging.info(f"Early termination condition met by: {term_cond.sum()} individuals")
 

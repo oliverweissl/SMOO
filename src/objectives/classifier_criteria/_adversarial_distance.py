@@ -33,7 +33,7 @@ class AdversarialDistance(ClassifierCriterion):
 
     def evaluate(self, *, logits: Tensor, initial_predictions: Tensor, **_: Any) -> list[float]:
         """
-        Calculate the confidence balance of 2 confidence values.
+        Calculate the distance to a specific class prediction.
 
         This function assumes an input range of [0, 1].
 
