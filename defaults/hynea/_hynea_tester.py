@@ -133,13 +133,10 @@ class HyNeATester(SMOO):
                     target=loss_target,
                     batch_dim=0,
                     v_range=v_range,
+                    target_logit=(
+                        loss_target if isinstance(self._sut, BinaryClassifierSUT) else None
+                    ),
                 )
-                if isinstance(self._sut, BinaryClassifierSUT):
-                    # If we are in binary classification we only want one logit.
-                    criterion = list(self._objectives.results.keys())[-1]
-                    self._objectives.results[criterion] = self._objectives.results[criterion][
-                        :, class_id
-                    ]
 
                 self._optimizer.assign_fitness(self._objectives.results.values())
                 self._optimizer.update()

@@ -37,4 +37,8 @@ class TorchLossCriterion(ClassifierCriterion):
         v_range: Optional[tuple[float, float]] = kwargs.get("v_range")
         if v_range:
             result = (result - v_range[0]) / (v_range[1] - v_range[0])
+
+        t = kwargs.get("target_logit")
+        if t is not None:
+            result = result[:, t]
         return result

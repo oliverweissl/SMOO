@@ -17,6 +17,7 @@ class MixCandidate(Candidate):
     weight: float = 1.0  # The weight of the candidate for w0 calculation.
     w_index: Optional[int] = None  # Index in the w calculation.
     w_tensor: Optional[torch.Tensor] = None  # The latent vector if already generated.
+    y: Optional[int] = None  # The actual logit to consider.
 
 
 class MixCandidateList(CandidateList[MixCandidate]):

@@ -52,7 +52,7 @@ class LDMHyNeAManipulator(DiffusionManipulator):
 
     def make_fresh_hyper_net(self) -> None:
         """Create a new ControlNet for the current model. ATTENTION: Deletes old one if exists!."""
-        if hasattr(self, "_control_net"):
+        if hasattr(self, "_hyper_net"):
             del self._hyper_net
             gc.collect()
             torch.cuda.empty_cache()

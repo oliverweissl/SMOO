@@ -62,7 +62,6 @@ class Optimizer(ABC):
         # Format fitness into tuple if it is list or singular item.
         fitness = [f.numpy() if isinstance(f, Tensor) else f for f in fitness]
         fitness = tuple(fitness)
-
         assert (
             len(fitness) == self._num_objectives
         ), f"Error: {len(fitness)} Fitness values found, {self._num_objectives} expected."

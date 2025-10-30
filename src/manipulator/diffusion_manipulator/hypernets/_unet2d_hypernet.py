@@ -1,5 +1,4 @@
 from copy import deepcopy
-from math import prod
 from typing import Optional
 
 import torch
@@ -7,49 +6,7 @@ from diffusers import DDIMScheduler, UNet2DModel
 from torch import Tensor, nn
 from torch.utils.checkpoint import checkpoint
 
-
-class ZeroConvBlock(nn.Conv2d):
-    """Zero Convolution Block."""
-
-    def __init__(self, channels: int) -> None:
-        """
-        Initialize a Zero Convolution Block.
-
-        :param channels: Number of channels in the input.
-        """
-        super().__init__(channels, channels, 1)
-        nn.init.zeros_(self.weight)
-        nn.init.zeros_(self.bias)
-
-
-class ControlProjector(nn.Module):
-    """Control Projector."""
-
-    def __init__(self, input_shape: tuple[int, ...], control_shape: tuple[int, ...]) -> None:
-        """
-        Initialize the Control Projector.
-
-        :param input_shape: Shape of the input for the UNet2D (excluding batch_dim).
-        :param control_shape: Shape of the control input (excluding batch_dim).
-        """
-        super().__init__()
-        # Embed the control shape into correct dimensionality for the reshape later.
-        self.embedder = nn.Linear(prod(control_shape), prod(input_shape), bias=False)
-        self.input_shape = input_shape
-        self.projector = ZeroConvBlock(input_shape[0])
-
-    def forward(self, control: Tensor) -> Tensor:
-        """
-        Project the control input to correct dimensions.
-
-        :param control: Control input.
-        :return: Projected control input.
-        """
-        b = control.size(0)
-        flat = control.view(b, -1)
-        x = self.embedder(flat)
-        x = x.view(b, *self.input_shape)
-        return self.projector(x)
+from .blocks import ControlProjector, ZeroConv2d
 
 
 class UNet2DHyperNet(nn.Module):
@@ -84,21 +41,21 @@ class UNet2DHyperNet(nn.Module):
             param.requires_grad_(False)  # Freeze parameters
 
         # Create zero-conv layers for all relevant layers.
-        self.zero_in = ZeroConvBlock(model.conv_in.out_channels)
+        self.zero_in = ZeroConv2d(model.conv_in.out_channels)
         zero_downs = []
         for down_block in self.control_down:
             module_list = []
             for resnet in down_block.resnets:
-                module_list.append(ZeroConvBlock(resnet.conv2.out_channels))
+                module_list.append(ZeroConv2d(resnet.conv2.out_channels))
 
             if down_block.downsamplers is not None:
                 for downsampler in down_block.downsamplers:
-                    module_list.append(ZeroConvBlock(downsampler.out_channels))
+                    module_list.append(ZeroConv2d(downsampler.out_channels))
 
             zero_downs.append(nn.ModuleList(module_list))
         self.zero_downs = nn.ModuleList(zero_downs)
 
-        self.zero_mid = ZeroConvBlock(self.control_mid.resnets[-1].conv2.out_channels)
+        self.zero_mid = ZeroConv2d(self.control_mid.resnets[-1].conv2.out_channels)
 
         # The shape of the latent inputs to the LDM.
         self.in_shape: tuple[int, int, int] = (
@@ -109,7 +66,7 @@ class UNet2DHyperNet(nn.Module):
         self.control_projector = ControlProjector(
             input_shape=self.in_shape, control_shape=control_shape
         )
-        self.bound_control = torch.nn.Tanh()
+        self.standardize_control = torch.nn.Tanh()
 
     def trainable_parameters(self) -> list[nn.Parameter]:
         """
@@ -144,7 +101,7 @@ class UNet2DHyperNet(nn.Module):
         if x is None:
             x = torch.randn((control.size(0), *self.in_shape), device=control.device)
 
-        control = self.bound_control(control)
+        control = self.standardize_control(control)
         self._scheduler.set_timesteps(timesteps)
         for t in self._scheduler.timesteps:
             residual = self._diffusion_step(x, control, t)
