@@ -18,6 +18,7 @@ class DiffusionCandidate(Candidate):
     is_origin: bool = False
     y: Optional[int] = None
     control: Optional[Tensor] = None
+    prompt: Optional[str] = None
 
     def __post_init__(self) -> None:
         """Preprocessing of some elements after intialization."""

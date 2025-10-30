@@ -1,9 +1,8 @@
 from copy import deepcopy
-from typing import Optional
 
 import torch
 from diffusers import StableDiffusionControlNetPipeline
-from torch import nn
+from torch import Tensor, nn
 
 from .blocks import ControlProjector, ZeroConv2d
 
@@ -83,67 +82,129 @@ class SDCNHyperNet(nn.Module):
 
     def forward(
         self,
-        control: torch.Tensor,
-        x: Optional[torch.Tensor] = None,
-        timesteps: int = 50,
-    ) -> torch.Tensor:
+        control: Tensor,
+        prompts: list[str],
+        timesteps: int,
+        x: Tensor,
+    ) -> Tensor:
         """
-        Full denoising process for ControlNet - used for end-to-end training.
+        Get latent information for all diffusion steps with optimized memory usage.
 
-        :param x: (B, C, H, W) tensor of spatial inputs (latent representations of images or None).
-        :param control: (B, *S) tensor of control tokens to use for the forward pass.
-        :param timesteps: Number of diffusion timesteps to use.
-        :returns: The results of the forward pass.
+        :param control: The control signal to other control nets.
+        :param prompts: Prompts to generate diffusion steps for.
+        :param timesteps: Number of steps in the denoising.
+        :param x: Optional starting latent vector if sampled differently.
+        :returns: A list of latent vectors through denoising and empty tensor as there are no classes here.
         """
-        if x is None:
-            x = torch.randn(
-                (control.size(0), *self.in_shape), device=control.device, dtype=control.dtype
+        batch_size = len(prompts)
+        controlnet = (
+            self._pipe.controlnet._orig_mod
+            if hasattr(self._pipe.controlnet, "_orig_mod")
+            else self._pipe.controlnet
+        )
+
+        do_cfg, guess_mode = (
+            self._pipe.do_classifier_free_guidance,
+            controlnet.config.global_pool_conditions,
+        )
+        timesteps = timesteps or self._diffusion_steps
+        control = self._pipe.prepare_image(
+            control,
+            None,
+            None,
+            guess_mode=guess_mode,
+            do_classifier_free_guidance=do_cfg,
+            device=self._device,
+            dtype=controlnet.dtype,
+            num_images_per_prompt=1,
+            batch_size=batch_size,
+        )
+
+        y_cur, negative_prompt_embeds = self._pipe.encode_prompt(
+            prompts,
+            self._device,
+            1,
+            do_cfg,
+            [self._negative_prompt] * batch_size,
+        )
+
+        if do_cfg:
+            y_cur = torch.cat([negative_prompt_embeds, y_cur])
+
+        x_cur = (
+            x.to(self._device, controlnet.dtype)
+            if x is not None
+            else torch.randn(
+                batch_size,
+                self._pipe.unet.config["in_channels"],
+                self._pipe.unet.sample_size,
+                self._pipe.unet.sample_size,
+                device=self._device,
+                dtype=controlnet.dtype,
+            )
+            * self._pipe.scheduler.init_noise_sigma
+        )
+
+        self._pipe.scheduler.set_timesteps(num_inference_steps=timesteps)
+
+        timestep_cond = None
+        if self._pipe.unet.config.time_cond_proj_dim is not None:
+            guidance_scale_tensor = torch.tensor(self._pipe.guidance_scale - 1).repeat(batch_size)
+            timestep_cond = self._pipe.get_guidance_scale_embedding(
+                guidance_scale_tensor, embedding_dim=self._pipe.unet.config.time_cond_proj_dim
+            ).to(device=self._device, dtype=x_cur.dtype)
+
+        for i, t in enumerate(self._pipe.scheduler.timesteps):
+            if self._pipe.interrupt:
+                continue
+
+            latents = torch.cat([x_cur] * 2) if do_cfg else x_cur
+            ldm_input = self._pipe.scheduler.scale_model_input(latents, t)
+
+            if guess_mode and do_cfg:
+                cn_input = self._pipe.scheduler.scale_model_input(latents, t)
+                controlnet_prompt_embeds = y_cur.chunk(2)[1]
+            else:
+                cn_input = ldm_input
+                controlnet_prompt_embeds = y_cur
+
+            down_block_res_samples, mid_block_res_sample = controlnet(
+                cn_input,
+                t,
+                encoder_hidden_states=controlnet_prompt_embeds,
+                controlnet_cond=control,
+                conditioning_scale=1.0,
+                guess_mode=guess_mode,
+                return_dict=False,
             )
 
-        # Standardize control input
-        control = self.bound_control(control)
+            if guess_mode and do_cfg:
+                down_block_res_samples = [
+                    torch.cat([torch.zeros_like(d), d]) for d in down_block_res_samples
+                ]
+                mid_block_res_sample = torch.cat(
+                    [torch.zeros_like(mid_block_res_sample), mid_block_res_sample]
+                )
 
-        # Set up scheduler
-        self._scheduler.set_timesteps(timesteps)
-
-        for t in self._scheduler.timesteps:
-            # Scale model input
-            x_scaled = self._scheduler.scale_model_input(x, t)
-
-            # Project control signal
-            projected_control = self.control_projector(control)
-
-            # Apply control conditioning through the control network
-            x_conditioned = x_scaled + projected_control
-            x_conditioned = self.control_in(x_conditioned)
-
-            # Get control residuals from down blocks
-            control_down_residuals = []
-            skip_sample = x_scaled
-
-            for block, zeros in zip(self.control_down, self.zero_downs):
-                if hasattr(block, "skip_conv"):
-                    x_conditioned, res_samples, skip_sample = block(x_conditioned, t, skip_sample)
-                else:
-                    x_conditioned, res_samples = block(x_conditioned, t)
-
-                # Apply zero convolutions to residuals
-                control_residuals = [z(s) for z, s in zip(zeros, res_samples)]
-                control_down_residuals.extend(control_residuals)
-
-            # Process through middle block
-            control_mid_residual = self.zero_mid(self.control_mid(x_conditioned, t))
-
-            # Run the main UNet with control residuals
-            noise_pred = self._model(
-                x_scaled,
+            # predict the noise residual
+            noise_pred = self._pipe.unet(
+                ldm_input,
                 t,
-                down_block_additional_residuals=control_down_residuals,
-                mid_block_additional_residual=control_mid_residual,
+                encoder_hidden_states=y_cur,
+                timestep_cond=timestep_cond,
+                down_block_additional_residuals=down_block_res_samples,
+                mid_block_additional_residual=mid_block_res_sample,
                 return_dict=False,
             )[0]
 
-            # Step the scheduler
-            x = self._scheduler.step(noise_pred, t, x, return_dict=False)[0]
+            if do_cfg:
+                noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
+                noise_pred = noise_pred_uncond + self._pipe.guidance_scale * (
+                    noise_pred_text - noise_pred_uncond
+                )
 
-        return x
+            x_cur, *_ = self._pipe.scheduler.step(noise_pred, t, x_cur, return_dict=False)
+
+            del down_block_res_samples, mid_block_res_sample, noise_pred, ldm_input, cn_input
+            torch.cuda.empty_cache()
+        return x_cur

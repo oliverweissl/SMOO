@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Any, Optional
 
 from torch import Tensor
 
@@ -11,12 +11,12 @@ class DiffusionManipulator(Manipulator, ABC):
 
     @abstractmethod
     def get_diff_steps(
-        self, class_labels: list[int], n_steps: Optional[int] = None, x_0: Optional[Tensor] = None
+        self, diff_input: Any, n_steps: Optional[int] = None, x_0: Optional[Tensor] = None
     ) -> tuple[Tensor, Tensor]:
         """
         Get latent information for all diffusion steps with optimized memory usage.
 
-        :param class_labels: Class label to generate diffusion steps for.
+        :param diff_input: The input to the manipulator.
         :param n_steps: Number of steps in the denoising.
         :param x_0: Optional starting latent vector if sampled differently.
         :returns: A list of latent vectors through denoising and the class embedding.

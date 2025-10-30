@@ -74,18 +74,20 @@ class SDCNHyNeAManipulator(DiffusionManipulator):
         :param candidates: The candidates to manipulate.
         :param kwargs: Additional KW-Args, use `timesteps: int` to modify default 50 diffusion steps.
         :return: The sampled outputs.
-        :raises ValueError: If control signal is missing in candidate.
         """
-        # TODO: This is not implemented properly
         xs = []
         for c in candidates:
-            # Ensure proper dtype for all tensors
-            xt = c.xt[0].unsqueeze(0).to(self._device, dtype=torch.float16)
-            if c.control is not None:
-                control = c.control.to(self._device, dtype=torch.float16)
-            else:
-                raise ValueError("Candidate needs control-signal.")
-            x = self._hyper_net.forward(x=xt, control=control, timesteps=self._diffusion_steps)
+            assert (
+                c.prompt is not None
+            ), f"Error: prompt needed in candidate for {self.__class__.__name__}"
+            assert (
+                c.control is not None
+            ), f"Error: control needed in candidate for {self.__class__.__name__}"
+
+            xt = c.xt[0].unsqueeze(0)
+            x = self._hyper_net.forward(
+                x=xt, control=c.control, timesteps=self._diffusion_steps, prompts=[c.prompt]
+            )
             xs.append(x)
         return torch.cat(xs, dim=0)
 
@@ -99,20 +101,20 @@ class SDCNHyNeAManipulator(DiffusionManipulator):
 
     def get_diff_steps(
         self,
-        control: Tensor,
-        prompts: list[str],
+        diff_input: tuple[Tensor, list[str]],
         n_steps: Optional[int] = None,
         x_0: Optional[Tensor] = None,
     ) -> tuple[Tensor, Tensor]:
         """
         Get latent information for all diffusion steps with optimized memory usage.
 
-        :param control: The control signal to other control nets.
-        :param prompts: Prompts to generate diffusion steps for.
+        :param diff_input: The control signal to other control nets and the prompts.
         :param n_steps: Number of steps in the denoising.
         :param x_0: Optional starting latent vector if sampled differently.
         :returns: A list of latent vectors through denoising and empty tensor as there are no classes here.
         """
+        control, prompts = diff_input
+
         batch_size = len(prompts)
         controlnet = (
             self._pipe.controlnet._orig_mod

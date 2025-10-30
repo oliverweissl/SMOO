@@ -81,17 +81,17 @@ class SitHyNeAManipulator(DiffusionManipulator):
         self._hyper_net.to(self._device)
 
     def get_diff_steps(
-        self, class_labels: list[int], n_steps: Optional[int] = None, x_0: Optional[Tensor] = None
+        self, diff_input: list[int], n_steps: Optional[int] = None, x_0: Optional[Tensor] = None
     ) -> tuple[Tensor, Tensor]:
         """
         Get latent information for all diffusion steps with optimized memory usage.
 
-        :param class_labels: Class label to generate diffusion steps for.
+        :param diff_input: Class label to generate diffusion steps for.
         :param n_steps: Number of steps in the denoising.
         :param x_0: Optional starting latent vector if sampled differently.
         :returns: A list of latent vectors through denoising and the class embedding.
         """
-        batch_size = len(class_labels)
+        batch_size = len(diff_input)
         n_steps = n_steps or self._n_steps
 
         x_cur = (
@@ -107,7 +107,7 @@ class SitHyNeAManipulator(DiffusionManipulator):
         )
 
         t_steps = torch.linspace(1, 0, n_steps + 1, device=self._device)
-        y_cur = self._embed_y(class_labels)
+        y_cur = self._embed_y(diff_input)
 
         xs = torch.empty(
             n_steps + 1,
