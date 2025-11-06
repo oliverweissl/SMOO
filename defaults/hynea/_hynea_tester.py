@@ -1,19 +1,24 @@
+import glob
 import json
 import logging
 import os
+import random
 from itertools import product
 from time import time
 from typing import Any
 
 import pandas as pd
 import torch
+from PIL import Image
 from torch import Tensor
+from torchvision.transforms import ToTensor
 
 from src import SMOO
 from src.manipulator.diffusion_manipulator import (
     DiffusionCandidate,
     DiffusionCandidateList,
     LDMHyNeAManipulator,
+    SDCNHyNeAManipulator,
     SitHyNeAManipulator,
 )
 from src.objectives import CriterionCollection
@@ -26,7 +31,7 @@ from ._experiment_config import ExperimentConfig
 class HyNeATester(SMOO):
     """A tester class that implements the HyNeA method."""
 
-    _manipulator: LDMHyNeAManipulator | SitHyNeAManipulator
+    _manipulator: LDMHyNeAManipulator | SitHyNeAManipulator | SDCNHyNeAManipulator
     _optimizer: TorchModelOptimizer
     _sut: ClassifierSUT
     _config: ExperimentConfig
@@ -35,7 +40,7 @@ class HyNeATester(SMOO):
         self,
         *,
         sut: ClassifierSUT,
-        manipulator: LDMHyNeAManipulator | SitHyNeAManipulator,
+        manipulator: LDMHyNeAManipulator | SitHyNeAManipulator | SDCNHyNeAManipulator,
         optimizer: TorchModelOptimizer,
         objectives: CriterionCollection,
         config: ExperimentConfig,
@@ -74,34 +79,99 @@ class HyNeATester(SMOO):
             self._config.classes, range(self._config.samples_per_class)
         ):
             logging.info(f"Test class {class_id}, sample idx {sample_idx}.")
-            cand_i, y0, i0 = self._find_valid_candidate(class_id, is_origin=True)
-            initial_pred = torch.argsort(
-                y0[0], descending=True
-            )  # Only used in multi-class classification
+
+            if isinstance(self._sut, YoloSUT):
+                """Prepare prompt and control-signal for the YOlO specific usecase."""
+                random_file = random.choice(
+                    glob.glob("_data_semantics/training/semantic_rgb/*.png")
+                )
+                control_img = Image.open(random_file)
+
+                yolo_prompt = "a traffic scene with cars, traffic lights and stop-signs, photorealistic, clear skies, urban environment"
+
+                width, height = control_img.size
+                target_height = 512
+                scale_factor = target_height / height
+                new_width = int(width * scale_factor)
+
+                control_img = control_img.resize((new_width, target_height), Image.LANCZOS)
+
+                left = (new_width - target_height) // 2
+                right = left + target_height
+
+                control_img = control_img.crop((left, 0, right, 512))
+
+                control_signal = ToTensor()(control_img).unsqueeze(0)
+
+                cand_i, y0, i0 = self._find_valid_candidate(
+                    (control_signal, [yolo_prompt]), is_origin=True, class_id=class_id
+                )
+                cand_i.control_signal = control_signal
+                cand_i.prompt = yolo_prompt
+            else:
+                cand_i, y0, i0 = self._find_valid_candidate(
+                    [class_id], is_origin=True, class_id=class_id
+                )
+
+            initial_pred = y0[0]  # [1, X] -> [X]
             control = torch.zeros(1, *self._manipulator.control_shape, device=cand_i.xt.device)
             assert (
                 control.shape == y0.shape
             ), f"Error in Control shape. Got {control.shape} instead of {y0.shape}."
 
-            # Adapt the functionality of testing based on the SUT.
             if isinstance(self._sut, ClassifierSUT):
+                """
+                When using a Multi-Class classification system as our SUT, we do the following:
+                - Sort the initial prediction to find second most likely class
+                - Define target based, if targeted testing is wanted.
+                - Create a control signal to reflect the target behavior of the SUT.
+                - Define a early termination function that checks whether we predict the target.
+                - Define a target for the torch loss function to work properly.
+                """
+                initial_pred = torch.argsort(
+                    initial_pred, descending=True
+                )  # Only used in multi-class classification
                 target = int(initial_pred[1].item()) if self._config.run_targeted else class_id
                 control[:, target] = 1
 
-                # Terminates early if the prediction is the target.
                 found_solution_func = lambda curr: curr.argmax().item() == target
                 loss_target = torch.tensor([target], device=cand_i.xt.device)
             elif isinstance(self._sut, BinaryClassifierSUT):
+                """
+                When using a Binary Classifier as our SUT, we do the following:
+                - Define our target as opposing predictions than in the initial prediction, for the logits we target.
+                - Create a control signal that reflect this sign-flip behavior (operate on logits).
+                - Define a early termination function, that checks whether the sign has flipped.
+                - Define the target for the torch loss function, which is equal to the control singal.
+                """
                 control = (y0 > 0).float()
                 target = (1 - control[:, class_id]).item()
                 control[:, class_id] = target
 
-                # Terminates early if the sign flipped.
                 found_solution_func = lambda curr: (
                     (curr[:, class_id] > 0).float().eq(target)
                 ).item()
 
                 loss_target = control
+            elif isinstance(self._sut, YoloSUT):
+                """
+                When using a YOLO Object detector as our SUT, we do the following:
+                - Define the target as the second most likely initial predictions for all detections if they do not correspond to our testing class.
+                - Create a control signal that enforces different prediction for all detections.
+                - Define a early termination function, that checks whether all detections have a confidence of less than 0.5 for the class we test.
+                - Define the target for the torch loss function, which is used for BCE-Loss as in YOLO training.
+                """
+                initial_pred = torch.argsort(initial_pred, dim=0, descending=True)  # [80, N]
+                target = initial_pred[1, :]  # [N]
+
+                mask = target == class_id
+                target[mask] = initial_pred[0, :][mask]
+
+                control[:, target, :] = 1
+
+                found_solution_func = lambda curr: (curr.argmax(dim=1) != class_id).all().item()
+                loss_target = target.clone().detach()
+                target = target[0]  # To make file creation less chaotic
             else:
                 raise NotImplementedError(
                     f"Tester does not support SUTs of type {type(self._sut)} yet."
@@ -124,6 +194,11 @@ class HyNeATester(SMOO):
                 i_f = self._manipulator.get_images(x_f)
 
                 y_f = self._process(i_f)
+                if isinstance(self._sut, YoloSUT):
+                    y_f = (
+                        y_f.squeeze().T
+                    )  # Yolo gives [1, 80, Detections] -> reshape to [Detections, 80] for the loss_target to fit.
+
                 budget += i_f.size(0)
 
                 self._objectives.evaluate_all(
@@ -141,12 +216,12 @@ class HyNeATester(SMOO):
                 self._optimizer.assign_fitness(self._objectives.results.values())
                 self._optimizer.update()
                 row = {"generation": i}
-                # Detach tensors to reduce memory load.
+
                 results_detached = {
                     k: v.detach().item() if torch.is_tensor(v) else v
                     for k, v in self._objectives.results.items()
                 }
-                if v_range is None:
+                if v_range is None and not isinstance(self._sut, YoloSUT):
                     v_range = (0, list(results_detached.values())[-1])
                 logging.info(
                     "Fitness values: " + ", ".join(f"{k}: {v}" for k, v in results_detached.items())
@@ -172,6 +247,9 @@ class HyNeATester(SMOO):
                 "y_hat": yf_best.cpu().squeeze().tolist(),
                 "budget_used": budget,
             }
+            if isinstance(self._sut, YoloSUT):
+                stats["control_signal"] = random_file
+
             log_dir = os.path.join(
                 script_dir, f"runs/class_{class_id}_{self._config.save_as}_{time()}"
             )
@@ -194,17 +272,21 @@ class HyNeATester(SMOO):
             self._manipulator.make_fresh_hyper_net()  # Make a fresh hypernet for the next candidate.
 
     def _find_valid_candidate(
-        self, class_id: int, is_origin: bool = False
+        self,
+        diff_input: Any,
+        class_id: int,
+        is_origin: bool = False,
     ) -> tuple[DiffusionCandidate, Tensor, Tensor]:
         """
         Sample single candidates that are valid to the SUT.
 
+        :param diff_input: The input to the diffusion process.
         :param class_id: The class ID.
         :param is_origin: Whether the candidate is a origin candidate.
         :returns: The DiffusionCandidate and the prediction of the SUT and the generated Image.
         """
         while True:
-            xt, emb = self._manipulator.get_diff_steps([class_id])
+            xt, emb = self._manipulator.get_diff_steps(diff_input)
             image = self._manipulator.get_images(xt[-1])
             valid, y0 = self._sut.input_valid(image, class_id)
             if valid:

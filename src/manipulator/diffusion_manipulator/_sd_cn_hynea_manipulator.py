@@ -3,7 +3,7 @@ import logging
 from typing import Optional
 
 import torch
-from diffusers import StableDiffusionControlNetPipeline
+from diffusers import ControlNetModel, StableDiffusionControlNetPipeline
 from torch import Tensor
 
 from . import DiffusionCandidateList
@@ -28,6 +28,7 @@ class SDCNHyNeAManipulator(DiffusionManipulator):
         batch_size: int = 0,
         diffusion_steps: int = 50,
         device: Optional[torch.device] = None,
+        controlnet_path: Optional[str] = None,
         guidance_scale: float = 9.0,
     ) -> None:
         """
@@ -38,6 +39,7 @@ class SDCNHyNeAManipulator(DiffusionManipulator):
         :param batch_size: Batch size (0 means all - Default).
         :param diffusion_steps: Diffusion steps to take in denoising.
         :param device: Device to use for compute.
+        :param controlnet_path: Path to the controlnet if specified seperately.
         :param guidance_scale: Guidance scale factor.
         """
         self.control_shape = control_shape
@@ -45,8 +47,16 @@ class SDCNHyNeAManipulator(DiffusionManipulator):
         self._batch_size = batch_size
         self._diffusion_steps = diffusion_steps
 
-        self._pipe = StableDiffusionControlNetPipeline.from_pretrained(pipeline_path)
-        self._pipe.to(self._device, dtype=torch.float16)
+        controlnet = (
+            ControlNetModel.from_pretrained(controlnet_path)
+            if controlnet_path is not None
+            else None
+        )
+        self._pipe = StableDiffusionControlNetPipeline.from_pretrained(
+            pipeline_path, controlnet=controlnet
+        )
+
+        self._pipe.to(self._device)
         self._pipe.enable_xformers_memory_efficient_attention()
 
         self._pipe._guidance_scale = guidance_scale
@@ -54,9 +64,9 @@ class SDCNHyNeAManipulator(DiffusionManipulator):
 
         for p in self._pipe.vae.parameters():
             p.requires_grad_(False)  # Freeze parameters
-        self.make_fresh_hyper_net()
 
         self._negative_prompt = "blurry, distorted, ugly, low quality, cartoon, sketch"
+        self.make_fresh_hyper_net()
 
     def make_fresh_hyper_net(self) -> None:
         """Create a new ControlNet for the current model. ATTENTION: Deletes old one if exists!."""
@@ -64,8 +74,12 @@ class SDCNHyNeAManipulator(DiffusionManipulator):
             del self._hyper_net
             gc.collect()
             torch.cuda.empty_cache()
-        self._hyper_net = SDCNHyperNet(pipe=self._pipe, control_shape=self.control_shape)
-        self._hyper_net.to(self._device, dtype=torch.float16)
+        self._hyper_net = SDCNHyperNet(
+            pipe=self._pipe,
+            control_shape=self.control_shape,
+            negative_prompts=self._negative_prompt,
+        )
+        self._hyper_net.to(self._device)
 
     def manipulate(self, candidates: DiffusionCandidateList, **kwargs) -> Tensor:
         """
@@ -83,10 +97,17 @@ class SDCNHyNeAManipulator(DiffusionManipulator):
             assert (
                 c.control is not None
             ), f"Error: control needed in candidate for {self.__class__.__name__}"
+            assert (
+                c.control_signal is not None
+            ), f"Error: control_signal needed in candidate for {self.__class__.__name__}"
 
             xt = c.xt[0].unsqueeze(0)
             x = self._hyper_net.forward(
-                x=xt, control=c.control, timesteps=self._diffusion_steps, prompts=[c.prompt]
+                x=xt,
+                control=c.control,
+                control_signal=c.control_signal,
+                timesteps=self._diffusion_steps,
+                prompts=[c.prompt],
             )
             xs.append(x)
         return torch.cat(xs, dim=0)
@@ -243,6 +264,15 @@ class SDCNHyNeAManipulator(DiffusionManipulator):
         :return: The decoded image, color-range [0,1].
         """
         z = z.to(self._device, dtype=self._pipe.vae.dtype)
+
+        if not torch.isfinite(z).all():
+            nan_count = torch.isnan(z).sum().item()
+            inf_count = torch.isinf(z).sum().item()
+            logging.warning(
+                f"Latent z contains NaNs ({nan_count}) or Infs ({inf_count}), casting to valid range."
+            )
+            z = torch.nan_to_num(z, nan=0.0, posinf=1e4, neginf=-1e4)
+
         logging.info("Sampling Images from denoised Latents.")
         if z.ndim == 3:  # Ensure batch dimension is present.
             z = z.unsqueeze(0)
@@ -257,6 +287,14 @@ class SDCNHyNeAManipulator(DiffusionManipulator):
             image, *_ = self._pipe.vae.decode(
                 z_chunk / self._pipe.vae.config.scaling_factor, return_dict=False
             )
+            if not torch.isfinite(image).all():
+                nan_count = torch.isnan(image).sum().item()
+                inf_count = torch.isinf(image).sum().item()
+                logging.warning(
+                    f"VAE-Sampled Image contains NaNs ({nan_count}) or Infs ({inf_count}), casting to valid range."
+                )
+                image = torch.nan_to_num(image, nan=0.0, posinf=1, neginf=-1)
+
             image = (image * 0.5 + 0.5).clamp(0.0 + eps, 1.0 - eps)
             decoded.append(image)
         return torch.cat(decoded, dim=0)
