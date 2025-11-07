@@ -1,8 +1,7 @@
-from copy import deepcopy
-from typing import Optional
+from typing import Any, Optional
 
 import torch
-from diffusers import StableDiffusionControlNetPipeline
+from diffusers import ControlNetModel, StableDiffusionControlNetPipeline
 from torch import Tensor, nn
 from torch.utils.checkpoint import checkpoint
 
@@ -12,7 +11,7 @@ from .blocks import ControlProjector
 class SDCNHyperNet(nn.Module):
     """A hypernet class for UNet2D models."""
 
-    use_checkpoints: bool = True
+    use_checkpoints: bool = True  # Default true as these are big models.
 
     def __init__(
         self,
@@ -28,10 +27,18 @@ class SDCNHyperNet(nn.Module):
         :param negative_prompts: The negative prompts to use.
         """
         super().__init__()
-        """Store whole pipeline."""
-        self._pipe = pipe
+        self._negative_prompts = negative_prompts
+
+        """Store pipeline parameters."""
         self._device = pipe.device
         self._dtype = pipe.unet.dtype
+        self._do_cfg = pipe.do_classifier_free_guidance
+        self._guidance_scale = pipe.guidance_scale
+
+        """Get useful pipeline functions."""
+        self._embed_guidance = pipe.get_guidance_scale_embedding
+        self._prepare_image = pipe.prepare_image
+        self._encode_prompt = pipe.encode_prompt
 
         """Store models and scheduler + Freeze weights."""
         self._controlnet = (
@@ -40,22 +47,22 @@ class SDCNHyperNet(nn.Module):
         self._model = pipe.unet
         self._scheduler = pipe.scheduler
 
-        self._negative_prompts = negative_prompts
-        self._do_cfg = pipe.do_classifier_free_guidance
-        self._guidance_scale = pipe.guidance_scale
-
-        """Initialize the Hypernet stuff."""
-        self.control_down = deepcopy(self._model.down_blocks)
-        self.control_mid = deepcopy(self._model.mid_block)
-
         for param in self._model.parameters():
             param.requires_grad_(False)  # Freeze parameters
         for param in self._controlnet.parameters():
             param.requires_grad_(False)  # Freeze parameters
 
+        """Initialize the Hypernet stuff -> super easy here with UNet Architectures."""
+        hynea_controlnet = ControlNetModel.from_unet(self._model)
+        self.control_down = hynea_controlnet.down_blocks
+        self.control_mid = hynea_controlnet.mid_block
+
         # Create zero-conv layers for all relevant layers
-        self.zero_downs = deepcopy(self._controlnet.controlnet_down_blocks)
-        self.zero_mid = deepcopy(self._controlnet.controlnet_mid_block)
+        self.zero_downs = hynea_controlnet.controlnet_down_blocks
+        self.zero_mid = hynea_controlnet.controlnet_mid_block
+
+        del hynea_controlnet
+        torch.cuda.empty_cache()
 
         # The shape of the latent inputs to the LDM.
         self.in_shape: tuple[int, int, int] = (
@@ -63,14 +70,16 @@ class SDCNHyperNet(nn.Module):
             self._model.sample_size,
             self._model.sample_size,
         )
+
         self.control_projector = ControlProjector(
             input_shape=self.in_shape,
             control_shape=control_shape,
             dtype=self._dtype,
             device=self._device,
         )
+
+        """Cast self and all submodules to right dtype + device."""
         self.to(device=self._device, dtype=self._dtype)
-        self.bound_control = torch.nn.Tanh()
 
     def trainable_parameters(self) -> list[nn.Parameter]:
         """
@@ -113,7 +122,7 @@ class SDCNHyperNet(nn.Module):
 
         guess_mode = self._controlnet.config.global_pool_conditions
         timesteps = timesteps or self._diffusion_steps
-        control_signal = self._pipe.prepare_image(
+        control_signal = self._prepare_image(
             control_signal,
             None,
             None,
@@ -125,7 +134,7 @@ class SDCNHyperNet(nn.Module):
             batch_size=batch_size,
         )
 
-        y_cur, negative_prompt_embeds = self._pipe.encode_prompt(
+        y_cur, negative_prompt_embeds = self._encode_prompt(
             prompts,
             self.device,
             1,
@@ -159,14 +168,11 @@ class SDCNHyperNet(nn.Module):
         timestep_cond = None
         if self._model.config.time_cond_proj_dim is not None:
             guidance_scale_tensor = torch.tensor(self._guidance_scale - 1).repeat(batch_size)
-            timestep_cond = self._pipe.get_guidance_scale_embedding(
+            timestep_cond = self._embed_guidance(
                 guidance_scale_tensor, embedding_dim=self._model.config.time_cond_proj_dim
             ).to(device=self.device, dtype=x_cur.dtype)
 
         for i, t in enumerate(self._scheduler.timesteps):
-            if self._pipe.interrupt:
-                continue
-
             latents = torch.cat([x_cur] * 2) if self._do_cfg else x_cur
             ldm_input = self._scheduler.scale_model_input(latents, t)
 
@@ -225,28 +231,16 @@ class SDCNHyperNet(nn.Module):
             cn_input = x
             controlnet_prompt_embeds = y
 
-        controlnet_kwargs = {
-            "encoder_hidden_states": controlnet_prompt_embeds,
-            "controlnet_cond": control_signal,
-            "conditioning_scale": 1.0,
-            # "class_labels": None,  # Added because checkpointing doesnt support kwargs.
-            # "timestep_cond": None,
-            # "attention_mask": None,
-            # "added_cond_kwargs": None,
-            # "cross_attention_kwargs": None,
-            "guess_mode": guess_mode,
-            "return_dict": False,
-        }
-        if self.use_checkpoints:
-            down_block_res_samples, mid_block_res_sample = checkpoint(
-                self._controlnet, cn_input, t, use_reentrant=False, **controlnet_kwargs
-            )
-        else:
-            down_block_res_samples, mid_block_res_sample = self._controlnet(
-                cn_input,
-                t,
-                **controlnet_kwargs,
-            )
+        down_block_res_samples, mid_block_res_sample = self._eval_module(
+            self._controlnet,
+            cn_input,
+            t,
+            encoder_hidden_states=controlnet_prompt_embeds,
+            controlnet_cond=control_signal,
+            conditioning_scale=1.0,
+            guess_mode=guess_mode,
+            return_dict=False,
+        )
         return mid_block_res_sample, down_block_res_samples
 
     def _hynea_forward(
@@ -275,41 +269,23 @@ class SDCNHyperNet(nn.Module):
 
         """Get the residual outputs of the HyNeA Hypernet."""
         hynea_down = [x_control]
-        if self.use_checkpoints:
-            for block in self.control_down:
-                if hasattr(block, "has_cross_attention") and block.has_cross_attention:
-                    x_control, x_res = checkpoint(
-                        block, x_control, emb, use_reentrant=False, **hynea_kwargs
-                    )
-                else:
-                    x_control, x_res = checkpoint(block, x_control, emb, use_reentrant=False)
-                hynea_down.extend(x_res)
 
-            if (
-                hasattr(self.control_mid, "has_cross_attention")
-                and self.control_mid.has_cross_attention
-            ):
-                x_control = checkpoint(
-                    self.control_mid, x_control, emb, use_reentrant=False, **hynea_kwargs
-                )
-            else:
-                x_control = checkpoint(self.control_mid, x_control, emb, use_reentrant=False)
+        for block in self.control_down:
+            block_kwargs = (
+                hynea_kwargs
+                if hasattr(block, "has_cross_attention") and block.has_cross_attention
+                else {}
+            )
+            x_control, x_res = self._eval_module(block, x_control, emb, **block_kwargs)
+            hynea_down.extend(x_res)
 
-        else:
-            for block in self.control_down:
-                if hasattr(block, "has_cross_attention") and block.has_cross_attention:
-                    x_control, x_res = block(x_control, t_emb, **hynea_kwargs)
-                else:
-                    x_control, x_res = block(x_control, t_emb)
-                hynea_down.extend(x_res)
-
-            if (
-                hasattr(self.control_mid, "has_cross_attention")
-                and self.control_mid.has_cross_attention
-            ):
-                x_control = self.control_mid(x_control, t_emb, **hynea_kwargs)
-            else:
-                x_control = self.control_mid(x_control, t_emb)
+        mid_kwargs = (
+            hynea_kwargs
+            if hasattr(self.control_mid, "has_cross_attention")
+            and self.control_mid.has_cross_attention
+            else {}
+        )
+        x_control = self._eval_module(self.control_mid, x_control, emb, **mid_kwargs)
 
         """Modulate HyNeA Hypernet residuals with ZeroBlocks."""
         hynea_down_zerod = []
@@ -344,28 +320,35 @@ class SDCNHyperNet(nn.Module):
         :param res_mid: A residual output of the mid-block from the Hypernets.
         :return: The predicted noise from the model.
         """
-        unet_kwargs = {
-            "encoder_hidden_states": y,
-            # "class_labels": None,
-            "timestep_cond": t_cond,
-            # "attention_mask": None,
-            # "cross_attention_kwargs": None,
-            # "added_cond_kwargs": None,
-            "down_block_additional_residuals": res_down,
-            "mid_block_additional_residual": res_mid,
-            # "down_intrablock_additional_residuals": None,
-            # "encoder_attention_mask": None,
-            "return_dict": False,
-        }
-        if self.use_checkpoints:
-            noise_pred, *_ = checkpoint(self._model, x, t, use_reentrant=False, **unet_kwargs)
-        else:
-            noise_pred, *_ = self._model(
-                x,
-                t,
-                **unet_kwargs,
-            )
+        noise_pred, *_ = self._eval_module(
+            self._model,
+            x,
+            t,
+            encoder_hidden_states=y,
+            timestep_cond=t_cond,
+            down_block_additional_residuals=res_down,
+            mid_block_additional_residual=res_mid,
+            return_dict=False,
+        )
         return noise_pred
+
+    def _eval_module(self, *args: Any, **kwargs: Any) -> Any:
+        """
+        Safely evaluate a torch module with logic to ensure checkpointing is done.
+
+        :param args: The arguments to pass, including the module as the first input.
+        :param kwargs: The additional kwargs to pass.
+        :return: The output(s) of the module.
+        """
+        module, *f_args = args
+        assert isinstance(
+            module, nn.Module
+        ), "Error: Ensure the first argument is the nn.Module instance."
+        return (
+            checkpoint(module, *f_args, **kwargs, use_reentrant=False)
+            if self.use_checkpoints
+            else module(*f_args, **kwargs)
+        )
 
     @property
     def device(self) -> torch.device:
