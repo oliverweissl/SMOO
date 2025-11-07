@@ -170,7 +170,7 @@ class HyNeATester(SMOO):
                 control[:, target, :] = 1
 
                 found_solution_func = lambda curr: (curr.argmax(dim=1) != class_id).all().item()
-                loss_target = target.clone().detach()
+                loss_target = target.clone().detach()[:5]
                 target = target[0]  # To make file creation less chaotic
             else:
                 raise NotImplementedError(
@@ -198,6 +198,7 @@ class HyNeATester(SMOO):
                     y_f = (
                         y_f.squeeze().T
                     )  # Yolo gives [1, 80, Detections] -> reshape to [Detections, 80] for the loss_target to fit.
+                    y_f = y_f[:5]  # Only take top-k to keep gradients relevant
 
                 budget += i_f.size(0)
 
@@ -235,6 +236,8 @@ class HyNeATester(SMOO):
                     best_fitness = results_detached
 
                 if found_solution_func(y_f):
+                    xf_best, if_best, yf_best = x_f.detach(), i_f.detach(), y_f.detach()
+                    best_fitness = results_detached
                     logging.info(f"Found solution after {i} steps")
                     break
                 del x_f, i_f, y_f
