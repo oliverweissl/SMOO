@@ -24,6 +24,7 @@ from src.manipulator.diffusion_manipulator import (
 from src.objectives import CriterionCollection
 from src.optimizer import TorchModelOptimizer
 from src.sut import BinaryClassifierSUT, ClassifierSUT, YoloSUT
+from src.utils.exceptions import ExceededIterationBudget
 
 from ._experiment_config import ExperimentConfig
 
@@ -103,15 +104,23 @@ class HyNeATester(SMOO):
 
                 control_signal = ToTensor()(control_img).unsqueeze(0)
 
-                cand_i, y0, i0 = self._find_valid_candidate(
-                    (control_signal, [yolo_prompt]), is_origin=True, class_id=class_id
-                )
+                try:
+                    cand_i, y0, i0 = self._find_valid_candidate(
+                        (control_signal, [yolo_prompt]), is_origin=True, class_id=class_id
+                    )
+                except ExceededIterationBudget:
+                    logging.warning("Budget for candidate generation exceeded. Skipping.")
+                    continue  # Move on to the next iteration
                 cand_i.control_signal = control_signal
                 cand_i.prompt = yolo_prompt
             else:
-                cand_i, y0, i0 = self._find_valid_candidate(
-                    [class_id], is_origin=True, class_id=class_id
-                )
+                try:
+                    cand_i, y0, i0 = self._find_valid_candidate(
+                        [class_id], is_origin=True, class_id=class_id
+                    )
+                except ExceededIterationBudget:
+                    logging.warning("Budget for candidate generation exceeded. Skipping.")
+                    continue  # Move on to the next iteration
 
             initial_pred = y0[0]  # [1, X] -> [X]
             control = torch.zeros(1, *self._manipulator.control_shape, device=cand_i.xt.device)
@@ -279,6 +288,7 @@ class HyNeATester(SMOO):
         diff_input: Any,
         class_id: int,
         is_origin: bool = False,
+        max_iterations: int = 100,
     ) -> tuple[DiffusionCandidate, Tensor, Tensor]:
         """
         Sample single candidates that are valid to the SUT.
@@ -286,8 +296,11 @@ class HyNeATester(SMOO):
         :param diff_input: The input to the diffusion process.
         :param class_id: The class ID.
         :param is_origin: Whether the candidate is a origin candidate.
+        :param max_iterations: The maximum number of iterations for candidate generation (Unlimited if 0).
         :returns: The DiffusionCandidate and the prediction of the SUT and the generated Image.
+        :raises ExceededIterationBudget: If the budget for candidate generation was exceeded.
         """
+        n_iter = 0
         while True:
             xt, emb = self._manipulator.get_diff_steps(diff_input)
             image = self._manipulator.get_images(xt[-1])
@@ -296,6 +309,11 @@ class HyNeATester(SMOO):
                 break
             del xt, emb, image, y0
             self._cleanup()
+            n_iter += 1
+            if n_iter >= max_iterations > 0:
+                raise ExceededIterationBudget(
+                    "Maximum number of iterations reached in candidate generations."
+                )
         candidate = DiffusionCandidate(xt.squeeze(), emb, is_origin=is_origin, y=class_id)
         return candidate, y0, image
 

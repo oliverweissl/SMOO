@@ -153,8 +153,12 @@ class YoloSUT(SUT):
         :raises NotImplementedError: If not implemented.
         """
         if self._return_confidences:
-            pred = self.process_input(inpt)[:80]
-            found = (pred.argmax(dim=1) == cond).any().item()
+            pred = self.process_input(inpt)[:, :80, :]  # B x Measurements x Detections
+            assert (
+                pred.size(0) == 1
+            ), f"Error: Expected Batch size of 1, but got {pred.size(0)}, please adapt function to work with bigger batch sizes."
+            pred_am = pred.argmax(dim=1).flatten()  # B x M x D -> B x D -> D
+            found = (pred_am[:5] == cond).any().item()
             return found, pred
         else:
             raise NotImplementedError(
@@ -173,11 +177,10 @@ class YoloSUT(SUT):
         :return: The filtered objectness, confidences and bboxes.
         """
         if self._filter_classes is not None:
-            batch_obj, batch_conf, batch_bbox = [], [], []
-
+            assert confidences.shape[0] == 1, "Error: Only implemented for Batch size = 1"
             for b in range(confidences.shape[0]):  # iterate batch
-                clss = confidences[b].argmax(dim=0)
-                conf = confidences[b].max(dim=0).values
+                clss = confidences[0].argmax(dim=0)
+                conf = confidences[0].max(dim=0).values
 
                 mask = torch.zeros_like(clss, dtype=torch.bool)
                 for c in self._filter_classes:
@@ -185,28 +188,19 @@ class YoloSUT(SUT):
                 mask &= conf > 0.5
 
                 indices = mask.nonzero(as_tuple=True)[0]
-                logging.info(
-                    f"Batch {b}: Filtered from {confidences.shape[2]} to {len(indices)} detections"
-                )
 
                 if len(indices) == 0:
-                    batch_obj.append(torch.empty(0, device=objectness.device))
-                    batch_conf.append(
-                        torch.empty(confidences.size(1), 0, device=confidences.device)
+                    objectness = torch.empty((1, 0), device=objectness.device)
+                    confidences = torch.empty(
+                        (1, confidences.size(1), 0), device=confidences.device
                     )
-                    batch_bbox.append(torch.empty(bboxes.size(1), 0, device=bboxes.device))
-                    logging.warning(
-                        f"Filtering for classes {self._filter_classes} reduced detections to 0."
-                    )
-                    continue
+                    bboxes = torch.empty((1, bboxes.size(1), 0), device=bboxes.device)
+                else:
+                    objectness = objectness[:, indices]
+                    confidences = confidences[:, :, indices]
+                    bboxes = bboxes[:, :, indices]
 
-                batch_obj.append(objectness[b, indices])
-                batch_conf.append(confidences[b, :, indices])
-                batch_bbox.append(bboxes[b, :, indices])
-            return torch.stack(batch_obj), torch.stack(batch_conf), torch.stack(batch_bbox)
-
-        else:
-            return objectness, confidences, bboxes
+        return objectness, confidences, bboxes
 
     def _optional_apply_nms(
         self, objectness: Tensor, confidences: Tensor, bboxes: Tensor
@@ -219,57 +213,45 @@ class YoloSUT(SUT):
         :param bboxes: The bboxes to filter.
         :return: The filtered objectness, confidences and bboxes.
         """
-        if self._nms_threshold > 0.0:
-            batch_keep_obj, batch_keep_conf, batch_keep_bbox = [], [], []
-
-            for b in range(confidences.shape[0]):  # batch elements
-                boxes, scores, classes = [], [], []
-
-                if confidences.shape[2] == 0:
-                    logging.info(f"Element {b}: NMS skipped — no detections")
-                    batch_keep_obj.append(objectness[b])
-                    batch_keep_conf.append(confidences[b])
-                    batch_keep_bbox.append(bboxes[b])
-                    continue
-
-                for i in range(confidences.shape[2]):  # detections
-                    class_confs = confidences[b, :, i]
-                    max_conf, best_class = class_confs.max(dim=0)
-
-                    cx, cy, w, h = bboxes[b, :, i].cpu()
-                    x1, y1 = cx - w / 2, cy - h / 2
-                    x2, y2 = cx + w / 2, cy + h / 2
-
-                    boxes.append([x1, y1, x2, y2])
-                    scores.append(max_conf.item())
-                    classes.append(best_class.item())
-
-                boxes = torch.tensor(boxes)
-                scores = torch.tensor(scores)
-                classes = torch.tensor(classes)
-
-                keep_indices = []
-                for c in classes.unique():
-                    idxs = (classes == c).nonzero(as_tuple=True)[0]
-                    keep = nms(boxes[idxs], scores[idxs], iou_threshold=self._nms_threshold)
-                    keep_indices.append(idxs[keep])
-
-                keep = torch.cat(keep_indices)
-
-                logging.info(
-                    f"Element {b}: NMS reduced from {confidences.shape[2]} to {len(keep)} detections"
-                )
-                batch_keep_obj.append(objectness[b, keep])
-                batch_keep_conf.append(confidences[b, :, keep])
-                batch_keep_bbox.append(bboxes[b, :, keep])
-
-            return (
-                torch.stack(batch_keep_obj),
-                torch.stack(batch_keep_conf),
-                torch.stack(batch_keep_bbox),
-            )
-        else:
+        if self._nms_threshold <= 0.0:
             return objectness, confidences, bboxes
+
+        B, C, N = confidences.shape
+        assert B == 1, "Only implemented for batch size 1"
+
+        if N == 0:
+            return objectness, confidences, bboxes
+
+        # Convert bboxes to [N,4] for NMS
+        # bboxes: [B,4,N] -> [N,4]
+        bboxes_N4 = bboxes[0].permute(1, 0)  # [4,N] -> [N,4]
+        cx, cy, w, h = bboxes_N4[:, 0], bboxes_N4[:, 1], bboxes_N4[:, 2], bboxes_N4[:, 3]
+        boxes = torch.stack([cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2], dim=1)  # [N,4]
+
+        # Get max confidence per detection
+        max_conf, best_class = confidences[0].max(dim=0)  # [N]
+
+        keep_indices = []
+        for c in best_class.unique():
+            idxs = (best_class == c).nonzero(as_tuple=True)[0]
+            kept = nms(boxes[idxs], max_conf[idxs], iou_threshold=self._nms_threshold)
+            kept = torch.as_tensor(kept, device=boxes.device, dtype=torch.long)
+            if kept.numel() > 0:
+                keep_indices.append(idxs[kept])
+
+        if len(keep_indices) == 0:
+            keep = torch.tensor([], device=bboxes.device, dtype=torch.long)
+        else:
+            keep = torch.cat(keep_indices)
+        if keep.dim() == 0:
+            keep = keep.unsqueeze(0)
+
+        # Use index_select to preserve detection dim
+        objectness = torch.index_select(objectness, dim=1, index=keep)
+        confidences = torch.index_select(confidences, dim=2, index=keep)
+        bboxes = torch.index_select(bboxes, dim=2, index=keep)
+
+        return objectness, confidences, bboxes
 
     @property
     def class_mapping(self) -> dict[int, str]:
