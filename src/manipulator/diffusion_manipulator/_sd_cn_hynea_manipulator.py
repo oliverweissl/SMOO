@@ -107,7 +107,7 @@ class SDCNHyNeAManipulator(DiffusionManipulator):
                 control=c.control,
                 control_signal=c.control_signal,
                 timesteps=self._diffusion_steps,
-                prompts=[c.prompt],
+                prompts=c.prompt,
             )
             xs.append(x)
         return torch.cat(xs, dim=0)

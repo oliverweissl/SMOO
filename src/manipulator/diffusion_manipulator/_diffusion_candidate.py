@@ -19,7 +19,7 @@ class DiffusionCandidate(Candidate):
     y: Optional[int] = None
     control: Optional[Tensor] = None  # Control Tensor for HyNeA.
 
-    prompt: Optional[str] = None  # An optional prompt for prompt-based generation.
+    prompt: Optional[list[str]] = None  # An optional prompt for prompt-based generation.
     control_signal: Optional[Tensor] = None  # A control signal for ControlNet implementations.
 
     def __post_init__(self) -> None:

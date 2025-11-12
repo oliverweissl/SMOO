@@ -1,4 +1,5 @@
 import glob
+import itertools
 import json
 import logging
 import os
@@ -34,13 +35,13 @@ class HyNeATester(SMOO):
 
     _manipulator: LDMHyNeAManipulator | SitHyNeAManipulator | SDCNHyNeAManipulator
     _optimizer: TorchModelOptimizer
-    _sut: ClassifierSUT
+    _sut: ClassifierSUT | BinaryClassifierSUT | YoloSUT
     _config: ExperimentConfig
 
     def __init__(
         self,
         *,
-        sut: ClassifierSUT,
+        sut: ClassifierSUT | BinaryClassifierSUT | YoloSUT,
         manipulator: LDMHyNeAManipulator | SitHyNeAManipulator | SDCNHyNeAManipulator,
         optimizer: TorchModelOptimizer,
         objectives: CriterionCollection,
@@ -81,46 +82,13 @@ class HyNeATester(SMOO):
         ):
             logging.info(f"Test class {class_id}, sample idx {sample_idx}.")
 
-            if isinstance(self._sut, YoloSUT):
-                """Prepare prompt and control-signal for the YOlO specific usecase."""
-                random_file = random.choice(
-                    glob.glob("_data_semantics/training/semantic_rgb/*.png")
+            try:
+                cand_i, y0, i0 = self._find_valid_candidate(
+                    [class_id], is_origin=True, class_id=class_id
                 )
-                control_img = Image.open(random_file)
-
-                yolo_prompt = "a traffic scene with cars, traffic lights and stop-signs, photorealistic, clear skies, urban environment"
-
-                width, height = control_img.size
-                target_height = 512
-                scale_factor = target_height / height
-                new_width = int(width * scale_factor)
-
-                control_img = control_img.resize((new_width, target_height), Image.LANCZOS)
-
-                left = (new_width - target_height) // 2
-                right = left + target_height
-
-                control_img = control_img.crop((left, 0, right, 512))
-
-                control_signal = ToTensor()(control_img).unsqueeze(0)
-
-                try:
-                    cand_i, y0, i0 = self._find_valid_candidate(
-                        (control_signal, [yolo_prompt]), is_origin=True, class_id=class_id
-                    )
-                except ExceededIterationBudget:
-                    logging.warning("Budget for candidate generation exceeded. Skipping.")
-                    continue  # Move on to the next iteration
-                cand_i.control_signal = control_signal
-                cand_i.prompt = yolo_prompt
-            else:
-                try:
-                    cand_i, y0, i0 = self._find_valid_candidate(
-                        [class_id], is_origin=True, class_id=class_id
-                    )
-                except ExceededIterationBudget:
-                    logging.warning("Budget for candidate generation exceeded. Skipping.")
-                    continue  # Move on to the next iteration
+            except ExceededIterationBudget:
+                logging.warning("Budget for candidate generation exceeded. Skipping.")
+                continue  # Move on to the next iteration
 
             initial_pred = y0[0]  # [1, X] -> [X]
             control = torch.zeros(1, *self._manipulator.control_shape, device=cand_i.xt.device)
@@ -207,12 +175,14 @@ class HyNeATester(SMOO):
                     y_f = (
                         y_f.squeeze().T
                     )  # Yolo gives [1, 80, Detections] -> reshape to [Detections, 80] for the loss_target to fit.
-                    y_f = y_f[:5]  # Only take top-k to keep gradients relevant
+                    y_f_eval = y_f[:5]  # Only take top-k to keep gradients relevant
+                else:
+                    y_f_eval = y_f
 
                 budget += i_f.size(0)
 
                 self._objectives.evaluate_all(
-                    logits=y_f,
+                    logits=y_f_eval,
                     initial_predictions=initial_pred,
                     images=[i0, i_f],
                     target=loss_target,
@@ -244,7 +214,7 @@ class HyNeATester(SMOO):
                     xf_best, if_best, yf_best = x_f.detach(), i_f.detach(), y_f.detach()
                     best_fitness = results_detached
 
-                if found_solution_func(y_f):
+                if found_solution_func(y_f_eval):
                     xf_best, if_best, yf_best = x_f.detach(), i_f.detach(), y_f.detach()
                     best_fitness = results_detached
                     logging.info(f"Found solution after {i} steps")
@@ -259,8 +229,6 @@ class HyNeATester(SMOO):
                 "y_hat": yf_best.cpu().squeeze().tolist(),
                 "budget_used": budget,
             }
-            if isinstance(self._sut, YoloSUT):
-                stats["control_signal"] = random_file
 
             log_dir = os.path.join(
                 script_dir, f"runs/class_{class_id}_{self._config.save_as}_{time()}"
@@ -291,31 +259,66 @@ class HyNeATester(SMOO):
         max_iterations: int = 100,
     ) -> tuple[DiffusionCandidate, Tensor, Tensor]:
         """
-        Sample single candidates that are valid to the SUT.
+        Sample valid candidates. If the SUT is YoloSUT, automatically cycle
+        through random control-signals and prompts until one yields a valid image.
 
-        :param diff_input: The input to the diffusion process.
-        :param class_id: The class ID.
-        :param is_origin: Whether the candidate is a origin candidate.
-        :param max_iterations: The maximum number of iterations for candidate generation (Unlimited if 0).
-        :returns: The DiffusionCandidate and the prediction of the SUT and the generated Image.
-        :raises ExceededIterationBudget: If the budget for candidate generation was exceeded.
+        :param diff_input: The diffusion inputs passed from main loop.
+        :param class_id: The current class ID.
+        :param is_origin: Whether the candidate is an origin candidate.
+        :param max_iterations: The maximum number of iterations to find a candidate.
+        :return: The found Candidate, the initial prediction, and the corresponding image.
+        :raises ExceededIterationBudget: If the budget for finding candidate is exceeded.
         """
         n_iter = 0
+
+        # Define generator for YoloSUT control signals
+        if isinstance(self._sut, YoloSUT):
+            yolo_prompt = (
+                "A photorealistic urban traffic scene with cars, traffic lights, and stop signs, "
+                f"clear skies, daytime, featuring a {self._sut.class_mapping.get(class_id)}"
+            )
+
+            def _control_signal_generator():
+                files = glob.glob("_data_semantics/training/semantic_rgb/*.png")
+                while True:
+                    random_file = random.choice(files)
+                    control_img = Image.open(random_file)
+                    width, height = control_img.size
+                    target_height = 512
+                    scale_factor = target_height / height
+                    new_width = int(width * scale_factor)
+                    control_img = control_img.resize((new_width, target_height), Image.LANCZOS)
+                    left = (new_width - target_height) // 2
+                    right = left + target_height
+                    control_img = control_img.crop((left, 0, right, 512))
+                    control_signal = ToTensor()(control_img).unsqueeze(0)
+                    yield (control_signal, [yolo_prompt])
+
+            input_cycle = _control_signal_generator()
+        else:
+            input_cycle = itertools.cycle([diff_input])
+
         while True:
-            xt, emb = self._manipulator.get_diff_steps(diff_input)
+            current_input = next(input_cycle)
+
+            xt, emb = self._manipulator.get_diff_steps(current_input)
             image = self._manipulator.get_images(xt[-1])
             valid, y0 = self._sut.input_valid(image, class_id)
+
             if valid:
-                break
+                candidate = DiffusionCandidate(xt.squeeze(), emb, is_origin=is_origin, y=class_id)
+                if isinstance(self._sut, YoloSUT):
+                    candidate.control_signal, candidate.prompt = current_input
+                return candidate, y0, image
+
             del xt, emb, image, y0
             self._cleanup()
             n_iter += 1
+
             if n_iter >= max_iterations > 0:
                 raise ExceededIterationBudget(
-                    "Maximum number of iterations reached in candidate generations."
+                    "Maximum number of iterations reached in candidate generation."
                 )
-        candidate = DiffusionCandidate(xt.squeeze(), emb, is_origin=is_origin, y=class_id)
-        return candidate, y0, image
 
     @staticmethod
     def _dominates(curr: dict[str, Any], best: dict[str, Any], strategy: str = "pareto") -> bool:
