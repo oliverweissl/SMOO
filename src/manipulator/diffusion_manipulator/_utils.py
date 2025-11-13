@@ -15,17 +15,16 @@ def prepare_cuda(
     :param precision: The precision to use in matmul [high, medium, low].
     :returns: The torch device to use.
     """
+    assert torch.cuda.is_available(), "No GPU available please check your setup."
     os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
     torch.set_float32_matmul_precision(precision)
     torch.backends.cudnn.benchmark = True
-    assert torch.cuda.is_available(), "No GPU available please check your setup."
 
-    device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = device or torch.device("cuda")
 
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-        torch.cuda.set_per_process_memory_fraction(0.95)
+    torch.cuda.empty_cache()
+    torch.cuda.set_per_process_memory_fraction(0.95)
 
     torch.set_grad_enabled(require_grad)
     return device
