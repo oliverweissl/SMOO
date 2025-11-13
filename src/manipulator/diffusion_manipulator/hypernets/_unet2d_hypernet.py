@@ -4,12 +4,12 @@ from typing import Optional
 import torch
 from diffusers import DDIMScheduler, UNet2DModel
 from torch import Tensor, nn
-from torch.utils.checkpoint import checkpoint
 
+from ._hypernet import HyperNet
 from .blocks import ControlProjector, ZeroConv2d
 
 
-class UNet2DHyperNet(nn.Module):
+class UNet2DHyperNet(nn.Module, HyperNet):
     """A hypernet class for UNet2D models."""
 
     use_checkpoints: bool = True
@@ -64,7 +64,10 @@ class UNet2DHyperNet(nn.Module):
             model.sample_size,
         )
         self.control_projector = ControlProjector(
-            input_shape=self.in_shape, control_shape=control_shape
+            input_shape=self.in_shape,
+            control_shape=control_shape,
+            device=self._model.device,
+            dtype=self._model.dtype,
         )
         self.standardize_control = torch.nn.Tanh()
 
@@ -126,10 +129,7 @@ class UNet2DHyperNet(nn.Module):
         if not isinstance(t, Tensor):
             tt = torch.tensor([t], dtype=torch.long, device=x.device)
         else:
-            if len(t.shape) == 0:
-                tt = t[None].to(x.device)
-            else:
-                tt = t
+            tt = t[None].to(x.device) if len(t.shape) == 0 else t
 
         # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
         tt = tt * torch.ones(x.shape[0], dtype=tt.dtype, device=tt.device)
@@ -149,7 +149,7 @@ class UNet2DHyperNet(nn.Module):
 
         # 4. mid
         if self._model.mid_block is not None:
-            x = self._model.mid_block(x + control_x, emb)
+            x = self._eval_module(self._model.mid_block, x + control_x, emb)
 
         # 5. up
         skip_sample = None
@@ -191,12 +191,12 @@ class UNet2DHyperNet(nn.Module):
         :param emb: The embedding.
         :returns: The results of the forward pass.
         """
-        projected_control = self.control_projector(control)
-        x_conditioned = x + projected_control
-        x_conditioned = self.control_in(x_conditioned)
+        projected_control = self._eval_module(self.control_projector, control)
+        x_conditioned = self._eval_module(self.control_in, x + projected_control)
 
         skip_sample = x
-        outputs_down = (self.zero_in(x_conditioned),)
+        x0 = self._eval_module(self.zero_in, x_conditioned)
+        outputs_down = (x0,)
 
         for block, zeros in zip(self.control_down, self.zero_downs):
             # Caution! These need to be in order as they are parsed as args!
@@ -210,22 +210,15 @@ class UNet2DHyperNet(nn.Module):
             # This looks sketchy but is cool!
             # We unpack the functions outputs (can be 2 or 3), if there is only two we keep skip, sample the same.
             # If there is three outputs we will get 4 elements and as such we take the first 3 to update the variables.
-            if self.use_checkpoints:
-                x_conditioned, res_samples, skip_sample = (
-                    *checkpoint(block, *b_args, use_reentrant=False),
-                    skip_sample,
-                )[:3]
-            else:
-                x_conditioned, res_samples, skip_sample = (*block(*b_args), skip_sample)[:3]
-
+            x_conditioned, res_samples, skip_sample = (
+                *self._eval_module(block, *b_args, emb),
+                skip_sample,
+            )[:3]
             outputs_down += tuple([z(s) for z, s in zip(zeros, res_samples)])
 
-        output_mid = (
-            checkpoint(self.control_mid, x_conditioned, emb, use_reentrant=False)
-            if self.use_checkpoints
-            else self.control_mid(x_conditioned, emb)
-        )
-        return outputs_down, self.zero_mid(output_mid)
+        output_mid = self._eval_module(self.control_mid, x_conditioned, emb)
+        output_mid = self._eval_module(self.zero_mid, output_mid)
+        return outputs_down, output_mid
 
     def _down(self, x: Tensor, emb: Tensor) -> tuple[tuple[Tensor], Tensor]:
         """
@@ -236,7 +229,7 @@ class UNet2DHyperNet(nn.Module):
         :returns: The residuals collected and the final x.
         """
         skip_sample = x
-        x = self._model.conv_in(x)
+        x = self._eval_module(self._model.conv_in, x)
 
         down_block_res_samples = (x,)
         for block in self._model.down_blocks:
@@ -247,12 +240,6 @@ class UNet2DHyperNet(nn.Module):
             # This looks sketchy but is cool!
             # We unpack the functions outputs (can be 2 or 3), if there is only two we keep skip, sample the same.
             # If there is three outputs we will get 4 elements and as such we take the first 3 to update the variables.
-            if self.use_checkpoints:
-                x, res_samples, skip_sample = (
-                    *checkpoint(block, *b_args, use_reentrant=False),
-                    skip_sample,
-                )[:3]
-            else:
-                x, res_samples, skip_sample = (*block(*b_args), skip_sample)[:3]
+            x, res_samples, skip_sample = (*self._eval_module(block, *b_args), skip_sample)[:3]
             down_block_res_samples += res_samples
         return down_block_res_samples, x

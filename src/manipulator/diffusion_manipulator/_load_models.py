@@ -132,9 +132,16 @@ def load_ldm_celebhq(
     :param device: CUDA device to use.
     :returns: The U-Net, VQ-VAE and DDIM scheduler.
     """
-    unet = UNet2DModel.from_pretrained("CompVis/ldm-celebahq-256", subfolder="unet")
-    vqvae = VQModel.from_pretrained("CompVis/ldm-celebahq-256", subfolder="vqvae")
-    scheduler = DDIMScheduler.from_pretrained("CompVis/ldm-celebahq-256", subfolder="scheduler")
+    """This is an old model -> No safetensors available on HF."""
+    unet = UNet2DModel.from_pretrained(
+        "CompVis/ldm-celebahq-256", subfolder="unet", use_safetensors=False
+    )
+    vqvae = VQModel.from_pretrained(
+        "CompVis/ldm-celebahq-256", subfolder="vqvae", use_safetensors=False
+    )
+    scheduler = DDIMScheduler.from_pretrained(
+        "CompVis/ldm-celebahq-256", subfolder="scheduler", use_safetensors=False
+    )
 
     unet.to(device=device)
     vqvae.to(device=device)

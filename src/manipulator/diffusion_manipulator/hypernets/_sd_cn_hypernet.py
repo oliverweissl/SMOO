@@ -1,14 +1,14 @@
-from typing import Any, Optional
+from typing import Optional
 
 import torch
 from diffusers import ControlNetModel, StableDiffusionControlNetPipeline
 from torch import Tensor, nn
-from torch.utils.checkpoint import checkpoint
 
+from ._hypernet import HyperNet
 from .blocks import ControlProjector
 
 
-class SDCNHyperNet(nn.Module):
+class SDCNHyperNet(nn.Module, HyperNet):
     """A hypernet class for UNet2D models."""
 
     use_checkpoints: bool = True  # Default true as these are big models.
@@ -331,39 +331,3 @@ class SDCNHyperNet(nn.Module):
             return_dict=False,
         )
         return noise_pred
-
-    def _eval_module(self, *args: Any, **kwargs: Any) -> Any:
-        """
-        Safely evaluate a torch module with logic to ensure checkpointing is done.
-
-        :param args: The arguments to pass, including the module as the first input.
-        :param kwargs: The additional kwargs to pass.
-        :return: The output(s) of the module.
-        """
-        module, *f_args = args
-        assert isinstance(
-            module, nn.Module
-        ), "Error: Ensure the first argument is the nn.Module instance."
-        return (
-            checkpoint(module, *f_args, **kwargs, use_reentrant=False)
-            if self.use_checkpoints
-            else module(*f_args, **kwargs)
-        )
-
-    @property
-    def device(self) -> torch.device:
-        """
-        Get the current device of the HyperNet.
-
-        :return: The device of the HyperNet.
-        """
-        return self._device
-
-    @property
-    def dtype(self) -> torch.dtype:
-        """
-        Get the current dtype of the HyperNet.
-
-        :return: The current dtype of the HyperNet.
-        """
-        return self._dtype

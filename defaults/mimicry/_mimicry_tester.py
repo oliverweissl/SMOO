@@ -303,8 +303,6 @@ class MimicryTester(SMOO):
         # Create the origin batch for comparison
         origin_batch = self._img_rgb.expand(images_tensor.shape[0], *self._img_rgb.shape[1:])
 
-        print(self.loss_target.shape, predictions.shape)
-
         self._objectives.evaluate_all(
             images=[origin_batch, images_tensor],
             logits=predictions,

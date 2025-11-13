@@ -4,9 +4,9 @@ from typing import Optional, Union
 
 import torch
 from torch import Tensor, nn
-from torch.utils.checkpoint import checkpoint
 
 from .._internal.models.sit import SiT
+from ._hypernet import HyperNet
 from .blocks import ZeroLinear
 
 
@@ -20,7 +20,7 @@ def mean_flat(x: Tensor) -> Tensor:
     return torch.mean(x, dim=list(range(1, len(x.size()))))
 
 
-class SiTHyperNet(nn.Module):
+class SiTHyperNet(nn.Module, HyperNet):
     """A ControlNet-like implementation for SiT."""
 
     _raw_y: bool
@@ -195,11 +195,8 @@ class SiTHyperNet(nn.Module):
         """
         controlnet_outputs = []
         for block, zero_layer in zip(self.control_layers, self.zero_layers):
-            if self.use_checkpoints:
-                x_control = checkpoint(block, x_control, c, use_reentrant=False)
-            else:
-                x_control = block(x_control, c)
-            control_residual = zero_layer(x_control)
+            x_control = self._eval_module(block, x_control, c)
+            control_residual = self._eval_module(zero_layer, x_control)
             controlnet_outputs.append(control_residual)
         return controlnet_outputs
 
@@ -214,8 +211,5 @@ class SiTHyperNet(nn.Module):
         """
         for block in self.base_model.blocks:
             control: Union[Tensor, float] = controlnet_outputs.pop(0) if controlnet_outputs else 0.0
-            if self.use_checkpoints:
-                x = checkpoint(block, x + control, c, use_reentrant=False)
-            else:
-                x = block(x + control, c)
+            x = self._eval_module(block, x + control, c)
         return x

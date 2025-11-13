@@ -119,7 +119,7 @@ class HyNeATester(SMOO):
                 - Define our target as opposing predictions than in the initial prediction, for the logits we target.
                 - Create a control signal that reflect this sign-flip behavior (operate on logits).
                 - Define a early termination function, that checks whether the sign has flipped.
-                - Define the target for the torch loss function, which is equal to the control singal.
+                - Define the target for the torch loss function, which is equal to the control signal.
                 """
                 control = (y0 > 0).float()
                 target = (1 - control[:, class_id]).item()
@@ -127,7 +127,7 @@ class HyNeATester(SMOO):
 
                 found_solution_func = lambda curr: (
                     (curr[:, class_id] > 0).float().eq(target)
-                ).item()
+                ).any()
 
                 loss_target = control
             elif isinstance(self._sut, YoloSUT):
@@ -188,9 +188,7 @@ class HyNeATester(SMOO):
                     target=loss_target,
                     batch_dim=0,
                     v_range=v_range,
-                    target_logit=(
-                        loss_target if isinstance(self._sut, BinaryClassifierSUT) else None
-                    ),
+                    target_logit=class_id if isinstance(self._sut, BinaryClassifierSUT) else None,
                 )
 
                 self._optimizer.assign_fitness(self._objectives.results.values())

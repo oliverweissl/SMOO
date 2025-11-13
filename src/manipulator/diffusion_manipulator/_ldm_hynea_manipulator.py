@@ -72,8 +72,10 @@ class LDMHyNeAManipulator(DiffusionManipulator):
         xs = []
         for c in candidates:
             # We need to add a mock batch dimension here.
+            xt = c.xt[0].unsqueeze(0).to(self._device)
+            control: Tensor = c.control
             x = self._hyper_net.forward(
-                x=c.xt[0].unsqueeze(0), control=c.control, timesteps=self._diffusion_steps
+                x=xt, control=control.to(self._device), timesteps=self._diffusion_steps
             )
             xs.append(x)
         return torch.cat(xs, dim=0)
