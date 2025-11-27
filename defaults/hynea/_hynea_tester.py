@@ -228,9 +228,7 @@ class HyNeATester(SMOO):
                 "budget_used": budget,
             }
 
-            log_dir = os.path.join(
-                script_dir, f"runs/class_{class_id}_{self._config.save_as}_{time()}"
-            )
+            log_dir = os.path.join(script_dir, f"{self._config.save_as}/class_{class_id}_{time()}")
             os.makedirs(log_dir, exist_ok=True)
 
             df = pd.DataFrame(gen_data)
