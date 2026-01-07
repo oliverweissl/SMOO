@@ -46,7 +46,7 @@ class DiffTester(SMOO):
         early_termination: TEarlyTermCallable,
     ):
         """
-        Initialize the HyNeA Tester.
+        Initialize the Diffusion-based Tester (mimicry with diffusion)..
 
         :param sut: The system-under-test.
         :param manipulator: The manipulator object.
