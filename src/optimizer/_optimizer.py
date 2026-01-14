@@ -82,24 +82,33 @@ class Optimizer(ABC):
             (self._x_current, np.array([cand.solution for cand in self._best_candidates]))
         )
 
-        sorted_indices = metrics.sum(1).argsort()
-        for i in range(metrics.shape[0]):
-            n = sorted_indices.shape[0]
-            on_pareto = np.ones(n, dtype=bool)
-            if i >= n:
-                break
-            on_pareto[i + 1 : n] = (
-                metrics[sorted_indices][i + 1 :] <= metrics[sorted_indices][i]
-            ).all(axis=1) & (metrics[sorted_indices][i + 1 :] < metrics[sorted_indices][i]).any(
-                axis=1
-            )
-            sorted_indices = sorted_indices[on_pareto[:n]]
+        n = metrics.shape[0]
+        indices = np.arange(n)
+
+        i = 0
+        while i < indices.shape[0]:
+            on_pareto = np.ones(indices.shape[0], dtype=bool)
+
+            cur = metrics[indices[i]]
+            rest = metrics[indices[i + 1:]]
+
+            dominated_by_cur = (
+                    (rest >= cur).all(axis=1)
+                    & (rest > cur).any(axis=1)
+            )  # minimization only
+
+            on_pareto[i + 1:] = ~dominated_by_cur
+            indices = indices[on_pareto]
+
+            i += 1
 
         candidates = []
-        for index in sorted_indices:
+        for index in indices:
             candidates.append(
                 OptimizerCandidate(
-                    solution=solutions[index], fitness=metrics[index], data=data[index]
+                    solution=solutions[index],
+                    fitness=metrics[index],
+                    data=data[index],
                 )
             )
         self._previous_best = self._best_candidates
