@@ -87,16 +87,17 @@ class Optimizer(ABC):
 
         i = 0
         while i < indices.shape[0]:
-            on_pareto: NDArray = np.ones(indices.shape[0], dtype=bool)
+            on_pareto = np.ones(indices.shape[0], dtype=bool)
 
             cur = metrics[indices[i]]
-            rest = metrics[indices[i + 1 :]]
+            rest = metrics[indices[i + 1:]]
 
-            dominated_by_cur = (rest >= cur).all(axis=1) & (rest > cur).any(
-                axis=1
+            dominated_by_cur = (
+                    (rest >= cur).all(axis=1)
+                    & (rest > cur).any(axis=1)
             )  # minimization only
 
-            on_pareto[i + 1 :] = ~dominated_by_cur
+            on_pareto[i + 1:] = ~dominated_by_cur
             indices = indices[on_pareto]
 
             i += 1
