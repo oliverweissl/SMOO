@@ -92,7 +92,7 @@ class Optimizer(ABC):
         dominates = le.all(axis=2) & lt.any(axis=2)  # (n, n)
         dominated = dominates.any(axis=0)  # (n,)
 
-        kept_indices = np.flatnonzero(dominated)
+        kept_indices = np.flatnonzero(~dominated)
 
         candidates = [
             OptimizerCandidate(
