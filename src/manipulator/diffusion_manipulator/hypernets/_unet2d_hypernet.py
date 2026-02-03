@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Optional
+from typing import Any, Optional
 
 import torch
 from diffusers import DDIMScheduler, UNet2DModel
@@ -19,6 +19,7 @@ class UNet2DHyperNet(nn.Module, HyperNet):
         model: UNet2DModel,
         scheduler: DDIMScheduler,
         control_shape: tuple[int, ...],
+        guidance_scale: float = 1.0,
     ) -> None:
         """
         Initialize a Hypernet class for UNet2D models.
@@ -26,10 +27,12 @@ class UNet2DHyperNet(nn.Module, HyperNet):
         :param model: UNet2D model.
         :param scheduler: The scheduler used for this model.
         :param control_shape: Shape of the control input (excluding batch_dim).
+        :param guidance_scale: Classifier-free guidance scale (1.0=no CFG, >1.0 enables CFG).
         """
         super().__init__()
         """Store models and scheduler + Freeze weights."""
         self._model = model
+        self._guidance_scale = guidance_scale
         self._scheduler = scheduler
 
         """Initialize the Hypernet stuff."""
@@ -92,13 +95,19 @@ class UNet2DHyperNet(nn.Module, HyperNet):
         control: Tensor,
         x: Optional[Tensor] = None,
         timesteps: int = 50,
+        encoder_hidden_states: Optional[Tensor] = None,
+        start_step: int = 0,
+        added_cond_kwargs: Optional[dict[str, Any]] = None,
     ) -> Tensor:
         """
         Full denoising process - used for end-to-end training.
 
         :param x: (B, C, H, W) tensor of spatial inputs (latent representations of images or None).
         :param control: (B, *S) tensor of control tokens to use for the forward pass assumes range (-inf, inf).
-        :param timesteps: (B, *S) tensor of timesteps to use for the forward pass.
+        :param timesteps: Total number of timesteps in the schedule.
+        :param encoder_hidden_states: Optional hidden states to include prompt conditioning.
+        :param start_step: Which timestep index to start denoising from (0 = denoise all steps).
+        :param added_cond_kwargs: Optional added conditioning kwargs for SDXL (text_embeds, time_ids).
         :returns: The results of the forward pass.
         """
         if x is None:
@@ -106,12 +115,74 @@ class UNet2DHyperNet(nn.Module, HyperNet):
 
         control = self.standardize_control(control)
         self._scheduler.set_timesteps(timesteps)
-        for t in self._scheduler.timesteps:
-            residual = self._diffusion_step(x, control, t)
-            x, *_ = self._scheduler.step(residual, t, x, eta=0.0, return_dict=False)
-        return x
 
-    def _diffusion_step(self, x: Tensor, control: Tensor, t: int | Tensor) -> Tensor:
+        timesteps_to_denoise = self._scheduler.timesteps[start_step:]
+
+        # Determine if CFG should be applied
+        do_cfg = self._guidance_scale > 1.0 and (
+            encoder_hidden_states is not None or added_cond_kwargs is not None
+        )
+
+        if do_cfg:
+            # Duplicate inputs for conditional and unconditional passes
+            x = torch.cat([x, x], dim=0)
+            control = torch.cat([control, control], dim=0)
+
+            # Create unconditional embeddings
+            if encoder_hidden_states is not None:
+                uncond_encoder_hidden_states = torch.zeros_like(encoder_hidden_states)
+                encoder_hidden_states = torch.cat(
+                    [uncond_encoder_hidden_states, encoder_hidden_states], dim=0
+                )
+
+            if added_cond_kwargs is not None:
+                # For SDXL: zero text_embeds, keep time_ids
+                uncond_added_cond_kwargs = {
+                    "text_embeds": torch.zeros_like(added_cond_kwargs["text_embeds"]),
+                    "time_ids": added_cond_kwargs["time_ids"],
+                }
+                added_cond_kwargs = {
+                    "text_embeds": torch.cat(
+                        [uncond_added_cond_kwargs["text_embeds"], added_cond_kwargs["text_embeds"]],
+                        dim=0,
+                    ),
+                    "time_ids": torch.cat(
+                        [uncond_added_cond_kwargs["time_ids"], added_cond_kwargs["time_ids"]], dim=0
+                    ),
+                }
+
+        # Denoising loop with CFG
+        for t in timesteps_to_denoise:
+            residual = self._diffusion_step(x, control, t, encoder_hidden_states, added_cond_kwargs)
+
+            if do_cfg:
+                # Split conditional and unconditional predictions
+                residual_uncond, residual_cond = residual.chunk(2, dim=0)
+                # Apply CFG formula
+                residual = residual_uncond + self._guidance_scale * (
+                    residual_cond - residual_uncond
+                )
+                # Only step with conditional latent
+                x_cond = x.chunk(2, dim=0)[1]
+                x_stepped, *_ = self._scheduler.step(
+                    residual, t, x_cond, eta=0.0, return_dict=False
+                )
+                # Update both batches for next iteration
+                x = torch.cat([x_stepped, x_stepped], dim=0)
+            else:
+                x, *_ = self._scheduler.step(residual, t, x, eta=0.0, return_dict=False)
+
+        # Return only conditional result if CFG was used
+        return x.chunk(2, dim=0)[1] if do_cfg else x
+
+    def _diffusion_step(
+        self,
+        x: Tensor,
+        control: Tensor,
+        t: int | Tensor,
+        encoder_hidden_states: Optional[Tensor],
+        added_cond_kwargs: Optional[dict[str, Any]] = None,
+    ) -> Tensor:
         """
         A single diffusion step including control.
 
@@ -120,6 +191,8 @@ class UNet2DHyperNet(nn.Module, HyperNet):
         :param x: The input.
         :param t: The time step.
         :param control: The control token.
+        :param encoder_hidden_states: Optional hidden states to include prompt conditioning.
+        :param added_cond_kwargs: Optional added conditioning kwargs for SDXL.
         :returns: The results of the diffusion step.
         """
         # 0. center input if necessary
@@ -136,20 +209,31 @@ class UNet2DHyperNet(nn.Module, HyperNet):
 
         t_emb = self._model.time_proj(tt)
 
-        # timesteps does not contain any weights and will always return f32 tensors
-        # but time_embedding might actually be running in fp16. so we need to cast here.
-        # there might be better ways to encapsulate this.
         t_emb = t_emb.to(dtype=self._model.dtype)
         emb = self._model.time_embedding(t_emb)
 
-        # Get control residuals and control x from down sampling control network.
-        control_down_residuals, control_x = self._control_down(x, control, emb)
-        # Get residuals and current x from down sampling network.
-        down_residuals, x = self._down(x, emb)
+        # Handle SDXL's additional embeddings
+        if added_cond_kwargs is not None:
+            aug_emb = self._model.get_aug_embed(
+                emb=emb,
+                encoder_hidden_states=encoder_hidden_states,
+                added_cond_kwargs=added_cond_kwargs,
+            )
+            emb = emb + aug_emb
+
+        control_down_residuals, control_x = self._control_down(
+            x, control, emb, encoder_hidden_states=encoder_hidden_states
+        )
+        down_residuals, x = self._down(x, emb, encoder_hidden_states=encoder_hidden_states)
 
         # 4. mid
         if self._model.mid_block is not None:
-            x = self._eval_module(self._model.mid_block, x + control_x, emb)
+            x = self._eval_module(
+                self._model.mid_block,
+                x + control_x,
+                emb,
+                encoder_hidden_states=encoder_hidden_states,
+            )
 
         # 5. up
         skip_sample = None
@@ -163,9 +247,11 @@ class UNet2DHyperNet(nn.Module, HyperNet):
             # Here we add control signals to the residual connections.
             res_inputs = tuple([s + c for s, c in zip(res_samples, res_control_samples)])
             if hasattr(upsample_block, "skip_conv"):
-                x, skip_sample = upsample_block(x, res_inputs, emb, skip_sample)
+                x, skip_sample = upsample_block(
+                    x, res_inputs, emb, skip_sample, encoder_hidden_states=encoder_hidden_states
+                )
             else:
-                x = upsample_block(x, res_inputs, emb)
+                x = upsample_block(x, res_inputs, emb, encoder_hidden_states=encoder_hidden_states)
 
         # 6. post-process
         x = self._model.conv_norm_out(x)
@@ -181,7 +267,11 @@ class UNet2DHyperNet(nn.Module, HyperNet):
         return x
 
     def _control_down(
-        self, x: Tensor, control: Tensor, emb: Tensor
+        self,
+        x: Tensor,
+        control: Tensor,
+        emb: Tensor,
+        encoder_hidden_states: Optional[Tensor] = None,
     ) -> tuple[tuple[Tensor], Tensor]:
         """
         A forward pass only in the down sampling control network.
@@ -189,6 +279,7 @@ class UNet2DHyperNet(nn.Module, HyperNet):
         :param x: The input.
         :param control: The control token.
         :param emb: The embedding.
+        :param encoder_hidden_states: Optional hidden states for cross-attention (text conditioning).
         :returns: The results of the forward pass.
         """
         projected_control = self._eval_module(self.control_projector, control)
@@ -211,21 +302,26 @@ class UNet2DHyperNet(nn.Module, HyperNet):
             # We unpack the functions outputs (can be 2 or 3), if there is only two we keep skip, sample the same.
             # If there is three outputs we will get 4 elements and as such we take the first 3 to update the variables.
             x_conditioned, res_samples, skip_sample = (
-                *self._eval_module(block, *b_args, emb),
+                *self._eval_module(block, *b_args, encoder_hidden_states=encoder_hidden_states),
                 skip_sample,
             )[:3]
             outputs_down += tuple([z(s) for z, s in zip(zeros, res_samples)])
 
-        output_mid = self._eval_module(self.control_mid, x_conditioned, emb)
+        output_mid = self._eval_module(
+            self.control_mid, x_conditioned, emb, encoder_hidden_states=encoder_hidden_states
+        )
         output_mid = self._eval_module(self.zero_mid, output_mid)
         return outputs_down, output_mid
 
-    def _down(self, x: Tensor, emb: Tensor) -> tuple[tuple[Tensor], Tensor]:
+    def _down(
+        self, x: Tensor, emb: Tensor, encoder_hidden_states: Optional[Tensor]
+    ) -> tuple[tuple[Tensor], Tensor]:
         """
         The forward pass through the down sampling network.
 
         :param x: The input.
         :param emb: The embedding (time).
+        :param encoder_hidden_states: Additional hidden states for cross-attention (text conditioning).
         :returns: The residuals collected and the final x.
         """
         skip_sample = x
@@ -240,6 +336,9 @@ class UNet2DHyperNet(nn.Module, HyperNet):
             # This looks sketchy but is cool!
             # We unpack the functions outputs (can be 2 or 3), if there is only two we keep skip, sample the same.
             # If there is three outputs we will get 4 elements and as such we take the first 3 to update the variables.
-            x, res_samples, skip_sample = (*self._eval_module(block, *b_args), skip_sample)[:3]
+            x, res_samples, skip_sample = (
+                *self._eval_module(block, *b_args, encoder_hidden_states=encoder_hidden_states),
+                skip_sample,
+            )[:3]
             down_block_res_samples += res_samples
         return down_block_res_samples, x
