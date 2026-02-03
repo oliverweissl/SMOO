@@ -22,6 +22,12 @@ class DiffusionCandidate(Candidate):
     prompt: Optional[list[str]] = None  # An optional prompt for prompt-based generation.
     control_signal: Optional[Tensor] = None  # A control signal for ControlNet implementations.
 
+    # Partial denoising configuration
+    num_diffusion_steps: Optional[int] = None  # Total timesteps in schedule (e.g., 50)
+    start_step_idx: Optional[int] = (
+        None  # Which timestep index denoising started from (e.g., 30 for last 20 steps)
+    )
+
     def __post_init__(self) -> None:
         """Preprocessing of some elements after initialization."""
         if isinstance(self.class_embedding, Tensor):

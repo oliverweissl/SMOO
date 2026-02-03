@@ -1,6 +1,6 @@
 import gc
 import logging
-from typing import Optional
+from typing import Any, Callable, Optional
 
 import torch
 from diffusers import DDIMScheduler, UNet2DModel
@@ -30,6 +30,10 @@ class LDMHyNeAManipulator(DiffusionManipulator):
         batch_size: int = 0,
         diffusion_steps: int = 50,
         device: Optional[torch.device] = None,
+        model_loader: Callable[
+            [torch.device], tuple[UNet2DModel, nn.Module, DDIMScheduler]
+        ] = load_ldm_celebhq,
+        guidance_scale: float = 1.0,
     ) -> None:
         """
         Initialize the LDM ControlNet Manipulator.
@@ -38,13 +42,17 @@ class LDMHyNeAManipulator(DiffusionManipulator):
         :param batch_size: Batch size (0 means all - Default).
         :param diffusion_steps: Diffusion steps to take in denoising.
         :param device: Device to use for compute.
+        :param model_loader: A loader function that provides the models for the manipulator.
+        :param guidance_scale: Classifier-free guidance scale (1.0=no CFG, >1.0 enables CFG).
         """
         self.control_shape = control_shape
 
         self._device = prepare_cuda(device, True)
-        self._model, self._vae, self._scheduler = load_ldm_celebhq(device=self._device)
+        self._model, self._vae, self._scheduler = model_loader(self._device)
+        self._dtype = self._model.dtype
         self._batch_size = batch_size
         self._diffusion_steps = diffusion_steps
+        self._guidance_scale = guidance_scale
 
         for p in self._vae.parameters():
             p.requires_grad_(False)  # Freeze vae parameters
@@ -57,9 +65,12 @@ class LDMHyNeAManipulator(DiffusionManipulator):
             gc.collect()
             torch.cuda.empty_cache()
         self._hyper_net = UNet2DHyperNet(
-            model=self._model, scheduler=self._scheduler, control_shape=self.control_shape
+            model=self._model,
+            scheduler=self._scheduler,
+            control_shape=self.control_shape,
+            guidance_scale=self._guidance_scale,
         )
-        self._hyper_net.to(self._device)
+        self._hyper_net.to(self._device, dtype=self._dtype)
 
     def manipulate(self, candidates: DiffusionCandidateList, **kwargs) -> Tensor:
         """
@@ -70,12 +81,32 @@ class LDMHyNeAManipulator(DiffusionManipulator):
         :return: The sampled outputs.
         """
         xs = []
+
+        model_kwargs = kwargs.get("model_kwargs", {})
+        if "encoder_hidden_states" in model_kwargs:
+            model_kwargs = {
+                **model_kwargs,
+                "encoder_hidden_states": model_kwargs["encoder_hidden_states"].detach(),
+            }
+        if "added_cond_kwargs" in model_kwargs:
+            model_kwargs = {
+                **model_kwargs,
+                "added_cond_kwargs": {
+                    k: v.detach() if isinstance(v, torch.Tensor) else v
+                    for k, v in model_kwargs["added_cond_kwargs"].items()
+                },
+            }
+
         for c in candidates:
-            # We need to add a mock batch dimension here.
-            xt = c.xt[0].unsqueeze(0).to(self._device)
-            control: Tensor = c.control
+            assert isinstance(
+                c.control, Tensor
+            ), "Error: Control is needed for this type of manipulator."
             x = self._hyper_net.forward(
-                x=xt, control=control.to(self._device), timesteps=self._diffusion_steps
+                x=c.xt[0].unsqueeze(0).to(self._device, self._dtype),
+                control=c.control.to(self._device, self._dtype),
+                timesteps=c.num_diffusion_steps or self._diffusion_steps,
+                start_step=c.start_step_idx or 0,
+                **model_kwargs,
             )
             xs.append(x)
         return torch.cat(xs, dim=0)
@@ -89,7 +120,12 @@ class LDMHyNeAManipulator(DiffusionManipulator):
         self._hyper_net.use_checkpoints = enable
 
     def get_diff_steps(
-        self, diff_input: list[int], n_steps: Optional[int] = None, x_0: Optional[Tensor] = None
+        self,
+        diff_input: list[int],
+        n_steps: Optional[int] = None,
+        x_0: Optional[Tensor] = None,
+        model_kwargs: Optional[dict[str, Any]] = None,
+        start_step: int = 0,
     ) -> tuple[Tensor, Tensor]:
         """
         Get latent information for all diffusion steps with optimized memory usage.
@@ -97,13 +133,15 @@ class LDMHyNeAManipulator(DiffusionManipulator):
         :param diff_input: Class label to generate diffusion steps for.
         :param n_steps: Number of steps in the denoising.
         :param x_0: Optional starting latent vector if sampled differently.
+        :param model_kwargs: Optional model kwargs.
+        :param start_step: Which timestep to start denoising from (0 = denoise all steps).
         :returns: A list of latent vectors through denoising and empty tensor as there are no classes here.
         """
         batch_size = len(diff_input)
         n_steps = n_steps or self._diffusion_steps
 
         x_cur = (
-            x_0.to(self._device)
+            x_0.to(self._device, self._dtype)
             if x_0 is not None
             else torch.randn(
                 batch_size,
@@ -111,22 +149,31 @@ class LDMHyNeAManipulator(DiffusionManipulator):
                 self._model.sample_size,
                 self._model.sample_size,
                 device=self._device,
+                dtype=self._dtype,
             )
         )
+
+        self._scheduler.set_timesteps(num_inference_steps=n_steps)
+        timesteps = self._scheduler.timesteps[start_step:]
+
         xs = torch.empty(
-            n_steps + 1,
+            len(timesteps) + 1,
             *x_cur.shape,
             device=self._device,
+            dtype=self._dtype,
         )
         xs[0] = x_cur
 
-        self._scheduler.set_timesteps(num_inference_steps=n_steps)
-        for i, t in enumerate(self._scheduler.timesteps):
-            residual, *_ = self._model(x_cur, t, return_dict=False)
+        for i, t in enumerate(timesteps):
+            # Scale the model input according to the scheduler (critical for DDIM/SDXL)
+            x_scaled = self._scheduler.scale_model_input(x_cur, t)
+            residual, *_ = self._model(
+                x_scaled, t, return_dict=False, **model_kwargs if model_kwargs else {}
+            )
             x_cur, *_ = self._scheduler.step(residual, t, x_cur, eta=0.0, return_dict=False)
             xs[i + 1] = x_cur
 
-        return xs.detach(), torch.empty(1, device=self._device)
+        return xs.detach(), torch.empty(1, device=self._device, dtype=self._dtype)
 
     def get_images(self, z: Tensor, eps: float = 1e-6) -> Tensor:
         """
@@ -147,6 +194,8 @@ class LDMHyNeAManipulator(DiffusionManipulator):
         )
         decoded = []
         for z_chunk in torch.chunk(z, chunks, dim=0):
+            if hasattr(self._vae, "config") and hasattr(self._vae.config, "scaling_factor"):
+                z_chunk = z_chunk / self._vae.config.scaling_factor
             image, *_ = self._vae.decode(z_chunk, return_dict=False)
             image = (image * 0.5 + 0.5).clamp(0.0 + eps, 1.0 - eps)
             decoded.append(image)
