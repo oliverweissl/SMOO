@@ -305,8 +305,12 @@ class MimicryTester(SMOO):
 
         self._objectives.evaluate_all(
             images=[origin_batch, images_tensor],
-            logits=predictions,
-            target=self.loss_target.repeat(predictions.size(0), 1),  # Make same as batch size.
+            logits=predictions.detach(),
+            target=(
+                self.loss_target.repeat(predictions.size(0))  # 1D [1] → [B] for CrossEntropyLoss
+                if self.loss_target.dim() == 1
+                else self.loss_target.repeat(predictions.size(0), 1)  # 2D [1,C] → [B,C] for BCE
+            ),
             initial_predictions=initial_pred,
             solution_archive=list(),
             batch_dim=0,
@@ -318,7 +322,7 @@ class MimicryTester(SMOO):
         )
         results = self._objectives.results
         fitness = tuple(
-            f.cpu().numpy() if isinstance(f, Tensor) else np.asarray(f) for f in results.values()
+            f.detach().cpu().numpy() if isinstance(f, Tensor) else np.asarray(f) for f in results.values()
         )
 
         early_term, term_cond = self._early_termination(results)

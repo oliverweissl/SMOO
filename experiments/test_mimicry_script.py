@@ -1,7 +1,7 @@
 import os
 import sys
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 # Set CUDA environment variables for custom extension compilation
 os.environ["CUDA_HOME"] = "/usr/local/cuda"
 os.environ["PATH"] = f"{os.environ['CUDA_HOME']}/bin:" + os.environ.get("PATH", "")
@@ -21,8 +21,7 @@ from defaults.mimicry import ExperimentConfig, MimicryTester
 from src.objectives.image_criteria import MatrixDistance
 from src.objectives.classifier_criteria import TorchLossCriterion
 from defaults.optimizer_configs import PYMOO_AGE_MOEA_DEFAULT_PARAMS
-from torchvision.models import Wide_ResNet50_2_Weights as wrnw
-from torchvision.models import wide_resnet50_2
+from torchvision.models import wide_resnet50_2, vit_l_16, efficientnet_v2_m
 
 from models.predictors.attributes_classifier import AttributeClassifier
 
@@ -51,8 +50,18 @@ def main(cargs: Namespace) -> None:
     """Instantiate SMOO components."""
     match cargs.objective:
         case "custom":
+            match cargs.sut:
+                case "default":
+                    model = wide_resnet50_2(weights="IMAGENET1K_V2")
+                case "vit":
+                    model = vit_l_16(weights="IMAGENET1K_V1")
+                case "eff":
+                    model = efficientnet_v2_m(weights="IMAGENET1K_V1")
+                case _:
+                    raise NotImplementedError(f"No SUT defined for {cargs.sut}")
             sut = ClassifierSUT(
-                model=wide_resnet50_2(weights=wrnw.IMAGENET1K_V2), device=device
+                model=model,
+                device=device,
             )
 
             mix_size = (1, 15)
@@ -111,7 +120,7 @@ def main(cargs: Namespace) -> None:
         classes=cargs.classes,
         samples_per_class=cargs.num_samples,
         generations=cargs.generations,
-        save_as=f"runs/mimicry_{cargs.objective}",
+        save_as=f"runs/mimicry_{cargs.objective}" + ("" if cargs.sut == "default" else f"_{cargs.sut}"),
     )
 
     tester = MimicryTester(
@@ -137,6 +146,7 @@ if __name__ == "__main__":
         type=int,
         required=True,
     )
+    parser.add_argument("--sut", type=str, default="default")
     parser.add_argument("-p", "--pop_size", type=int, default=100)
     parser.add_argument("-o", "--objective", type=str, default="dta", choices=OBJ.keys())
     parser.add_argument("--gpu", type=int, default=0)

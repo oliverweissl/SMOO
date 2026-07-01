@@ -14,6 +14,7 @@ import os
 import pickle
 import re
 import sys
+import importlib
 
 import click
 import numpy as np
@@ -89,6 +90,19 @@ class _LegacyUnpickler(pickle.Unpickler):
             return _TFNetworkStub
         elif module == "torch.storage" and name == "_load_from_bytes":  # Addition from StyleGAN-XL
             return lambda b: torch.load(io.BytesIO(b), map_location="cpu", weights_only=False)
+        elif module.startswith("timm.models.layers."):
+            new_module = module.replace(
+                "timm.models.layers",
+                "timm.layers"
+            )
+            mod = importlib.import_module(new_module)
+            return getattr(mod, name)
+        elif module == "timm.models.efficientnet_blocks":
+            import timm.models._efficientnet_blocks as efficientnet_blocks
+            return getattr(efficientnet_blocks, name)
+        elif module == "timm.models.layers.patch_embed":
+            from timm.layers import PatchEmbed
+            return PatchEmbed
         return super().find_class(module, name)
 
 

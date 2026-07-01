@@ -3,6 +3,7 @@ from typing import Optional
 
 import torch
 from torch import Tensor, nn
+import torch.nn.functional as F
 
 from ._sut import SUT
 from .auxiliary_components import MonteCarloDropoutScaffold
@@ -59,11 +60,43 @@ class ClassifierSUT(SUT):
         results = []
         with torch.set_grad_enabled(self._require_grad):
             for c in inpt:
+                c = self._ensure_image_size(c)
                 logits = self._model(c)
                 output = self._softmax(logits) if self._apply_softmax else logits
                 results.append(output)
         res = torch.cat(results, dim=0)
         return res
+
+    def _ensure_image_size(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Adapt the input to a models required dimensions.
+
+        :param x: Input tensor (Image) Shape: [B, C, H, W].
+        :returns: The scaled image.
+        """
+        if not hasattr(self._model, "image_size"):
+            return x
+
+        target: int = self._model.image_size
+
+        batched = x.ndim == 4
+
+        if not batched:
+            x = x.unsqueeze(0)
+
+        _, _, h, w = x.shape
+
+        if (h, w) == (target, target):
+            return x if batched else x.squeeze(0)
+
+        logging.warning("IMPORTANT: Image size not compatible with model - automatically resized. Please check if valid for usecase!")
+        resized = F.interpolate(
+            x,
+            size=(target, target),
+            mode="bilinear",
+            align_corners=False,
+        )
+        return resized if batched else resized.squeeze(0)
 
     def gradient_checkpointing(self, enable: bool = False) -> None:
         """

@@ -17,10 +17,10 @@ for i in 2 5 7 9 11; do
     lr=$(echo "$pair" | awk '{print $1}')
     max_lr=$(echo "$pair" | awk '{print $2}')
 
-    python examples/_hynea/test_hynea_script.py -c $i -n 1 -g 25 -o custom_yolo --gpu 0 --lr $lr --max_lr $max_lr --path "${lr}_${max_lr}_" &
+    python experiments/test_hynea_script.py -c $i -n 1 -g 25 -o custom_yolo --gpu 0 --lr $lr --max_lr $max_lr --path "${lr}_${max_lr}_" &
     pid0=$!
 
-    python examples/_hynea/test_hynea_script.py -c $i -n 1 -g 25 -o custom_yolo --gpu 1 --lr $lr --max_lr $max_lr --path "${lr}_${max_lr}_" &
+    python experiments/test_hynea_script.py -c $i -n 1 -g 25 -o custom_yolo --gpu 1 --lr $lr --max_lr $max_lr --path "${lr}_${max_lr}_" &
     pid1=$!
 
     wait "$pid0"

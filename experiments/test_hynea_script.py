@@ -1,17 +1,18 @@
 import os
 import sys
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import argparse
 import logging
 from argparse import Namespace
 
 import torch
+import numpy as np
+import random
 from defaults.hynea import HyNeATester, ExperimentConfig
 from defaults.logging_utils import setup_logging
-from torchvision.models import Wide_ResNet50_2_Weights as wrnw
-from torchvision.models import wide_resnet50_2
+from torchvision.models import wide_resnet50_2, efficientnet_v2_m, vit_l_16
 
 from src.manipulator.diffusion_manipulator import SitHyNeAManipulator, LDMHyNeAManipulator, SDCNHyNeAManipulator
 from src.objectives import CriterionCollection
@@ -41,6 +42,16 @@ OBJ = {
     ]
 }
 
+def set_seed(seed: int) -> None:
+    random.seed(seed)
+    np.random.seed(seed)
+
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
 
 def main(cargs: Namespace) -> None:
     _ = setup_logging()
@@ -49,14 +60,27 @@ def main(cargs: Namespace) -> None:
     device = torch.device(f"cuda:{cargs.gpu}" if torch.cuda.is_available() else "cpu")
     """Instantiate SMOO components."""
 
+    seed_str = ""
+    if cargs.seed is not None:
+        set_seed(cargs.seed)
+        seed_str = f"seed_{cargs.seed}"
+
     match cargs.objectives:
         case "custom":
+            match cargs.sut:
+                case "default":
+                    model = wide_resnet50_2(weights="IMAGENET1K_V2")
+                case "vit":
+                    model = vit_l_16(weights="IMAGENET1K_V1")
+                case "eff":
+                    model = efficientnet_v2_m(weights="IMAGENET1K_V1")
+                case _:
+                    raise NotImplementedError(f"No SUT defined for {cargs.sut}")
             sut = ClassifierSUT(
-                model=wide_resnet50_2(weights=wrnw.IMAGENET1K_V2),
+                model=model,
                 device=device,
                 require_grad=True,
             )
-
             manipulator = SitHyNeAManipulator(
                 model_file="/home/weissl/Projects/SMOO/models/generators/ldm_im.pt",
                 device=device,
@@ -117,7 +141,7 @@ def main(cargs: Namespace) -> None:
         samples_per_class=cargs.num_samples,
         generations=cargs.generations,
         pop_size=cargs.pop_size,
-        save_as=f"{cargs.path}runs/hynea_{cargs.objectives}",
+        save_as=f"{cargs.path}runs/hynea_{cargs.objectives}" + ("" if cargs.sut == "default" else f"_{cargs.sut}") + ("" if cargs.seed is None else f"_{seed_str}"),
         run_targeted=cargs.targeted,
         optimizer_schedule=list(),  # We dont have a schedule here
     )
@@ -142,10 +166,12 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--pop_size", type=int, default=100)
     parser.add_argument("-o", "--objectives", type=str, required=True)
     parser.add_argument("-ut", "--untargeted", action="store_false", dest="targeted")
+    parser.add_argument("--sut", type=str, default="default", help="The SUT to test.")
     parser.add_argument( "--lr", type=float, default=1e-6, help="Learning rate.")
     parser.add_argument( "--max_lr", type=float, default=1e-4, help="Max learning rate.")
     parser.add_argument("--gpu", type=int, default=0)
     parser.add_argument("--path", type=str, default="")
+    parser.add_argument("--seed", type=int, default=None)
     parser.set_defaults(targeted=True)
 
     args = parser.parse_args()

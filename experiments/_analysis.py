@@ -11,10 +11,14 @@ import numpy as np
 from collections import defaultdict
 from sewar import msssim
 import re
+from glob import glob
 from pytorch_fid.fid_score import InceptionV3, compute_statistics_of_path, calculate_frechet_distance
 
 lpips_model = lpips.LPIPS(net='vgg').eval()
 _real_stats_cache = {}
+
+def get_origins_targets(path: str, origin_patter: str, target_patter: str) -> tuple[list[str], list[str]]:
+    return glob(path + origin_patter), glob(path + target_patter)
 
 def load_img(path: str, return_img: bool = False):
     img = np.load(path) if path.endswith(".npy") else np.array(Image.open(path).convert("RGB"))
@@ -183,6 +187,9 @@ def get_yolo_class_stats(orig_preds, target_preds, target_indices, top_k=5):
 def print_im_div(*pairs, tools, experiment):
     print(f"{experiment} Image Diversity:")
     for pair, tool in zip(pairs, tools):
+        if not pair[0] or not pair[1]:
+            print(f"\t{tool}: no data (empty path list)")
+            continue
         origin, final = get_embeddings(pair[0], batch_size=1), get_embeddings(pair[1], batch_size=1)
         print(f"\t{tool} Origin Diversity: {get_embedding_diversity(origin):.3f}")
         print(f"\t{tool} Target Diversity: {get_embedding_diversity(final):.3f}")
