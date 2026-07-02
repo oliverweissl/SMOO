@@ -255,7 +255,7 @@ class SDCNHyNeAManipulator(DiffusionManipulator):
         xs = torch.stack(xs_list)
         return xs, y_cur.detach()
 
-    def get_images(self, z: Tensor, eps: float = 1e-6) -> Tensor:
+    def synthesize(self, z: Tensor, eps: float = 1e-6) -> Tensor:
         """
         Decode image from latent vector.
 

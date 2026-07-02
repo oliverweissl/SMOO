@@ -162,7 +162,7 @@ class SitHyNeAManipulator(DiffusionManipulator):
         """
         self._hyper_net.use_checkpoints = enable
 
-    def get_images(self, z: Tensor, eps: float = 1e-6) -> Tensor:
+    def synthesize(self, z: Tensor, eps: float = 1e-6) -> Tensor:
         """
         Decode image from latent vector.
 

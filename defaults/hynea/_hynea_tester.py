@@ -168,7 +168,7 @@ class HyNeATester(SMOO):
             v_range = None
             for i in range(self._config.generations * self._config.pop_size):  # * 100 is pop size
                 x_f = self._manipulator.manipulate(cand_list)
-                i_f = self._manipulator.get_images(x_f)
+                i_f = self._manipulator.synthesize(x_f)
 
                 y_f = self._process(i_f)
                 if isinstance(self._sut, YoloSUT):
@@ -298,7 +298,7 @@ class HyNeATester(SMOO):
             current_input = next(input_cycle)
 
             xt, emb = self._manipulator.get_diff_steps(current_input)
-            image = self._manipulator.get_images(xt[-1])
+            image = self._manipulator.synthesize(xt[-1])
             valid, y0 = self._sut.input_valid(image, class_id)
 
             if valid:

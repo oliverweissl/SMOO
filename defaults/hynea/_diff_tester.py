@@ -194,7 +194,7 @@ class DiffTester(SMOO):
                 xs_new = self._manipulator.manipulate(candidates, xw, yw)
 
                 """We predict the label from the mixed images."""
-                xs = self._manipulator.get_images(xs_new)
+                xs = self._manipulator.synthesize(xs_new)
                 predictions = self._process(xs)
                 budget_used += xs.shape[0]  # add budget based on how many images are evaluated.
 
@@ -264,7 +264,7 @@ class DiffTester(SMOO):
         """
         while True:
             xt, emb = self._manipulator.get_diff_steps([class_id])
-            image = self._manipulator.get_images(xt[-1])
+            image = self._manipulator.synthesize(xt[-1])
             y_hat = self._process(image)
             if torch.argmax(y_hat) == class_id:
                 break

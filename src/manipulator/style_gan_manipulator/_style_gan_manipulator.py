@@ -130,7 +130,7 @@ class StyleGANManipulator(Manipulator):
         w[:, self._mix_dims] += comp1 + comp2
         w += w_avg
 
-        imgs = self.get_images(w)
+        imgs = self.synthesize(w)
         return imgs
 
     def get_w(self, seed: int, class_idx: int, batch_size: int = 1) -> Tensor:
@@ -156,7 +156,7 @@ class StyleGANManipulator(Manipulator):
         )
         return w
 
-    def get_images(self, w: Tensor) -> Tensor:
+    def synthesize(self, w: Tensor) -> Tensor:
         """
         Get a generated image from the w Vector.
 

@@ -378,7 +378,7 @@ class MimicryTester(SMOO):
                 w = self._manipulator.get_w(seed + trials, label)  # Adding trial.
                 current_retries += 1
 
-                img = self._manipulator.get_images(w)
+                img = self._manipulator.synthesize(w)
                 img = self._assure_rgb(img)
                 y_hat = self._process(img)
 
@@ -450,7 +450,7 @@ class MimicryTester(SMOO):
         # For logging purposes to see how many samples we need to find valid seed.
         w: Tensor = self._manipulator.get_w(self._get_random_seed(), 0)
         ws = torch.randn((amount, *w.shape), device=w.device)
-        images = self._assure_rgb(self._manipulator.get_images(ws))
+        images = self._assure_rgb(self._manipulator.synthesize(ws))
         y_hats = self._process(images)
 
         logging.info(f"\tFound {amount} valid seed(s).")

@@ -345,7 +345,7 @@ class SiTManipulator(DiffusionManipulator):
 
         return xs.detach(), y_cur
 
-    def get_images(self, z: Tensor) -> Tensor:
+    def synthesize(self, z: Tensor) -> Tensor:
         """
         Decode image from latent vector.
 

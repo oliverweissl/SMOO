@@ -32,9 +32,9 @@ class Manipulator(ABC):
         )
 
     @abstractmethod
-    def get_images(self, z: Tensor) -> Tensor:
+    def synthesize(self, z: Tensor) -> Tensor:
         """
-        Get images from latent vector.
+        Synthesize Output from latent vector.
 
         :param z: The latent vector.
         :return: The decoded image, color-range [0,1] (BxCxHxW).

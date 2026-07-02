@@ -175,7 +175,7 @@ class LDMHyNeAManipulator(DiffusionManipulator):
 
         return xs.detach(), torch.empty(1, device=self._device, dtype=self._dtype)
 
-    def get_images(self, z: Tensor, eps: float = 1e-6) -> Tensor:
+    def synthesize(self, z: Tensor, eps: float = 1e-6) -> Tensor:
         """
         Decode image from latent vector.
 
