@@ -7,7 +7,7 @@ from src.objectives.classifier_criteria import (
     NaiveConfidenceBalance,
 )
 from src.objectives.image_criteria import MatrixDistance, SegMapIoU, VLMBBoxIoU
-from src.objectives.text_criteria import PromptObjectDistance
+from src.objectives.text_criteria import EmbeddingDistance
 
 """
 ### Adversarial Testing:
@@ -49,7 +49,7 @@ MARYAM = [AdversarialDistance()]
 DEEP_JANUS = [ArchiveSparsity(metric=MatrixDistance()), AdversarialDistance()]
 
 
-MMM = [VLMBBoxIoU(), MatrixDistance(), PromptObjectDistance()]
+MMM = [VLMBBoxIoU(), MatrixDistance(), EmbeddingDistance()]
 
 
 """

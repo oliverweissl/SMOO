@@ -24,19 +24,15 @@ def _cosine_similarity(vec_a: np.ndarray, vec_b: np.ndarray) -> float:
 class EmbeddingDistance(Criterion):
     """Cosine-distance between text embeddings."""
 
-    _name: str = 'PromptObjectDistance'
+    _name: str = "PromptObjectDistance"
 
     def evaluate(self, *, embeddings: list[Any], **_: Any) -> float:
         """Calculate cosine distance for a matched pair of embeddings."""
         if len(embeddings) != 2:
             raise ValueError(
-                f'PromptObjectDistance expects exactly 2 embeddings, got {len(embeddings)}.'
+                f"PromptObjectDistance expects exactly 2 embeddings, got {len(embeddings)}."
             )
 
         emb_a = _as_vector(embeddings[0])
         emb_b = _as_vector(embeddings[1])
         return float(1.0 - _cosine_similarity(emb_a, emb_b))
-
-
-class PromptObjectDistance(EmbeddingDistance):
-    """Backward-compatible MMM text-distance criterion name."""

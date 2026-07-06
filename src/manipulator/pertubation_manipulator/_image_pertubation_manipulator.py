@@ -340,7 +340,8 @@ class ImagePertubationManipulator(Manipulator):
 
         return image
 
-    def false_color_filter(self, scale: float, image: np.ndarray) -> np.ndarray:
+    @staticmethod
+    def false_color_filter(scale: float, image: np.ndarray, **_: Any) -> np.ndarray:
         """Shift the hue channel to produce false-colour artefacts.
 
         :param scale: Severity in [0.0, 1.0]; maps linearly to a hue shift of 0–180°.
@@ -357,6 +358,7 @@ class ImagePertubationManipulator(Manipulator):
         scale: float,
         image: np.ndarray,
         severity_levels: tuple[float, ...] = (0.1, 0.2, 0.35, 0.55, 0.85),
+        **_: Any,
     ) -> np.ndarray:
         """Blend the image towards greyscale by the given severity.
 

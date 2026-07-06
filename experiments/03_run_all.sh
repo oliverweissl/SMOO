@@ -10,6 +10,11 @@ declare -A PORTS=(
   [deepseek]=8704
 )
 
+GPU="${1:-0}"
+if [ "$#" -gt 0 ]; then
+  shift
+fi
+
 for MODEL in "${MODELS[@]}"; do
-  bash experiments/run_mmm_one_model.sh "$MODEL" "${PORTS[$MODEL]}" "$@"
+  bash experiments/_run_one.sh "$MODEL" "$GPU" "${PORTS[$MODEL]}" "$@"
 done

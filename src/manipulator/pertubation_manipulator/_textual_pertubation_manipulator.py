@@ -1,5 +1,6 @@
 import json
 import random
+import re
 import unicodedata
 from pathlib import Path
 from string import ascii_letters
@@ -293,7 +294,7 @@ class TextualPerturbationManipulator(Manipulator):
             if op < 1:  # Swap
                 chars[idx], chars[idx + 1] = chars[idx + 1], chars[idx]
             elif 1 <= op < 2:  # Replace
-                chars[idx] = random.choice(string.ascii_letters)
+                chars[idx] = random.choice(ascii_letters)
             elif 2 <= op < 3 and len(chars) > 5:  # Delete
                 chars.pop(idx)
                 length -= 1

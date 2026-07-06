@@ -1,5 +1,5 @@
 """Criteria used for MMM text objectives."""
 
-from ._embedding_distance import EmbeddingDistance, PromptObjectDistance
+from ._embedding_distance import EmbeddingDistance
 
-__all__ = ['EmbeddingDistance', 'PromptObjectDistance']
+__all__ = ["EmbeddingDistance"]
