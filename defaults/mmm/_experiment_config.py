@@ -7,18 +7,18 @@ class ExperimentConfig:
     """A dataclass to unify experimental configurations."""
 
     seed: int
-
-    generations: int  # How many generations to optimize for.
-    pop_size: int  # The size of a population in a generation.
-
+    generations: int
+    pop_size: int
     budget_max: float
     baseline_iou: float
-    mode: str # What mode of manipulation
+    mode: str
+    save_as: str
 
-    save_as: str  # just a string for better saving
-    results_dir: str = "results"
-    selection_dir: str = "selection"
-
-    solution_shape: Optional[tuple[int, ...]] = (
-        None,
-    )  # The shape of the final solution (not partial solutions).
+    results_dir: str = 'results'
+    selection_dir: str = 'selection'
+    early_stop_iou_max: float = 0.35
+    early_stop_img_dist_max: float = 0.1
+    early_stop_txt_sim_min: float = 0.70
+    max_resolution: int = 1024
+    min_perturbation_scale: float = 0.01
+    solution_shape: Optional[tuple[int, ...]] = None

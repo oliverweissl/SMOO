@@ -6,7 +6,8 @@ from src.objectives.classifier_criteria import (
     DynamicConfidenceBalance,
     NaiveConfidenceBalance,
 )
-from src.objectives.image_criteria import MatrixDistance, SegMapIoU
+from src.objectives.image_criteria import MatrixDistance, SegMapIoU, VLMBBoxIoU
+from src.objectives.text_criteria import PromptObjectDistance
 
 """
 ### Adversarial Testing:
@@ -46,6 +47,9 @@ DEEP_JANUS: Taken from the paper: "Model-Based Exploration of the Frontier of Be
 """
 MARYAM = [AdversarialDistance()]
 DEEP_JANUS = [ArchiveSparsity(metric=MatrixDistance()), AdversarialDistance()]
+
+
+MMM = [VLMBBoxIoU(), MatrixDistance(), PromptObjectDistance()]
 
 
 """
