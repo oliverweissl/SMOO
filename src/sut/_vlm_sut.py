@@ -8,7 +8,7 @@ from io import BytesIO
 from typing import Any, Literal, Optional
 
 import numpy as np
-import requests
+import requests  # type: ignore[import-untyped]
 from PIL import Image
 from vllm import LLM, SamplingParams
 
@@ -84,7 +84,13 @@ class VLMSUT(SUT):
     def input_valid(
         self, inpt: Any, cond: Any = None
     ) -> tuple[bool, tuple[list[Image.Image], list[str]]]:
-        """Validate and normalize multimodal VLM input."""
+        """Validate and normalize multimodal VLM input.
+
+        :param inpt: Candidate input shaped as ``(images, prompts)``.
+        :param cond: Unused validation condition placeholder.
+        :returns: ``True`` and normalized ``(images, prompts)``.
+        :raises ValueError: If the input structure or contained types are invalid.
+        """
         if not isinstance(inpt, tuple) or len(inpt) != 2:
             raise ValueError("VLMSUT expects input shaped as (images, prompts).")
 
@@ -105,13 +111,23 @@ class VLMSUT(SUT):
         return True, (normalized_images, normalized_prompts)
 
     def process_input(self, inpt: tuple[list[Any], list[str]]) -> list[str]:
-        """Run batched inference via an existing vLLM server or in-process vLLM."""
+        """Run batched inference via an existing vLLM server or in-process vLLM.
+
+        :param inpt: Batch input shaped as ``(images, prompts)``.
+        :returns: Generated texts for the batch.
+        """
         _, normalized = self.input_valid(inpt)
         images, prompts = normalized
         return self.run_batch_inference(images, prompts)[0]
 
     def run_inference(self, image: Any, prompt: str) -> tuple[str, int, int, float]:
-        """Run single-sample inference."""
+        """Run single-sample inference.
+
+        :param image: Input image.
+        :param prompt: Input prompt.
+        :returns: Output text, completion token count twice, and runtime in seconds.
+        :raises RuntimeError: If local vLLM inference returns an invalid output structure.
+        """
         _, normalized = self.input_valid(([image], [prompt]))
         images, prompts = normalized
 
@@ -138,7 +154,14 @@ class VLMSUT(SUT):
     def run_batch_inference(
         self, images: list[Any], prompts: list[str]
     ) -> tuple[list[str], list[int], list[int], float]:
-        """Run batch inference through vLLM."""
+        """Run batch inference through vLLM.
+
+        :param images: Batch of input images.
+        :param prompts: Batch of input prompts.
+        :returns: Output texts, completion token counts twice, and runtime in seconds.
+        :raises ValueError: If the batch is empty or input validation fails.
+        :raises RuntimeError: If vLLM returns an invalid output structure.
+        """
         _, normalized = self.input_valid((images, prompts))
         norm_images, norm_prompts = normalized
 
@@ -188,7 +211,12 @@ class VLMSUT(SUT):
         return texts, counts, counts, runtime
 
     def _coerce_image(self, image: Any) -> Image.Image:
-        """Normalize supported image inputs to RGB PIL images."""
+        """Normalize supported image inputs to RGB PIL images.
+
+        :param image: Input image as PIL image or numpy array.
+        :returns: RGB PIL image.
+        :raises ValueError: If the input image type or shape is unsupported.
+        """
         if isinstance(image, Image.Image):
             return image.convert("RGB")
         if isinstance(image, np.ndarray):
@@ -203,7 +231,12 @@ class VLMSUT(SUT):
         raise ValueError(f"Unsupported image input type: {type(image).__name__}.")
 
     def _transform_prompt(self, prompt: str) -> str:
-        """Apply model-specific prompt formatting."""
+        """Apply model-specific prompt formatting.
+
+        :param prompt: Input prompt.
+        :returns: Transformed prompt string.
+        :raises ValueError: If the configured prompt mode is unsupported.
+        """
         if self._prompt_mode == "plain":
             return prompt
         if self._prompt_mode == "deepseek_ref":
@@ -211,13 +244,22 @@ class VLMSUT(SUT):
         raise ValueError(f"Unsupported prompt mode: {self._prompt_mode}.")
 
     def _transform_image(self, image: Image.Image) -> Image.Image:
-        """Apply optional model-specific image resizing."""
+        """Apply optional model-specific image resizing.
+
+        :param image: Input image.
+        :returns: Possibly resized image.
+        """
         if self._image_resize is None:
             return image
         return image.resize(self._image_resize)
 
     def _messages(self, image: Image.Image, prompt: str) -> list[dict[str, Any]]:
-        """Build a single-turn multimodal chat payload."""
+        """Build a single-turn multimodal chat payload.
+
+        :param image: Input image.
+        :param prompt: Input prompt.
+        :returns: vLLM-compatible multimodal chat message payload.
+        """
         image = self._transform_image(image)
         prompt = self._transform_prompt(prompt)
         return [
@@ -231,7 +273,14 @@ class VLMSUT(SUT):
         ]
 
     def _post_served(self, image: Image.Image, prompt: str) -> tuple[str, int, float]:
-        """Send one request to a running vLLM server."""
+        """Send one request to a running vLLM server.
+
+        :param image: Input image.
+        :param prompt: Input prompt.
+        :returns: Output text, completion token count, and runtime in seconds.
+        :raises KeyError: If the HTTP response is missing required fields.
+        :raises ValueError: If the resolved response text is empty or malformed.
+        """
         assert self._served_url is not None
         payload = {
             "model": self._model_id,
@@ -259,7 +308,12 @@ class VLMSUT(SUT):
 
     @staticmethod
     def _extract_text_content(content: Any) -> str:
-        """Normalize OpenAI-style message content to a plain string."""
+        """Normalize OpenAI-style message content to a plain string.
+
+        :param content: Message content payload from the served API.
+        :returns: Plain text content.
+        :raises ValueError: If the content structure is unsupported or resolves to an empty string.
+        """
         if isinstance(content, str):
             return content
         if isinstance(content, list):
@@ -285,7 +339,11 @@ class VLMSUT(SUT):
 
     @staticmethod
     def _pil_to_b64_url(img: Image.Image) -> str:
-        """Encode a PIL image as a data URI for the vLLM chat API."""
+        """Encode a PIL image as a data URI for the vLLM chat API.
+
+        :param img: Input image.
+        :returns: Base64 data URI.
+        """
         buf = BytesIO()
         img.save(buf, format="JPEG")
         return f"data:image/jpeg;base64,{base64.b64encode(buf.getvalue()).decode()}"

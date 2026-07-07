@@ -1,6 +1,6 @@
 from io import BytesIO
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Callable, cast
 
 import cv2
 import numpy as np
@@ -22,8 +22,8 @@ class ImagePertubationManipulator(Manipulator):
 
         :param snow_file: Path to the snow image.
         """
-        self._frost_path = snow_file
-        self.perturbations = [
+        self._frost_path = Path(snow_file)
+        self.perturbations: list[Callable[..., np.ndarray]] = [
             self.jpeg_filter,
             self.pixelate,
             self.defocus_blur,
@@ -38,23 +38,32 @@ class ImagePertubationManipulator(Manipulator):
             self.grayscale_filter,
         ]
 
-    def manipulate(self, candidates: PerturbCandidateList, **kwargs: Any) -> list[NDArray]:
+    def image_dim(self) -> int:
+        """Return the number of image perturbation parameters.
+
+        :returns: Number of image perturbation parameters.
+        """
+        return len(self.perturbations)
+
+    def manipulate(self, candidates: PerturbCandidateList, **kwargs: Any) -> PerturbCandidateList:
         """
         Manipulate the candidates based on perturbations.
 
         :param candidates: The candidates.
+        :param kwargs: Unused extra manipulator arguments.
+        :returns: Mutated candidate list.
         """
         for candidate in candidates:
             assert len(candidate.image_pertubation) == len(
                 self.perturbations
             ), f"Error: found: {len(self.perturbations)} image perturbations, but genome is size {len(candidate.image_pertubation)}"
-            kwargs = {"bboxes": candidate.original_bboxes}
+            kwargs = {"bboxes": candidate.sample.ground_truth_boxes}
             for scale, pert in zip(candidate.image_pertubation, self.perturbations):
                 candidate.image_array = pert(image=candidate.image_array, scale=scale, **kwargs)
 
-        return [c.image_array for c in candidates]
+        return candidates
 
-    def _interpolate(self, factor: float, values: Sequence) -> float:
+    def _interpolate(self, factor: float, values: tuple[float, ...] | tuple[int, ...]) -> float:
         """Linear interpolation of factor ∈ [0,1] over 5 target values (discrete scales 0–4).
 
         :param factor: Severity in [0.0, 1.0].
@@ -73,58 +82,66 @@ class ImagePertubationManipulator(Manipulator):
     def jpeg_filter(
         self,
         scale: float,
-        image: np.ndarray,
+        image: NDArray,
         quality_levels: tuple[int, ...] = (30, 18, 15, 10, 5),
         **_: Any,
-    ) -> np.ndarray:
+    ) -> NDArray:
         """Apply JPEG compression artefacts at the given severity.
 
         :param scale: Severity in [0.0, 1.0].
         :param image: Input uint8 BGR image.
         :param quality_levels: Five JPEG quality anchors mapped to scales 0–1.
+        :param _: Unused extra perturbation arguments.
         :returns: Re-decoded uint8 image with compression artefacts.
+        :raises RuntimeError: If OpenCV JPEG encoding or decoding fails.
         """
         quality = int(self._interpolate(scale, quality_levels))
-        _, encoded = cv2.imencode(".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
-        return cv2.imdecode(
+        success, encoded = cv2.imencode(".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
+        if not success:
+            raise RuntimeError("OpenCV JPEG encoding failed.")
+        decoded = cv2.imdecode(
             np.frombuffer(BytesIO(encoded.tobytes()).read(), np.uint8), cv2.IMREAD_COLOR
         )
+        if decoded is None:
+            raise RuntimeError("OpenCV JPEG decoding failed.")
+        return decoded
 
     def pixelate(
         self,
         scale: float,
-        image: np.ndarray,
+        image: NDArray,
         downsample_levels: tuple[float, ...] = (0.85, 0.55, 0.35, 0.2, 0.1),
         **_: Any,
-    ) -> np.ndarray:
+    ) -> NDArray:
         """Pixelate an image by downsampling then upsampling with nearest-neighbour interpolation.
 
         :param scale: Severity in [0.0, 1.0].
         :param image: Input uint8 image.
         :param downsample_levels: Five downscale fraction anchors mapped to scales 0–1.
         :returns: Pixelated uint8 image of the original size.
+        :param _: Unused extra perturbation arguments.
         """
         downsample = self._interpolate(scale, downsample_levels)
         h, w = image.shape[:2]
         image = np.array(image, dtype=np.uint8)
         small_w, small_h = max(1, int(w * downsample)), max(1, int(h * downsample))
-        return cv2.resize(
-            cv2.resize(image, (small_w, small_h), cv2.INTER_AREA), (w, h), cv2.INTER_NEAREST
-        )
+        downsampled = cv2.resize(image, (small_w, small_h), interpolation=cv2.INTER_AREA)
+        return cast(np.ndarray, cv2.resize(downsampled, (w, h), interpolation=cv2.INTER_NEAREST))
 
     def defocus_blur(
         self,
         scale: float,
-        image: np.ndarray,
+        image: NDArray,
         radius_levels: tuple[int, ...] = (2, 5, 6, 9, 12),
         **_: Any,
-    ) -> np.ndarray:
+    ) -> NDArray:
         """Apply defocus blur using a disk-shaped convolution kernel.
 
         :param scale: Severity in [0.0, 1.0].
         :param image: Input uint8 image.
         :param radius_levels: Five disk-radius anchors mapped to scales 0–1.
         :returns: Blurred uint8 image.
+        :param _: Unused extra perturbation arguments.
         """
         image = np.array(image, dtype=np.uint8)
         radius = max(1, int(self._interpolate(scale, radius_levels)))
@@ -133,11 +150,11 @@ class ImagePertubationManipulator(Manipulator):
     def motion_blur(
         self,
         scale: float,
-        image: np.ndarray,
+        image: NDArray,
         size_levels: tuple[int, ...] = (2, 4, 6, 10, 15),
         angle_levels: tuple[int, ...] = (5, 12, 20, 30, 45),
         **_: Any,
-    ) -> np.ndarray:
+    ) -> NDArray:
         """Apply directional motion blur using a linear convolution kernel.
 
         :param scale: Severity in [0.0, 1.0].
@@ -145,6 +162,7 @@ class ImagePertubationManipulator(Manipulator):
         :param size_levels: Five kernel-size anchors mapped to scales 0–1.
         :param angle_levels: Five blur-angle (degrees) anchors mapped to scales 0–1.
         :returns: Motion-blurred uint8 image.
+        :param _: Unused extra perturbation arguments.
         """
         image = np.array(image, dtype=np.uint8)
         size = max(1, int(self._interpolate(scale, size_levels)))
@@ -154,16 +172,17 @@ class ImagePertubationManipulator(Manipulator):
     def gaussian_noise(
         self,
         scale: float,
-        image: np.ndarray,
+        image: NDArray,
         std_levels: tuple[float, ...] = (0.03, 0.06, 0.12, 0.18, 0.22),
         **_: Any,
-    ) -> np.ndarray:
+    ) -> NDArray:
         """Add zero-mean Gaussian noise to the image.
 
         :param scale: Severity in [0.0, 1.0].
         :param image: Input uint8 image.
         :param std_levels: Five noise standard-deviation anchors (normalised 0–1) mapped to scales 0–1.
         :returns: Noisy uint8 image clipped to [0, 255].
+        :param _: Unused extra perturbation arguments.
         """
         image = np.array(image, dtype=np.uint8)
         std_dev = self._interpolate(scale, std_levels)
@@ -174,11 +193,11 @@ class ImagePertubationManipulator(Manipulator):
     def fog_filter(
         self,
         scale: float,
-        image: np.ndarray,
+        image: NDArray,
         intensity_levels: tuple[float, ...] = (0.1, 0.2, 0.3, 0.45, 0.65),
         noise_levels: tuple[float, ...] = (0.05, 0.1, 0.2, 0.3, 0.45),
         **_: Any,
-    ) -> np.ndarray:
+    ) -> NDArray:
         """Blend a noisy white overlay over the image to simulate fog.
 
         :param scale: Severity in [0.0, 1.0].
@@ -186,6 +205,7 @@ class ImagePertubationManipulator(Manipulator):
         :param intensity_levels: Five blend-weight anchors mapped to scales 0–1.
         :param noise_levels: Five fog-noise-amount anchors mapped to scales 0–1.
         :returns: Fogged uint8 image.
+        :param _: Unused extra perturbation arguments.
         """
         intensity = self._interpolate(scale, intensity_levels)
         noise_amount = self._interpolate(scale, noise_levels)
@@ -196,22 +216,25 @@ class ImagePertubationManipulator(Manipulator):
             .clip(0, 255)
             .astype(np.uint8)
         )
-        fog_overlay = cv2.addWeighted(fog_overlay, 1 - noise_amount, noise, noise_amount, 0)
-        return cv2.addWeighted(image, 1 - intensity, fog_overlay, intensity, 0)
+        fog_overlay = cast(
+            np.ndarray, cv2.addWeighted(fog_overlay, 1 - noise_amount, noise, noise_amount, 0)
+        )
+        return cast(np.ndarray, cv2.addWeighted(image, 1 - intensity, fog_overlay, intensity, 0))
 
     def snow_filter(
         self,
         scale: float,
-        image: np.ndarray,
+        image: NDArray,
         intensity_levels: tuple[float, ...] = (0.15, 0.22, 0.3, 0.45, 0.6),
         **_: Any,
-    ) -> np.ndarray:
+    ) -> NDArray:
         """Overlay a snow texture from ``snow.png`` with alpha blending.
 
         :param scale: Severity in [0.0, 1.0].
         :param image: Input uint8 image.
         :param intensity_levels: Five overlay-intensity anchors mapped to scales 0–1.
         :returns: Snow-overlaid uint8 image with reduced saturation.
+        :param _: Unused extra perturbation arguments.
         :raises FileNotFoundError: If ``snow.png`` is not found in the assets directory.
         :raises IOError: If ``snow.png`` cannot be decoded by OpenCV.
         """
@@ -221,29 +244,32 @@ class ImagePertubationManipulator(Manipulator):
         frost_overlay = cv2.imread(str(self._frost_path), cv2.IMREAD_UNCHANGED)
         if frost_overlay is None:
             raise IOError(f"File `{self._frost_path}` exists but could not be decoded by OpenCV.")
-        frost_overlay_resized = cv2.resize(frost_overlay, (image.shape[1], image.shape[0]))
+        frost_overlay_resized = cast(
+            np.ndarray, cv2.resize(frost_overlay, (image.shape[1], image.shape[0]))
+        )
         bgr = frost_overlay_resized[:, :, :3]
         alpha = frost_overlay_resized[:, :, 3] / 255.0
         frosted = np.clip(
             (1 - intensity * alpha[:, :, np.newaxis]) * image + intensity * bgr, 0, 255
         ).astype(np.uint8)
-        hsv = cv2.cvtColor(frosted, cv2.COLOR_BGR2HSV)
+        hsv = cast(np.ndarray, cv2.cvtColor(frosted, cv2.COLOR_BGR2HSV))
         hsv[:, :, 1] = hsv[:, :, 1] * 0.8
         return cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
 
     def contrast(
         self,
         scale: float,
-        image: np.ndarray,
+        image: NDArray,
         factor_levels: tuple[float, ...] = (1.1, 1.2, 1.3, 1.5, 1.7),
         **_: Any,
-    ) -> np.ndarray:
+    ) -> NDArray:
         """Increase image contrast by scaling pixel values around the mid-grey point.
 
         :param scale: Severity in [0.0, 1.0].
         :param image: Input uint8 image.
         :param factor_levels: Five contrast-factor anchors mapped to scales 0–1.
         :returns: Contrast-enhanced uint8 image.
+        :param _: Unused extra perturbation arguments.
         """
         contrast_factor = self._interpolate(scale, factor_levels)
         mid_level = 127.5
@@ -252,11 +278,11 @@ class ImagePertubationManipulator(Manipulator):
     def elastic(
         self,
         scale: float,
-        image: np.ndarray,
+        image: NDArray,
         alpha_levels: tuple[int, ...] = (2, 3, 5, 7, 10),
         sigma_levels: tuple[float, ...] = (0.4, 0.75, 0.9, 1.2, 1.5),
         **_: Any,
-    ) -> np.ndarray:
+    ) -> NDArray:
         """Apply elastic deformation via smooth random displacement fields.
 
         :param scale: Severity in [0.0, 1.0].
@@ -264,6 +290,7 @@ class ImagePertubationManipulator(Manipulator):
         :param alpha_levels: Five displacement-amplitude anchors mapped to scales 0–1.
         :param sigma_levels: Five Gaussian-smoothing-sigma anchors mapped to scales 0–1.
         :returns: Elastically deformed uint8 image.
+        :param _: Unused extra perturbation arguments.
         """
         alpha = self._interpolate(scale, alpha_levels)
         sigma = self._interpolate(scale, sigma_levels)
@@ -281,12 +308,12 @@ class ImagePertubationManipulator(Manipulator):
     def cutout_filter_with_bbox(
         self,
         scale: float,
-        image: np.ndarray,
+        image: NDArray,
         bboxes: list[list[int]],
         patch_count_levels: tuple[int, ...] = (1, 2, 4, 6, 10),
         coverage_levels: tuple[float, ...] = (0.05, 0.10, 0.15, 0.25, 0.33),
         **_: Any,
-    ) -> np.ndarray:
+    ) -> NDArray:
         """Black-out random rectangular patches while respecting a per-bbox coverage limit.
 
         :param scale: Severity in [0.0, 1.0].
@@ -295,6 +322,7 @@ class ImagePertubationManipulator(Manipulator):
         :param patch_count_levels: Five target-patch-count anchors mapped to scales 0–1.
         :param coverage_levels: Five max-coverage-fraction anchors mapped to scales 0–1.
         :returns: Image with black rectangular cutouts applied.
+        :param _: Unused extra perturbation arguments.
         """
         image = image.copy()
         h, w, _ = image.shape
@@ -341,12 +369,13 @@ class ImagePertubationManipulator(Manipulator):
         return image
 
     @staticmethod
-    def false_color_filter(scale: float, image: np.ndarray, **_: Any) -> np.ndarray:
+    def false_color_filter(scale: float, image: NDArray, **_: Any) -> NDArray:
         """Shift the hue channel to produce false-colour artefacts.
 
         :param scale: Severity in [0.0, 1.0]; maps linearly to a hue shift of 0–180°.
         :param image: Input uint8 RGB image.
         :returns: Hue-shifted uint8 RGB image.
+        :param _: Unused extra perturbation arguments.
         """
         shift = int(scale * 180)
         hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV).astype(np.int32)
@@ -356,16 +385,17 @@ class ImagePertubationManipulator(Manipulator):
     def grayscale_filter(
         self,
         scale: float,
-        image: np.ndarray,
+        image: NDArray,
         severity_levels: tuple[float, ...] = (0.1, 0.2, 0.35, 0.55, 0.85),
         **_: Any,
-    ) -> np.ndarray:
+    ) -> NDArray:
         """Blend the image towards greyscale by the given severity.
 
         :param scale: Severity in [0.0, 1.0].
         :param image: Input uint8 RGB image.
         :param severity_levels: Five greyscale-blend-weight anchors mapped to scales 0–1.
         :returns: Partially desaturated uint8 image.
+        :param _: Unused extra perturbation arguments.
         """
         severity = self._interpolate(scale, severity_levels)
         gray = cv2.cvtColor(cv2.cvtColor(image, cv2.COLOR_RGB2GRAY), cv2.COLOR_GRAY2RGB)

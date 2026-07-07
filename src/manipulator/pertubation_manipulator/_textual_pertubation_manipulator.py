@@ -4,7 +4,7 @@ import re
 import unicodedata
 from pathlib import Path
 from string import ascii_letters
-from typing import Any
+from typing import Any, Callable
 
 from confusable_homoglyphs import confusables
 from nltk.corpus import stopwords
@@ -53,20 +53,27 @@ class TextualPerturbationManipulator(Manipulator):
         self.context_distractors = _prompts.CONTEXT_DISTRACTORS
         self.reinforcement_phrases = _prompts.REINFORCEMENT_PHRASES
 
-        self.obj_pertubations = [
+        self.obj_pertubations: list[Callable[[str, float], str]] = [
             self.fragmentation,
             self.character_noise,
             self.homophone_substitution,
             self.synonym_substitution,
             self.ata_saliency,
         ]
-        self.prompt_pertubations = [
+        self.prompt_pertubations: list[Callable[[str, float], str]] = [
             self.universal_suffix_injection,
             self.context_rot_injection,
             self.task_reinforcement,
         ]
 
-    def manipulate(self, candidates: PerturbCandidateList, **kwargs: Any) -> list[str]:
+    def text_dim(self) -> int:
+        """Return the number of text perturbation parameters.
+
+        :returns: Number of text perturbation parameters.
+        """
+        return len(self.obj_pertubations) + len(self.prompt_pertubations)
+
+    def manipulate(self, candidates: PerturbCandidateList, **kwargs: Any) -> PerturbCandidateList:
         """
         The manipulation function for the Manipulator.
 
@@ -89,7 +96,7 @@ class TextualPerturbationManipulator(Manipulator):
             ):
                 candidate.prompt_str = pert(candidate.prompt_str, scale)
 
-        return [c.format_prompt() for c in candidates]
+        return candidates
 
     # --------------- Pertubations
     def fragmentation(self, text: str, scale: float = 0.0) -> str:
@@ -120,14 +127,14 @@ class TextualPerturbationManipulator(Manipulator):
         """
         if not text:
             return text
-        probability = self._scale_to_prob(scale)
+        probability = self._scale_to_prob(scale) * 0.1
         result = ""
         for char in text:
             current_char = char
             if char in self.homoglyphs and random.random() < probability:
                 current_char = random.choice(self.homoglyphs[char])
             result += current_char
-            if char.isalnum() and random.random() < probability:
+            if char.isalnum() and random.random() < (probability * 0.25):
                 result += random.choice(self.invisible_chars)
         return result
 
@@ -157,7 +164,8 @@ class TextualPerturbationManipulator(Manipulator):
         return " ".join(perturbed_words)
 
     def homophone_substitution(self, text: str, scale: float = 0.0) -> str:
-        """Replace comma-separated object labels with homophones from the loaded mapping.
+        """
+        Replace comma-separated object labels with homophones from the loaded mapping.
 
         :param text: Comma-separated object label string.
         :param scale: Severity in [0.0, 1.0]; controls substitution probability and option range.
@@ -186,7 +194,8 @@ class TextualPerturbationManipulator(Manipulator):
         return ", ".join(transformed_objects)
 
     def synonym_substitution(self, text: str, scale: float = 0.0) -> str:
-        """Replace labels with synonyms from the loaded mapping.
+        """
+        Replace labels with synonyms from the loaded mapping.
 
         :param text: object label string.
         :param scale: Severity in [0.0, 1.0]; controls substitution probability and option range.

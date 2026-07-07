@@ -1,25 +1,26 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
+from numpy.typing import NDArray
 from torch import Tensor
 
 from .._criterion import Criterion
 
 
-def _as_array(value: Any) -> np.ndarray:
+def _as_array(value: Any) -> NDArray[np.float64]:
     if isinstance(value, Tensor):
         value = value.detach().cpu().numpy()
-    return np.asarray(value, dtype=np.float64)
+    return cast(NDArray[np.float64], np.asarray(value, dtype=np.float64))
 
 
-def _as_box_matrix(boxes: Any) -> np.ndarray:
+def _as_box_matrix(boxes: Any) -> NDArray[np.float64]:
     arr = _as_array(boxes)
     if arr.ndim == 1:
         if arr.size != 4:
             raise ValueError(f"Expected a 4-value box, got shape {arr.shape}.")
-        return arr.reshape(1, 4)
+        return cast(NDArray[np.float64], arr.reshape(1, 4))
     if arr.ndim == 2 and arr.shape[1] == 4:
         return arr
     raise ValueError(f"Expected boxes shaped (N, 4) or (4,), got shape {arr.shape}.")
@@ -50,7 +51,13 @@ class VLMBBoxIoU(Criterion):
     _name: str = "VLMBBoxIoU"
 
     def evaluate(self, *, boxes: list[Any], **_: Any) -> float:
-        """Calculate mean IoU for a matched predicted/ground-truth box set."""
+        """Calculate mean IoU for a matched predicted/ground-truth box set.
+
+        :param boxes: Predicted and ground-truth box collections.
+        :param _: Unused extra criterion inputs.
+        :returns: Mean IoU across matched box pairs.
+        :raises ValueError: If the box count or shapes are invalid.
+        """
         if len(boxes) != 2:
             raise ValueError(f"VLMBBoxIoU expects exactly 2 box collections, got {len(boxes)}.")
 

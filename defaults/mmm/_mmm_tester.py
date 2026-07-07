@@ -3,7 +3,7 @@ import os
 import random
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import torch
@@ -29,7 +29,6 @@ from ._helpers import (
     prepare_bbox_pairs,
     save_baseline_fail,
     save_best_result,
-    split_manipulation_results,
 )
 from ._prompts import DETECTION_PROMPT
 from ._qwen3_embedding import Qwen3EmbeddingInstance
@@ -44,6 +43,8 @@ OUTPUT_BASE_DIRS = {
 class MMMTester(SMOO):
     """Multi-Modal Manipulation Tester."""
 
+    _sut: VLMSUT
+
     def __init__(
         self,
         *,
@@ -54,7 +55,15 @@ class MMMTester(SMOO):
         config: ExperimentConfig,
         early_termination: TEarlyTermCallable,
     ):
-        """Initialize the Multi-Modal Tester."""
+        """Initialize the Multi-Modal Tester.
+
+        :param sut: VLM system under test.
+        :param manipulator: Multimodal perturbation manipulator.
+        :param optimizer: Population-based optimizer.
+        :param objectives: Objective collection used for scoring.
+        :param config: MMM experiment configuration.
+        :param early_termination: Early stopping callback.
+        """
         super().__init__(
             sut=sut,
             manipulator=manipulator,
@@ -68,7 +77,10 @@ class MMMTester(SMOO):
         self._text_embedder = Qwen3EmbeddingInstance(seed=config.seed)
 
     def test(self) -> None:
-        """Start the multi-modal testing."""
+        """Start the multi-modal testing.
+
+        :raises ValueError: If the optimizer configuration does not match the MMM search space.
+        """
         script_dir = Path(os.path.dirname(os.path.abspath(__file__)))
 
         random.seed(self._config.seed)
@@ -85,7 +97,6 @@ class MMMTester(SMOO):
             return
         logging.info("Found %d valid sample folders.", len(all_samples))
 
-        ############# Check what samples need to be optimized still
         pending = []
         skipped = 0
         for folder_path, category, folder_id in all_samples:
@@ -99,13 +110,9 @@ class MMMTester(SMOO):
             return
         logging.info("Skipping %d already-processed samples. %d remaining.", skipped, len(pending))
 
-        image_dim = 0
-        text_dim = 0
-        for inner in getattr(self._manipulator, "_manipulators", []):
-            if hasattr(inner, "perturbations"):
-                image_dim = len(inner.perturbations)
-            if hasattr(inner, "obj_pertubations") and hasattr(inner, "prompt_pertubations"):
-                text_dim = len(inner.obj_pertubations) + len(inner.prompt_pertubations)
+        manipulator = cast(MultimodalManipulator, self._manipulator)
+        image_dim = manipulator.image_dim()
+        text_dim = manipulator.text_dim()
         solution_shape = self._config.solution_shape or active_solution_shape(
             self._config.mode, image_dim, text_dim
         )
@@ -118,18 +125,18 @@ class MMMTester(SMOO):
                     f"Optimizer genome size {self._optimizer.n_var} does not match MMM solution shape {solution_shape}."
                 )
 
-        ############# Run optimization for all samples.
         for sample_idx, (folder_path, category, folder_id) in enumerate(pending, start=1):
             sample_label = f"{category}/{folder_id}"
             logging.info("SAMPLE %d/%d %s", sample_idx, len(pending), sample_label)
 
-            sample_data = load_sample(folder_path, max_resolution=self._config.max_resolution)
+            sample = load_sample(
+                folder_path,
+                max_resolution=self._config.max_resolution,
+                category=category,
+                folder_id=folder_id,
+            )
 
-            sample_data["category"] = category
-            sample_data["folder_id"] = folder_id
-
-            baseline_iou = evaluate_baseline(self._sut, sample_data)
-            sample_data["baseline_iou"] = baseline_iou
+            baseline_iou = evaluate_baseline(self._sut, sample)
             sample_output_dir = os.path.join(str(output_dir), category, folder_id)
 
             if baseline_iou < self._config.baseline_iou:
@@ -139,10 +146,10 @@ class MMMTester(SMOO):
                     baseline_iou,
                     self._config.baseline_iou,
                 )
-                save_baseline_fail(sample_output_dir, baseline_iou, sample_data)
+                save_baseline_fail(sample_output_dir, sample)
                 continue
 
-            logging.info("%s baseline IoU=%.5f", sample_label, baseline_iou)
+            logging.info("%s baseline IoU=%.2f", sample_label, baseline_iou)
             self._optimizer.reset()
 
             early_stop_generation: int | None = None
@@ -152,17 +159,15 @@ class MMMTester(SMOO):
                 genomes = self._optimizer.get_x_current()
                 candidates = build_population_candidates(
                     genomes,
-                    sample_data,
+                    sample,
                     prompt=DETECTION_PROMPT,
                     mode=self._config.mode,
                     image_dim=image_dim,
                     text_dim=text_dim,
                 )
-                fitness, objective_results, artifacts = self.evaluate_population(
-                    candidates,
-                    sample_data,
-                )
-                self._optimizer.assign_fitness(fitness, artifacts)
+                candidates = self.evaluate_population(candidates)
+                objective_results = candidates.get_objective_values(self._objectives.names)
+                self._optimizer.assign_fitness(objective_results, candidates)
 
                 terminate_early, _ = self._early_termination(objective_results)
                 if terminate_early:
@@ -172,18 +177,15 @@ class MMMTester(SMOO):
                 if generation + 1 < self._config.generations:
                     self._optimizer.update()
 
-            if not self._optimizer.best_candidates:
-                raise RuntimeError(f"Optimizer produced no best candidates for {sample_label}.")
-
             best_candidate = min(
                 self._optimizer.best_candidates,
-                key=lambda candidate: np.linalg.norm(
-                    np.asarray(candidate.fitness, dtype=np.float64)
+                key=lambda candidate: float(
+                    np.linalg.norm(np.asarray(candidate.fitness, dtype=np.float64))
                 ),
             )
             save_best_result(
                 sample_output_dir,
-                sample_data,
+                sample,
                 best_candidate,
                 runtime=time.time() - sample_start,
                 generations_completed=early_stop_generation or self._config.generations,
@@ -191,93 +193,70 @@ class MMMTester(SMOO):
             )
             self._cleanup()
 
-    def evaluate_population(
-        self,
-        candidates: PerturbCandidateList,
-        sample_data: dict[str, Any],
-    ) -> tuple[tuple[np.ndarray, ...], dict[str, np.ndarray], list[dict[str, Any]]]:
-        """Evaluate one optimizer population and return objective arrays plus per-candidate artifacts."""
-        manipulated = self._manipulator.manipulate(candidates)
-        if not isinstance(manipulated, tuple):
-            raise TypeError(
-                f"MultimodalManipulator.manipulate must return a tuple of modality outputs, got {type(manipulated).__name__}."
-            )
-        images_np, prompts = split_manipulation_results(manipulated)
-        images_pil = [Image.fromarray(image.astype(np.uint8)) for image in images_np]
+    def evaluate_population(self, candidates: PerturbCandidateList) -> PerturbCandidateList:
+        """Evaluate one optimizer population and attach objective values to candidates.
 
-        start_time = time.time()
-        responses = self._sut.process_input((images_pil, prompts))
-        elapsed = time.time() - start_time
-        if len(responses) != len(images_pil):
+        :param candidates: Current optimizer population.
+        :returns: The manipulated candidates with objective values and VLM outputs attached.
+        :raises ValueError: If the VLM response batch size does not match the candidate batch size.
+        """
+        manipulated = cast(
+            PerturbCandidateList, cast(Any, self._manipulator).manipulate(candidates)
+        )
+        responses = self._sut.process_input((manipulated.image_arrays, manipulated.prompts))
+        if len(responses) != len(manipulated):
             raise ValueError(
-                f"VLM returned {len(responses)} responses for {len(images_pil)} input candidates."
+                f"VLM returned {len(responses)} responses for {len(manipulated)} candidates."
             )
 
-        clean_tensor = self._image_to_tensor(sample_data["clean_image_pil"])
-        objective_values = {name: [] for name in self._objectives.names}
-        artifacts: list[dict[str, Any]] = []
+        clean_tensor = self._image_to_tensor(manipulated[0].sample.clean_image_pil)
 
-        for image_np, image_pil, prompt, response in zip(images_np, images_pil, prompts, responses):
-            parsed_preds = extract_json_array(response)
+        for candidate, prompt, response in zip(manipulated, manipulated.prompts, responses):
+            parsed_predictions = extract_json_array(response)
             prompt_objects = extract_target_objects(prompt)
             pred_boxes, gt_boxes = prepare_bbox_pairs(
-                sample_data["gt_bboxes"],
-                parsed_preds,
-                sample_data["orig_dims"][0],
-                sample_data["orig_dims"][1],
+                candidate.sample.ground_truth_boxes,
+                candidate.sample.original_size,
+                parsed_predictions,
                 prompt_objects,
                 self._sut.coord_scale,
                 self._sut.bbox_order,
             )
-            adv_tensor = self._image_to_tensor(image_np)
+            original_text = ", ".join(candidate.sample.target_objects)
+            perturbed_text = ", ".join(prompt_objects)
+            original_embedding, _, _ = self._text_embedder.run_inference(original_text)
+            perturbed_embedding, _, _ = self._text_embedder.run_inference(perturbed_text)
+            adv_tensor = self._image_to_tensor(candidate.image_array)
             self._objectives.evaluate_all(
                 boxes=[pred_boxes, gt_boxes],
                 images=[clean_tensor.unsqueeze(0), adv_tensor.unsqueeze(0)],
-                embeddings=[
-                    self._text_embedder.run_inference(sample_data["objects"]),
-                    self._text_embedder.run_inference(prompt_objects),
-                ],
+                embeddings=[original_embedding, perturbed_embedding],
             )
 
-            per_candidate_results = {
-                name: value for name, value in self._objectives.results.items()
+            candidate.objective_values = {
+                name: self._coerce_scalar(value) for name, value in self._objectives.results.items()
             }
-            missing_names = [
-                name for name in self._objectives.names if name not in per_candidate_results
-            ]
-            if missing_names:
-                raise KeyError(f"Missing objective results for: {missing_names}")
+            candidate.vlm_response = response
+            candidate.parsed_predictions = parsed_predictions
+            candidate.matched_pred_boxes = pred_boxes.tolist()
+            candidate.prompt_objects = prompt_objects
 
-            for name, value in per_candidate_results.items():
-                objective_values[name].append(value)
+        return manipulated
 
-            artifacts.append(
-                {
-                    "image": image_pil,
-                    "prompt": prompt,
-                    "prompt_objects": prompt_objects,
-                    "response": response,
-                    "parsed_predictions": parsed_preds,
-                    "results": per_candidate_results,
-                    "runtime_seconds": elapsed / len(images_np),
-                }
-            )
-
-        return (
-            tuple(
-                np.asarray(objective_values[name], dtype=np.float64)
-                for name in self._objectives.names
-            ),
-            {
-                name: np.asarray(values, dtype=np.float64)
-                for name, values in objective_values.items()
-            },
-            artifacts,
-        )
+    @staticmethod
+    def _coerce_scalar(value: object) -> float:
+        array = np.asarray(value, dtype=np.float64).reshape(-1)
+        if array.size != 1:
+            raise ValueError(f"Expected scalar objective value, got shape {array.shape}.")
+        return float(array[0])
 
     @staticmethod
     def _image_to_tensor(image: Image.Image | np.ndarray) -> torch.Tensor:
-        image_array = np.array(image.convert("RGB")) if isinstance(image, Image.Image) else image
+        image_array = (
+            np.array(image.convert("RGB"))
+            if isinstance(image, Image.Image)
+            else np.asarray(image, dtype=np.uint8)
+        )
         return torch.from_numpy(image_array).permute(2, 0, 1).float() / 255.0
 
     @staticmethod
@@ -301,7 +280,7 @@ class MMMTester(SMOO):
                 if not os.path.exists(os.path.join(fp, "data_point.JPEG")):
                     continue
                 sample_folders.append((fp, cat_rel, fn))
-        sample_folders.sort(key=lambda t: (t[1], int(t[2])))
+        sample_folders.sort(key=lambda item: (item[1], int(item[2])))
         return sample_folders
 
     @staticmethod

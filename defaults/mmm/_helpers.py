@@ -1,16 +1,17 @@
 from __future__ import annotations
 
 import json
-import logging
 import os
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
+from numpy.typing import NDArray
 from PIL import Image
 
 from src.manipulator.pertubation_manipulator import (
+    MMMSample,
     PerturbCandidate,
     PerturbCandidateList,
 )
@@ -21,11 +22,14 @@ BEST_RESULT_FILENAME = "best_result.json"
 BEST_RESULT_IMAGE_FILENAME = "best_result.png"
 BASELINE_FAIL_FILENAME = "baseline_fail.json"
 
-logger = logging.getLogger(__name__)
-
 
 def resize_image_smart(image: Image.Image, max_resolution: int) -> Image.Image:
-    """Resize an image proportionally when its longest side exceeds the configured limit."""
+    """Resize an image proportionally when its longest side exceeds the configured limit.
+
+    :param image: Input PIL image.
+    :param max_resolution: Maximum allowed size for the longest image side.
+    :returns: The original image or a resized copy that respects ``max_resolution``.
+    """
     width, height = image.size
     if max(width, height) <= max_resolution:
         return image
@@ -36,40 +40,34 @@ def resize_image_smart(image: Image.Image, max_resolution: int) -> Image.Image:
 
 
 def extract_json_array(text: str) -> list[dict[str, Any]]:
-    """Extract the first JSON array contained in a VLM response or fail explicitly."""
-    start = text.find("[")
-    if start < 0:
-        raise ValueError(f"VLM response does not contain a JSON array: {text[:400]!r}")
+    """Decode the VLM response as one JSON array.
 
-    depth = 0
-    for idx in range(start, len(text)):
-        char = text[idx]
-        if char == "[":
-            depth += 1
-        elif char == "]":
-            depth -= 1
-            if depth == 0:
-                snippet = text[start : idx + 1]
-                try:
-                    payload = json.loads(snippet)
-                except json.JSONDecodeError as exc:
-                    raise ValueError(f"Failed to decode VLM JSON array: {snippet[:400]!r}") from exc
-                if not isinstance(payload, list):
-                    raise TypeError(
-                        f"Expected VLM JSON payload to be a list, got {type(payload).__name__}."
-                    )
-                for item in payload:
-                    if not isinstance(item, dict):
-                        raise TypeError(
-                            f"Expected each VLM prediction to be a dict, got {type(item).__name__}."
-                        )
-                return payload
-
-    raise ValueError(f"VLM response contains an unterminated JSON array: {text[:400]!r}")
+    :param text: Raw VLM response text.
+    :returns: The decoded JSON array.
+    :raises ValueError: If JSON decoding fails.
+    :raises TypeError: If the decoded payload is not a list of dict objects.
+    """
+    try:
+        payload = json.loads(text.strip())
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Failed to decode VLM JSON array: {text[:400]!r}") from exc
+    if not isinstance(payload, list):
+        raise TypeError(f"Expected VLM JSON payload to be a list, got {type(payload).__name__}.")
+    for item in payload:
+        if not isinstance(item, dict):
+            raise TypeError(
+                f"Expected each VLM prediction to be a dict, got {type(item).__name__}."
+            )
+    return payload
 
 
 def extract_target_objects(prompt: str) -> list[str]:
-    """Extract the requested object labels from the MMM detection prompt."""
+    """Extract the requested object labels from the MMM detection prompt.
+
+    :param prompt: Detection prompt text.
+    :returns: Parsed object labels in prompt order.
+    :raises ValueError: If the prompt does not contain any extractable target objects.
+    """
     match = re.search(r'Detect the object\(s\)\s+"([^"]+)"', prompt)
     if match is None:
         match = re.search(r'"([^"]+)"', prompt)
@@ -82,8 +80,76 @@ def extract_target_objects(prompt: str) -> list[str]:
     return objects
 
 
-def load_sample(folder_path: str | Path, max_resolution: int) -> dict[str, Any]:
-    """Load one selected MMM sample into a runtime dict."""
+def _normalise_label(label: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", label.lower()).strip()
+
+
+def _labels_match(pred_label: str, valid_prompt_labels: list[str] | None) -> bool:
+    pred_norm = _normalise_label(pred_label)
+    pred_tokens = set(pred_norm.split())
+
+    for label in valid_prompt_labels or []:
+        label_norm = _normalise_label(label)
+        label_tokens = set(label_norm.split())
+        if pred_norm == label_norm:
+            return True
+        if (
+            pred_tokens
+            and label_tokens
+            and (pred_tokens <= label_tokens or label_tokens <= pred_tokens)
+        ):
+            return True
+    return False
+
+
+def _bbox_dict_to_xyxy(bbox: dict[str, Any]) -> list[int]:
+    required = ("xmin", "ymin", "xmax", "ymax")
+    if missing := [key for key in required if key not in bbox]:
+        raise KeyError(f"Ground-truth bbox is missing keys {missing}: {bbox!r}")
+    return [int(bbox["xmin"]), int(bbox["ymin"]), int(bbox["xmax"]), int(bbox["ymax"])]
+
+
+def _normalize_ground_truth_boxes(
+    ground_truth: dict[str, Any], target_objects: list[str]
+) -> list[list[int]]:
+    if not isinstance(ground_truth, dict):
+        raise TypeError(f"Expected ground truth to be a dict, got {type(ground_truth).__name__}.")
+
+    remaining = list(ground_truth.items())
+    normalized_boxes: list[list[int]] = []
+    for target_object in target_objects:
+        match_index = None
+        for index, (label, bbox) in enumerate(remaining):
+            gt_label = label.split("_")[0]
+            if _labels_match(gt_label, [target_object]):
+                match_index = index
+                break
+        if match_index is None:
+            raise KeyError(f"Could not find ground-truth box for target object {target_object!r}.")
+        _, bbox = remaining.pop(match_index)
+        if not isinstance(bbox, dict):
+            raise TypeError(f"Ground-truth bbox payload must be a dict, got {type(bbox).__name__}.")
+        normalized_boxes.append(_bbox_dict_to_xyxy(bbox))
+    return normalized_boxes
+
+
+def load_sample(
+    folder_path: str | Path,
+    max_resolution: int,
+    *,
+    category: str,
+    folder_id: str,
+) -> MMMSample:
+    """Load one selected MMM sample into a typed runtime object.
+
+    :param folder_path: Path to the MMM sample directory.
+    :param max_resolution: Maximum allowed size for the longest image side.
+    :param category: Category relative path for the sample.
+    :param folder_id: Numeric sample identifier.
+    :returns: Normalized MMM sample payload.
+    :raises FileNotFoundError: If the sample directory is missing required input files.
+    :raises KeyError: If required JSON fields are absent or malformed.
+    """
     folder = Path(folder_path)
     input_json = folder / "original.json"
     input_img = folder / "data_point.JPEG"
@@ -100,44 +166,62 @@ def load_sample(folder_path: str | Path, max_resolution: int) -> dict[str, Any]:
 
     raw_img = Image.open(input_img).convert("RGB")
     clean_image = resize_image_smart(raw_img, max_resolution)
-    objects = extract_target_objects(base_data["prompt"])
-    return {
-        "folder_path": str(folder),
-        "filename": base_data.get("image", input_img.name),
-        "clean_image_pil": clean_image,
-        "orig_dims": raw_img.size,
-        "curr_dims": clean_image.size,
-        "original_prompt": base_data["prompt"],
-        "objects": objects,
-        "gt_bboxes": base_data["ground_truth"],
-        "baseline_iou": float(base_data.get("IoU", 0.0)),
-    }
+    target_objects = extract_target_objects(base_data["prompt"])
+    ground_truth_boxes = _normalize_ground_truth_boxes(base_data["ground_truth"], target_objects)
+
+    return MMMSample(
+        folder_path=str(folder),
+        category=category,
+        folder_id=folder_id,
+        filename=base_data.get("image", input_img.name),
+        clean_image_pil=clean_image,
+        original_prompt=base_data["prompt"],
+        target_objects=target_objects,
+        ground_truth_boxes=ground_truth_boxes,
+        original_size=raw_img.size,
+        baseline_iou=float(base_data.get("IoU", 0.0)),
+    )
 
 
-def save_baseline_fail(
-    output_dir: str | Path, baseline_iou: float, sample_data: dict[str, Any]
-) -> None:
-    """Persist the baseline-failure record for a clean-image VLM miss."""
+def save_baseline_fail(output_dir: str | Path, sample: MMMSample) -> None:
+    """Persist the baseline-failure record for a clean-image VLM miss.
+
+    :param output_dir: Target directory for the baseline-failure artifact.
+    :param sample: MMM sample with baseline evaluation attached.
+    :raises ValueError: If baseline evaluation artifacts are missing.
+    """
+    if sample.baseline_iou is None:
+        raise ValueError("Cannot save baseline fail without baseline_iou.")
+    if sample.baseline_predictions is None:
+        raise ValueError("Cannot save baseline fail without baseline predictions.")
+
     os.makedirs(output_dir, exist_ok=True)
     record = {
         "status": "baseline_fail",
-        "baseline_iou": float(f"{baseline_iou:.5f}"),
+        "baseline_iou": float(f"{sample.baseline_iou:.5f}"),
         "data_source": {
-            "folder_path": sample_data["folder_path"],
-            "folder_id": sample_data["folder_id"],
-            "category": sample_data["category"],
-            "filename": sample_data["filename"],
+            "folder_path": sample.folder_path,
+            "folder_id": sample.folder_id,
+            "category": sample.category,
+            "filename": sample.filename,
         },
-        "original_prompt": sample_data["original_prompt"],
-        "ground_truth_bboxes": sample_data["gt_bboxes"],
-        "predicted_bboxes": sample_data["baseline_preds"],
+        "original_prompt": sample.original_prompt,
+        "ground_truth_bboxes": sample.ground_truth_boxes,
+        "predicted_bboxes": sample.baseline_predictions,
     }
     with open(Path(output_dir) / BASELINE_FAIL_FILENAME, "w", encoding="utf-8") as handle:
         json.dump(record, handle, indent=2)
 
 
 def active_solution_shape(mode: str, image_dim: int, text_dim: int) -> tuple[int, ...]:
-    """Return the optimizer genome shape required for the selected MMM mode."""
+    """Return the optimizer genome shape required for the selected MMM mode.
+
+    :param mode: MMM execution mode.
+    :param image_dim: Number of image perturbation parameters.
+    :param text_dim: Number of text perturbation parameters.
+    :returns: Genome shape expected by the optimizer.
+    :raises ValueError: If the mode is unsupported or one of the dimensions is invalid.
+    """
     if image_dim <= 0:
         raise ValueError(f"Invalid image_dim: {image_dim}")
     if text_dim <= 0:
@@ -153,13 +237,23 @@ def active_solution_shape(mode: str, image_dim: int, text_dim: int) -> tuple[int
 
 def build_population_candidates(
     genomes: np.ndarray,
-    sample_data: dict[str, Any],
+    sample: MMMSample,
     prompt: str,
     mode: str,
     image_dim: int,
     text_dim: int,
 ) -> PerturbCandidateList:
-    """Create the immutable perturbation candidate list for one optimizer population."""
+    """Create the immutable perturbation candidate list for one optimizer population.
+
+    :param genomes: Population genome matrix.
+    :param sample: MMM sample shared by the population.
+    :param prompt: Prompt template for the detector.
+    :param mode: MMM execution mode.
+    :param image_dim: Number of image perturbation parameters.
+    :param text_dim: Number of text perturbation parameters.
+    :returns: Candidate list matching the optimizer population.
+    :raises ValueError: If the genome shape is invalid for the selected mode.
+    """
     if genomes.ndim == 1:
         genomes = genomes.reshape(1, -1)
     if genomes.ndim != 2:
@@ -192,33 +286,31 @@ def build_population_candidates(
         else:
             raise ValueError(f"Unsupported MMM mode: {mode}")
 
-        boxes = [
-            [bbox["xmin"], bbox["ymin"], bbox["xmax"], bbox["ymax"]]
-            for bbox in sample_data["gt_bboxes"].values()
-        ]
         candidates.append(
             PerturbCandidate(
-                prompt=prompt,
-                objects=sample_data["objects"],
-                image=os.path.join(sample_data["folder_path"], "data_point.JPEG"),
-                original_bboxes=boxes,
+                sample=sample,
+                prompt_template=prompt,
                 text_perturbation=text_genome,
                 image_pertubation=image_genome,
-                image_array=np.array(sample_data["clean_image_pil"], copy=True),
             )
         )
     return PerturbCandidateList(*candidates)
 
 
-def ensure_rgb(image: np.ndarray) -> np.ndarray:
-    """Ensure a numpy image is RGB-shaped."""
+def ensure_rgb(image: np.ndarray) -> NDArray[np.uint8]:
+    """Ensure a numpy image is RGB-shaped.
+
+    :param image: Image array in grayscale, single-channel, or RGB form.
+    :returns: RGB image array.
+    :raises ValueError: If the array shape cannot be interpreted as an image.
+    """
     if image.ndim == 2:
-        return np.repeat(image[..., None], 3, axis=2)
+        return cast(NDArray[np.uint8], np.repeat(image[..., None], 3, axis=2).astype(np.uint8))
     if image.ndim == 3 and image.shape[2] == 1:
-        return np.repeat(image, 3, axis=2)
+        return cast(NDArray[np.uint8], np.repeat(image, 3, axis=2).astype(np.uint8))
     if image.ndim != 3 or image.shape[2] != 3:
         raise ValueError(f"Expected RGB-like image array, got shape {image.shape}.")
-    return image
+    return cast(NDArray[np.uint8], image.astype(np.uint8, copy=False))
 
 
 def _extract_bbox(pred: dict[str, Any]) -> list[float]:
@@ -239,37 +331,6 @@ def _extract_label(pred: dict[str, Any]) -> str:
                 raise ValueError(f"Prediction label under key {key!r} is empty: {pred!r}")
             return value
     raise KeyError(f"Prediction is missing label field: {pred!r}")
-
-
-def _normalise_label(label: str) -> str:
-    return re.sub(r"[^a-z0-9]+", " ", label.lower()).strip()
-
-
-def _labels_match(pred_label: str, gt_label: str, valid_prompt_labels: list[str] | None) -> bool:
-    pred_norm = _normalise_label(pred_label)
-    gt_norm = _normalise_label(gt_label)
-    if not pred_norm or not gt_norm:
-        raise ValueError(f"Cannot compare empty labels: pred={pred_label!r}, gt={gt_label!r}")
-    if pred_norm == gt_norm:
-        return True
-
-    pred_tokens = set(pred_norm.split())
-    gt_tokens = set(gt_norm.split())
-    if pred_tokens and gt_tokens and (pred_tokens <= gt_tokens or gt_tokens <= pred_tokens):
-        return True
-
-    for label in valid_prompt_labels or []:
-        label_norm = _normalise_label(label)
-        label_tokens = set(label_norm.split())
-        if pred_norm == label_norm:
-            return True
-        if (
-            pred_tokens
-            and label_tokens
-            and (pred_tokens <= label_tokens or label_tokens <= pred_tokens)
-        ):
-            return True
-    return False
 
 
 def _to_pixel_box(
@@ -293,42 +354,53 @@ def _to_pixel_box(
 
 
 def prepare_bbox_pairs(
-    gt_dict: dict[str, Any],
+    ground_truth_boxes: list[list[int]],
+    original_size: tuple[int, int],
     pred_list: list[Any],
-    ref_w: int,
-    ref_h: int,
-    valid_prompt_labels: list[str] | None,
+    prompt_objects: list[str],
     coord_scale: int | None,
     bbox_order: str,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Align GT boxes with the best matching predicted box for each object label."""
+    """Align GT boxes with the best matching predicted box for each object label.
+
+    :param ground_truth_boxes: Ground-truth boxes in pixel coordinates.
+    :param original_size: Original image size as ``(width, height)``.
+    :param pred_list: Parsed VLM predictions.
+    :param prompt_objects: Prompt object labels in order.
+    :param coord_scale: Optional coordinate scale used by the VLM output format.
+    :param bbox_order: Coordinate order used by predicted boxes.
+    :returns: Matched predicted boxes and ground-truth boxes as arrays.
+    :raises TypeError: If predictions are not a list of dicts.
+    :raises ValueError: If box counts or shapes are invalid.
+    """
     if not isinstance(pred_list, list):
         raise TypeError(
             f"Expected parsed predictions to be a list, got {type(pred_list).__name__}."
         )
-
-    gt_boxes = []
-    pred_boxes = []
-    iou_metric = VLMBBoxIoU()
-
-    for key, bbox in gt_dict.items():
-        gt_label = key.split("_")[0]
-        gt_box = np.array(
-            [bbox["xmin"], bbox["ymin"], bbox["xmax"], bbox["ymax"]], dtype=np.float64
+    if len(ground_truth_boxes) != len(prompt_objects):
+        raise ValueError(
+            f"Ground-truth/object count mismatch: {len(ground_truth_boxes)} boxes for {len(prompt_objects)} objects."
         )
 
-        best_pred = np.zeros(4, dtype=np.float64)
+    gt_boxes: list[np.ndarray] = []
+    pred_boxes: list[np.ndarray] = []
+    iou_metric = VLMBBoxIoU()
+
+    for prompt_object, bbox in zip(prompt_objects, ground_truth_boxes):
+        gt_box = np.array(bbox, dtype=np.float64)
+        best_pred: np.ndarray = np.zeros(4, dtype=np.float64)
         best_iou = -1.0
         for pred in pred_list:
             if not isinstance(pred, dict):
                 raise TypeError(f"Expected prediction dict, got {type(pred).__name__}.")
             pred_bbox = _extract_bbox(pred)
             pred_label = _extract_label(pred)
-            if not _labels_match(pred_label, gt_label, valid_prompt_labels):
+            if not _labels_match(pred_label, [prompt_object]):
                 continue
-
             pred_box = np.array(
-                _to_pixel_box(pred_bbox, ref_w, ref_h, coord_scale, bbox_order),
+                _to_pixel_box(
+                    pred_bbox, original_size[0], original_size[1], coord_scale, bbox_order
+                ),
                 dtype=np.float64,
             )
             current_iou = iou_metric.evaluate(boxes=[pred_box, gt_box])
@@ -340,94 +412,83 @@ def prepare_bbox_pairs(
         pred_boxes.append(best_pred)
 
     if not gt_boxes:
-        empty = np.zeros((0, 4), dtype=np.float64)
+        empty: np.ndarray = np.zeros((0, 4), dtype=np.float64)
         return empty, empty
     return np.vstack(pred_boxes), np.vstack(gt_boxes)
 
 
-def evaluate_baseline(sut: VLMSUT, sample_data: dict[str, Any]) -> float:
-    """Run baseline VLM inference on the clean sample and compute mean IoU."""
-    responses = sut.process_input(
-        ([sample_data["clean_image_pil"]], [sample_data["original_prompt"]])
-    )
+def evaluate_baseline(sut: VLMSUT, sample: MMMSample) -> float:
+    """Run baseline VLM inference on the clean sample and compute mean IoU.
+
+    :param sut: VLM system under test.
+    :param sample: MMM sample to evaluate.
+    :returns: Baseline IoU on the clean sample.
+    :raises ValueError: If the VLM returns an invalid response count.
+    """
+    responses = sut.process_input(([sample.clean_image_pil], [sample.original_prompt]))
     if len(responses) != 1:
         raise ValueError(f"Expected exactly one baseline response, got {len(responses)}.")
 
     parsed_preds = extract_json_array(responses[0])
     pred_boxes, gt_boxes = prepare_bbox_pairs(
-        sample_data["gt_bboxes"],
+        sample.ground_truth_boxes,
+        sample.original_size,
         parsed_preds,
-        sample_data["orig_dims"][0],
-        sample_data["orig_dims"][1],
-        sample_data["objects"],
+        sample.target_objects,
         sut.coord_scale,
         sut.bbox_order,
     )
-    sample_data["baseline_preds"] = parsed_preds
-    if gt_boxes.shape[0] == 0:
-        raise ValueError("Ground-truth bbox list is empty during baseline evaluation.")
-    return float(f"{VLMBBoxIoU().evaluate(boxes=[pred_boxes, gt_boxes]):.5f}")
-
-
-def split_manipulation_results(
-    results: tuple[list[Any], ...],
-) -> tuple[list[np.ndarray], list[str]]:
-    images: list[np.ndarray] | None = None
-    prompts: list[str] | None = None
-    for result in results:
-        if not result:
-            raise ValueError("Manipulator returned an empty modality result list.")
-        first = result[0]
-        if isinstance(first, str):
-            prompts = list(result)
-        else:
-            images = [ensure_rgb(np.asarray(item, dtype=np.uint8)) for item in result]
-
-    if images is None or prompts is None:
-        raise ValueError("MultimodalManipulator must return one image list and one prompt list.")
-    if len(images) != len(prompts):
-        raise ValueError(
-            f"MultimodalManipulator returned mismatched images/prompts: {len(images)} vs {len(prompts)}."
-        )
-    return images, prompts
+    baseline_iou = float(VLMBBoxIoU().evaluate(boxes=[pred_boxes, gt_boxes]))
+    sample.baseline_predictions = parsed_preds
+    sample.baseline_iou = baseline_iou
+    return baseline_iou
 
 
 def save_best_result(
     output_dir: str | Path,
-    sample_data: dict[str, Any],
+    sample: MMMSample,
     best_candidate: Any,
     runtime: float,
     generations_completed: int,
     early_stop_generation: int | None,
 ) -> None:
-    """Persist the selected best MMM testcase and its metadata."""
+    """Persist the selected best MMM testcase and its metadata.
+
+    :param output_dir: Target directory for the saved testcase.
+    :param sample: Source sample corresponding to the saved candidate.
+    :param best_candidate: Optimizer candidate carrying the MMM candidate payload.
+    :param runtime: Total runtime in seconds for the sample.
+    :param generations_completed: Number of generations evaluated.
+    :param early_stop_generation: Generation index where early stopping occurred.
+    :raises ValueError: If required evaluation artifacts are missing.
+    """
     os.makedirs(output_dir, exist_ok=True)
 
-    payload = (
+    candidate: PerturbCandidate = (
         best_candidate.data[0] if isinstance(best_candidate.data, tuple) else best_candidate.data
     )
-    if missing_payload_keys := {
-        "image",
-        "prompt",
-        "response",
-        "parsed_predictions",
-        "runtime_seconds",
-    }.difference(payload):
-        raise KeyError(f"Best-candidate payload is missing keys: {sorted(missing_payload_keys)}")
+    if (
+        candidate.vlm_response is None
+        or candidate.parsed_predictions is None
+        or candidate.prompt_objects is None
+        or candidate.matched_pred_boxes is None
+    ):
+        raise ValueError("Best candidate is missing evaluation artifacts required for saving.")
+    if sample.baseline_iou is None:
+        raise ValueError("Sample is missing baseline_iou required for saving.")
 
     fitness = [float(value) for value in best_candidate.fitness]
-    l2_distance = float(np.linalg.norm(np.asarray(fitness, dtype=np.float64)))
     record = {
         "data_source": {
-            "folder_path": sample_data["folder_path"],
-            "folder_id": sample_data["folder_id"],
-            "category": sample_data["category"],
-            "filename": sample_data["filename"],
+            "folder_path": sample.folder_path,
+            "folder_id": sample.folder_id,
+            "category": sample.category,
+            "filename": sample.filename,
         },
         "runtime": runtime,
         "generations_completed": generations_completed,
         "early_stop_generation": early_stop_generation,
-        "baseline_iou": float(f"{sample_data['baseline_iou']:.5f}"),
+        "baseline_iou": float(f"{sample.baseline_iou:.5f}"),
         "genome": np.asarray(best_candidate.solution).reshape(-1).tolist(),
         "objectives": {
             "iou": float(f"{fitness[0]:.5f}"),
@@ -435,17 +496,17 @@ def save_best_result(
             "txt_dist": float(f"{fitness[2]:.5f}"),
             "txt_sim": float(f"{1.0 - fitness[2]:.5f}"),
         },
-        "l2_distance": float(f"{l2_distance:.5f}"),
-        "original_prompt": sample_data["original_prompt"],
-        "ground_truth_bboxes": sample_data["gt_bboxes"],
+        "original_prompt": sample.original_prompt,
+        "ground_truth_bboxes": sample.ground_truth_boxes,
         "vlm_output": {
-            "perturbed_prompt": payload["prompt"],
-            "raw_response": payload["response"],
-            "parsed_predictions": payload["parsed_predictions"],
-            "runtime_seconds": payload["runtime_seconds"],
+            "perturbed_prompt": candidate.format_prompt(),
+            "raw_response": candidate.vlm_response,
+            "parsed_predictions": candidate.parsed_predictions,
+            "matched_pred_boxes": candidate.matched_pred_boxes,
+            "prompt_objects": candidate.prompt_objects,
         },
     }
 
     with open(Path(output_dir) / BEST_RESULT_FILENAME, "w", encoding="utf-8") as handle:
         json.dump(record, handle, indent=2)
-    payload["image"].save(Path(output_dir) / BEST_RESULT_IMAGE_FILENAME)
+    Image.fromarray(candidate.image_array).save(Path(output_dir) / BEST_RESULT_IMAGE_FILENAME)

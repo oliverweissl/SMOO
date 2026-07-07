@@ -1,9 +1,10 @@
 import numpy as np
+from numpy.typing import NDArray
 
 # IMPORTANT: this implementation is based on PerturbationDrive https://github.com/ast-fortiss-tum/perturbation-drive
 
 
-def create_disk_kernel(radius: int) -> np.ndarray:
+def create_disk_kernel(radius: int) -> NDArray:
     """Create a normalised disk-shaped convolution kernel.
 
     :param radius: Kernel radius in pixels.
@@ -11,14 +12,14 @@ def create_disk_kernel(radius: int) -> np.ndarray:
     """
     y, x = np.ogrid[-radius : radius + 1, -radius : radius + 1]
     mask = x**2 + y**2 <= radius**2
-    kernel = np.zeros((2 * radius + 1, 2 * radius + 1), dtype=np.float32)
+    kernel: NDArray[np.float32] = np.zeros((2 * radius + 1, 2 * radius + 1), dtype=np.float32)
     kernel[mask] = 1
     # Normalize the kernel so that the sum of its elements is 1.
     kernel /= kernel.sum()
     return kernel
 
 
-def create_motion_blur_kernel(size: int, angle: float) -> np.ndarray:
+def create_motion_blur_kernel(size: int, angle: float) -> NDArray:
     """Create a normalised motion-blur convolution kernel.
 
     :param size: Kernel side length in pixels.
