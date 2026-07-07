@@ -28,7 +28,7 @@ class MatrixDistance(ImageCriterion):
         self._name += f"_{norm}"
         self._return_tensor = return_tensor
 
-    def evaluate(self, *, images: list[Tensor], **_: Any) -> Union[list[float], Tensor]:
+    def evaluate(self, *, images: list[Tensor], **_: Any) -> Union[float, Tensor]:
         """
         Calculate the normalized matrix distance between two tensors that range [0,1].
 
@@ -45,6 +45,5 @@ class MatrixDistance(ImageCriterion):
         frob = torch.linalg.matrix_norm(diff, self.norm, dim=(-2, -1))
         scaled = frob / ub
 
-        channel_wise = scaled.mean(dim=1)
-        results = torch.abs(self._inverse.real - channel_wise)
-        return results if self._return_tensor else results.float().tolist()
+        result = torch.abs(self._inverse.real - scaled).mean()
+        return result if self._return_tensor else result.float()

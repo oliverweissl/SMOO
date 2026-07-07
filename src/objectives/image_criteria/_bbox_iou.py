@@ -17,13 +17,19 @@ def _as_array(value: Any) -> NDArray[np.float64]:
 
 def _as_box_matrix(boxes: Any) -> NDArray[np.float64]:
     arr = _as_array(boxes)
+
+    if arr.size == 0:
+        return cast(NDArray[np.float64], arr.reshape(0, 4))
+
     if arr.ndim == 1:
         if arr.size != 4:
             raise ValueError(f"Expected a 4-value box, got shape {arr.shape}.")
         return cast(NDArray[np.float64], arr.reshape(1, 4))
+
     if arr.ndim == 2 and arr.shape[1] == 4:
         return arr
-    raise ValueError(f"Expected boxes shaped (N, 4) or (4,), got shape {arr.shape}.")
+
+    raise ValueError(f"Expected boxes shaped (N, 4), (4,), or empty, got shape {arr.shape}.")
 
 
 def _box_iou(box_a: np.ndarray, box_b: np.ndarray) -> float:
@@ -63,10 +69,14 @@ class VLMBBoxIoU(Criterion):
 
         pred_boxes = _as_box_matrix(boxes[0])
         gt_boxes = _as_box_matrix(boxes[1])
-        if pred_boxes.shape != gt_boxes.shape:
-            raise ValueError(
-                f"Predicted and ground-truth boxes must have the same shape, got {pred_boxes.shape} and {gt_boxes.shape}."
-            )
 
-        ious = [_box_iou(pred_boxes[i], gt_boxes[i]) for i in range(pred_boxes.shape[0])]
-        return float(sum(ious) / len(ious)) if ious else 0.0
+        if len(pred_boxes) == 0 or len(gt_boxes) == 0:
+            return 0.0
+
+        best_ious = []
+
+        for gt_box in gt_boxes:
+            best_iou = max(_box_iou(pred_box, gt_box) for pred_box in pred_boxes)
+            best_ious.append(best_iou)
+
+        return float(np.mean(best_ious))

@@ -45,6 +45,7 @@ class PerturbCandidate(Candidate):
     matched_pred_boxes: list[list[float]] | None = None
     prompt_objects: list[str] | None = None
     objective_values: dict[str, float] = field(default_factory=dict)
+    fail_code: str | None = None
 
     def __post_init__(self) -> None:
         """Initialize mutable candidate state from the immutable sample payload."""

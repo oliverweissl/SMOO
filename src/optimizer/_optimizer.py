@@ -76,7 +76,12 @@ class Optimizer(ABC):
         old_metrics = np.ascontiguousarray([cand.fitness for cand in self._best_candidates])
         metrics = np.vstack((new_metrics, old_metrics))  # (n_new + n_old, n_obj)
 
-        new_data: list[Any] = [None] * new_metrics.shape[0] if not data else list(zip(*data))
+        if not data:
+            new_data = [None] * new_metrics.shape[0]
+        elif len(data) == 1:
+            new_data = list(data[0])
+        else:
+            new_data = list(zip(*data))
         data = tuple(new_data + [cand.data for cand in self._best_candidates])
 
         solutions = np.vstack(

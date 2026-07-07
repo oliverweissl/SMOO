@@ -28,26 +28,21 @@ def get_early_termination(
         raise ValueError(f"Unknown fulfill option: {fulfill}")
 
     if isinstance(target_criterion, Criterion):
-        criteria = [target_criterion]
+        criteria = CriterionCollection(target_criterion)
+    elif isinstance(target_criterion, Sequence):
+        criteria = CriterionCollection(*target_criterion)
+    else:
+        criteria = target_criterion
 
     def condition_function(results: TCriterionResults) -> tuple[bool, Optional[NDArray]]:
-        """
-        The condition generated.
-
-        :param results: The result dictionary.
-        :returns: The condition fulfillment and the condition values.
-        """
         values = []
 
-        for criterion in criteria:
-            criterion_values = results.get(criterion.name)
+        for criterion in criteria.names:
+            criterion_values = results.get(criterion)
             if criterion_values is None:
                 return False, None
 
-            if not isinstance(criterion_values, np.ndarray):
-                criterion_values = np.asarray(criterion_values)
-
-            values.append(criterion_values)
+            values.append(np.asarray(criterion_values))
 
         stacked_values = np.asarray(values)
         cond = target_condition(stacked_values)

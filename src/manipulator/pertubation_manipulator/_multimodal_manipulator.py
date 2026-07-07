@@ -1,4 +1,4 @@
-from typing import Any, cast
+from typing import Any
 
 from .._manipulator import Manipulator
 from ._perturb_candidate import PerturbCandidateList
@@ -32,7 +32,7 @@ class MultimodalManipulator(Manipulator):
         """
         return sum(m.text_dim() for m in self._manipulators if hasattr(m, "text_dim"))
 
-    def manipulate(self, candidates: PerturbCandidateList, **kwargs: Any) -> tuple[list[Any], ...]:
+    def manipulate(self, candidates: PerturbCandidateList, **kwargs: Any) -> PerturbCandidateList:
         """
         Manipulate the candidates based on perturbations.
 
@@ -40,8 +40,9 @@ class MultimodalManipulator(Manipulator):
         :param kwargs: Keyword arguments forwarded to inner manipulators.
         :returns: Per-manipulator results.
         """
-        results = [m.manipulate(cast(Any, candidates), **kwargs) for m in self._manipulators]
-        return tuple(results)
+        for m in self._manipulators:
+            candidates = m.manipulate(candidates)
+        return candidates
 
     def synthesize(self, z: Any) -> Any:
         raise NotImplementedError("Synthesize not implemented.")

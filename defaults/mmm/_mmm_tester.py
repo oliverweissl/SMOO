@@ -3,7 +3,6 @@ import os
 import random
 import time
 from pathlib import Path
-from typing import Any, cast
 
 import numpy as np
 import torch
@@ -44,6 +43,7 @@ class MMMTester(SMOO):
     """Multi-Modal Manipulation Tester."""
 
     _sut: VLMSUT
+    _manipulator: MultimodalManipulator
 
     def __init__(
         self,
@@ -110,9 +110,8 @@ class MMMTester(SMOO):
             return
         logging.info("Skipping %d already-processed samples. %d remaining.", skipped, len(pending))
 
-        manipulator = cast(MultimodalManipulator, self._manipulator)
-        image_dim = manipulator.image_dim()
-        text_dim = manipulator.text_dim()
+        image_dim = self._manipulator.image_dim()
+        text_dim = self._manipulator.text_dim()
         solution_shape = self._config.solution_shape or active_solution_shape(
             self._config.mode, image_dim, text_dim
         )
@@ -169,9 +168,12 @@ class MMMTester(SMOO):
                 objective_results = candidates.get_objective_values(self._objectives.names)
                 self._optimizer.assign_fitness(objective_results, candidates)
 
-                terminate_early, _ = self._early_termination(objective_results)
-                if terminate_early:
-                    early_stop_generation = generation + 1
+                for cand in self._optimizer.best_candidates:
+                    terminate_early, _ = self._early_termination(cand.data.objective_values)
+                    if terminate_early:
+                        early_stop_generation = generation + 1
+                        break
+                if early_stop_generation is not None:
                     break
 
                 if generation + 1 < self._config.generations:
@@ -200,9 +202,7 @@ class MMMTester(SMOO):
         :returns: The manipulated candidates with objective values and VLM outputs attached.
         :raises ValueError: If the VLM response batch size does not match the candidate batch size.
         """
-        manipulated = cast(
-            PerturbCandidateList, cast(Any, self._manipulator).manipulate(candidates)
-        )
+        manipulated = self._manipulator.manipulate(candidates)
         responses = self._sut.process_input((manipulated.image_arrays, manipulated.prompts))
         if len(responses) != len(manipulated):
             raise ValueError(
@@ -212,13 +212,27 @@ class MMMTester(SMOO):
         clean_tensor = self._image_to_tensor(manipulated[0].sample.clean_image_pil)
 
         for candidate, prompt, response in zip(manipulated, manipulated.prompts, responses):
-            parsed_predictions = extract_json_array(response)
-            prompt_objects = extract_target_objects(prompt)
+            try:
+                parsed_predictions = extract_json_array(response)
+            except ValueError as e:
+                logging.warning("Corrupted VLM JSON output. Response=%r", response[:400])
+                candidate.fail_code = str(e)
+                parsed_predictions = []
+
+            try:
+                prompt_objects = extract_target_objects(prompt)
+            except ValueError as e:
+                logging.warning("Corrupted VLM Label output; assigning penalty. Response=%r", response[:400])
+                candidate.fail_code = str(e)
+                prompt_objects = []
+
+
+
             pred_boxes, gt_boxes = prepare_bbox_pairs(
                 candidate.sample.ground_truth_boxes,
                 candidate.sample.original_size,
                 parsed_predictions,
-                prompt_objects,
+                candidate.sample.target_objects,
                 self._sut.coord_scale,
                 self._sut.bbox_order,
             )
@@ -227,28 +241,20 @@ class MMMTester(SMOO):
             original_embedding, _, _ = self._text_embedder.run_inference(original_text)
             perturbed_embedding, _, _ = self._text_embedder.run_inference(perturbed_text)
             adv_tensor = self._image_to_tensor(candidate.image_array)
+
             self._objectives.evaluate_all(
                 boxes=[pred_boxes, gt_boxes],
                 images=[clean_tensor.unsqueeze(0), adv_tensor.unsqueeze(0)],
-                embeddings=[original_embedding, perturbed_embedding],
+                embeddings=[original_embedding.squeeze(), perturbed_embedding.squeeze()],
             )
 
-            candidate.objective_values = {
-                name: self._coerce_scalar(value) for name, value in self._objectives.results.items()
-            }
+            candidate.objective_values = self._objectives.results
             candidate.vlm_response = response
             candidate.parsed_predictions = parsed_predictions
             candidate.matched_pred_boxes = pred_boxes.tolist()
             candidate.prompt_objects = prompt_objects
 
         return manipulated
-
-    @staticmethod
-    def _coerce_scalar(value: object) -> float:
-        array = np.asarray(value, dtype=np.float64).reshape(-1)
-        if array.size != 1:
-            raise ValueError(f"Expected scalar objective value, got shape {array.shape}.")
-        return float(array[0])
 
     @staticmethod
     def _image_to_tensor(image: Image.Image | np.ndarray) -> torch.Tensor:
