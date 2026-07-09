@@ -494,7 +494,6 @@ def save_best_result(
             "iou": float(f"{fitness[0]:.5f}"),
             "img_dist": float(f"{fitness[1]:.5f}"),
             "txt_dist": float(f"{fitness[2]:.5f}"),
-            "txt_sim": float(f"{1.0 - fitness[2]:.5f}"),
         },
         "original_prompt": sample.original_prompt,
         "ground_truth_bboxes": sample.ground_truth_boxes,
@@ -506,6 +505,9 @@ def save_best_result(
             "prompt_objects": candidate.prompt_objects,
         },
     }
+
+    if candidate.fail_code is not None:
+        record["fail_code"] = candidate.fail_code
 
     with open(Path(output_dir) / BEST_RESULT_FILENAME, "w", encoding="utf-8") as handle:
         json.dump(record, handle, indent=2)

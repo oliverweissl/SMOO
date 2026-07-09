@@ -84,8 +84,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--budget-max", type=float, default=1.0)
     parser.add_argument("--baseline-iou-min", type=float, default=0.5)
     parser.add_argument("--early-stop-iou-max", type=float, default=0.35)
-    parser.add_argument("--early-stop-img-dist-max", type=float, default=0.1)
-    parser.add_argument("--early-stop-txt-sim-min", type=float, default=0.70)
+    parser.add_argument("--early-stop-img-dist-min", type=float, default=0.1)
+    parser.add_argument("--early-stop-txt-dist-min", type=float, default=0.3)
     parser.add_argument("--max-resolution", type=int, default=1024)
     parser.add_argument("--max-new-tokens", type=int, default=2048)
     parser.add_argument("--max-model-len", type=int, default=None)
@@ -161,10 +161,12 @@ def main() -> None:
     ############# Instantiate Optimizer
     params = copy.deepcopy(PYMOO_NSGA2_DEFAULT_PARAMS)
     params["algo_params"]["pop_size"] = args.pop_size
-    params["sampling"] = BudgetAwareSampling(args.budget_max, args.mode, image_dim, text_dim)
-    params["repair"] = BudgetRepair(args.budget_max, args.mode, image_dim, text_dim)
-    params["crossover"] = (SBX(prob=0.9, eta=15),)
-    params["mutation"] = PM(eta=20)
+    params["algo_params"]["sampling"] = BudgetAwareSampling(
+        args.budget_max, args.mode, image_dim, text_dim
+    )
+    params["algo_params"]["repair"] = BudgetRepair(args.budget_max, args.mode, image_dim, text_dim)
+    params["algo_params"]["crossover"] = SBX(prob=0.9, eta=15)
+    params["algo_params"]["mutation"] = PM(eta=20)
     optimizer = PymooOptimizer(
         bounds=params["bounds"],
         algorithm=params["algorithm"],
@@ -178,8 +180,8 @@ def main() -> None:
         objectives,
         lambda values: (
             (values[0] <= args.early_stop_iou_max)
-            & (values[1] >= args.early_stop_img_dist_max)
-            & (values[2] >= args.early_stop_txt_sim_min)
+            & (values[1] <= args.early_stop_img_dist_min)
+            & (values[2] <= args.early_stop_txt_dist_min)
         ),
         fulfill="any",
     )

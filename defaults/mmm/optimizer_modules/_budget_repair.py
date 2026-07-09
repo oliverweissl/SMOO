@@ -19,15 +19,8 @@ class BudgetRepair(Repair):
         :returns: Repaired population matrix.
         """
         np.clip(X, 0.0, 1.0, out=X)
-        if self.mode == "multi":
-            for block in (X[:, : self.n_img], X[:, self.n_img :]):
-                sums = block.sum(axis=1, keepdims=True)
-                over = (sums > self.budget_max).flatten()
-                if over.any():
-                    block[over] = block[over] / sums[over] * self.budget_max
-        else:
-            sums = X.sum(axis=1, keepdims=True)
-            over = (sums > self.budget_max).flatten()
-            if over.any():
-                X[over] = X[over] / sums[over] * self.budget_max
+        sums = X.sum(axis=1, keepdims=True)
+        over = (sums > self.budget_max).flatten()
+        if over.any():
+            X[over] = X[over] / sums[over] * self.budget_max
         return X

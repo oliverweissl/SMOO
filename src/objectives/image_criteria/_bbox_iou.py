@@ -1,30 +1,25 @@
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
+from scipy.optimize import linear_sum_assignment
 from torch import Tensor
 
 from .._criterion import Criterion
 
 
-def _as_array(value: Any) -> NDArray[np.float64]:
-    if isinstance(value, Tensor):
-        value = value.detach().cpu().numpy()
-    return cast(NDArray[np.float64], np.asarray(value, dtype=np.float64))
-
-
-def _as_box_matrix(boxes: Any) -> NDArray[np.float64]:
-    arr = _as_array(boxes)
+def _as_box_matrix(boxes: NDArray | Tensor) -> NDArray[np.float64]:
+    arr = boxes.detach().cpu().numpy() if isinstance(boxes, Tensor) else boxes
 
     if arr.size == 0:
-        return cast(NDArray[np.float64], arr.reshape(0, 4))
+        return arr.reshape(0, 4)
 
     if arr.ndim == 1:
         if arr.size != 4:
             raise ValueError(f"Expected a 4-value box, got shape {arr.shape}.")
-        return cast(NDArray[np.float64], arr.reshape(1, 4))
+        return arr.reshape(1, 4)
 
     if arr.ndim == 2 and arr.shape[1] == 4:
         return arr
@@ -66,17 +61,18 @@ class VLMBBoxIoU(Criterion):
         """
         if len(boxes) != 2:
             raise ValueError(f"VLMBBoxIoU expects exactly 2 box collections, got {len(boxes)}.")
-
         pred_boxes = _as_box_matrix(boxes[0])
         gt_boxes = _as_box_matrix(boxes[1])
 
         if len(pred_boxes) == 0 or len(gt_boxes) == 0:
             return 0.0
 
-        best_ious = []
+        ious = np.zeros((len(pred_boxes), len(gt_boxes)))
 
-        for gt_box in gt_boxes:
-            best_iou = max(_box_iou(pred_box, gt_box) for pred_box in pred_boxes)
-            best_ious.append(best_iou)
+        for i, pred_box in enumerate(pred_boxes):
+            for j, gt_box in enumerate(gt_boxes):
+                ious[i, j] = _box_iou(pred_box, gt_box)
+        pred_indices, gt_indices = linear_sum_assignment(-ious)
 
-        return float(np.mean(best_ious))
+        matched_ious = ious[pred_indices, gt_indices]
+        return float(np.mean(matched_ious))

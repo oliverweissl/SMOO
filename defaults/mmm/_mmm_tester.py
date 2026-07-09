@@ -204,10 +204,6 @@ class MMMTester(SMOO):
         """
         manipulated = self._manipulator.manipulate(candidates)
         responses = self._sut.process_input((manipulated.image_arrays, manipulated.prompts))
-        if len(responses) != len(manipulated):
-            raise ValueError(
-                f"VLM returned {len(responses)} responses for {len(manipulated)} candidates."
-            )
 
         clean_tensor = self._image_to_tensor(manipulated[0].sample.clean_image_pil)
 
@@ -222,11 +218,11 @@ class MMMTester(SMOO):
             try:
                 prompt_objects = extract_target_objects(prompt)
             except ValueError as e:
-                logging.warning("Corrupted VLM Label output; assigning penalty. Response=%r", response[:400])
+                logging.warning(
+                    "Corrupted VLM Label output; assigning penalty. Response=%r", response[:400]
+                )
                 candidate.fail_code = str(e)
                 prompt_objects = []
-
-
 
             pred_boxes, gt_boxes = prepare_bbox_pairs(
                 candidate.sample.ground_truth_boxes,
