@@ -94,6 +94,8 @@ class TextualPerturbationManipulator(Manipulator):
             for scale, pert in zip(
                 candidate.text_perturbation[len(self.obj_pertubations) :], self.prompt_pertubations
             ):
+                if scale <= 0.1:
+                    continue
                 candidate.prompt_str = pert(candidate.prompt_str, scale)
 
         return candidates
@@ -230,7 +232,7 @@ class TextualPerturbationManipulator(Manipulator):
         :param scale: Severity in [0.0, 1.0]; higher values append more suffixes.
         :returns: Prompt with adversarial suffixes appended.
         """
-        count = 1 + int(scale * 4)
+        count = int(scale * 4)
         suffixes = [random.choice(self.adversarial_suffixes) for _ in range(count)]
         return f"{prompt} {' '.join(suffixes)}"
 
@@ -242,8 +244,7 @@ class TextualPerturbationManipulator(Manipulator):
         :returns: Prompt prefixed with a corrupted distractor sentence.
         """
         clean = random.choice(self.context_distractors)
-        rate = 0.1 + (max(0.0, min(scale, 1.0)) * 0.8)
-        rotted = self._apply_heavy_typos(clean, rate=rate)
+        rotted = self._apply_heavy_typos(clean, rate=scale)
         return f"{rotted}... Now, {prompt}"
 
     def task_reinforcement(self, prompt: str, scale: float = 0.0) -> str:

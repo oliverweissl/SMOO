@@ -23,8 +23,10 @@ class MMMSample:
     target_objects: list[str]
     ground_truth_boxes: list[list[int]]
     original_size: tuple[int, int]
+    clean_image_array: NDArray[np.uint8]
     baseline_iou: float | None = None
     baseline_predictions: list[dict[str, Any]] | None = None
+    baseline_fail_code: str | None = None
 
 
 @dataclass
@@ -51,9 +53,7 @@ class PerturbCandidate(Candidate):
         """Initialize mutable candidate state from the immutable sample payload."""
         self.objects_str = ", ".join(self.sample.target_objects)
         self.prompt_str = self.prompt_template
-        self.image_array = np.array(
-            self.sample.clean_image_pil.convert("RGB"), dtype=np.uint8, copy=True
-        )
+        self.image_array = self.sample.clean_image_array.copy()
 
     def format_prompt(self) -> str:
         """Render the final prompt string for the current candidate state.

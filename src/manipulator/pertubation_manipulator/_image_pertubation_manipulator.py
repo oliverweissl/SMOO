@@ -59,6 +59,8 @@ class ImagePertubationManipulator(Manipulator):
             ), f"Error: found: {len(self.perturbations)} image perturbations, but genome is size {len(candidate.image_pertubation)}"
             kwargs = {"bboxes": candidate.sample.ground_truth_boxes}
             for scale, pert in zip(candidate.image_pertubation, self.perturbations):
+                if scale <= 0.01:
+                    continue
                 candidate.image_array = pert(image=candidate.image_array, scale=scale, **kwargs)
 
         return candidates

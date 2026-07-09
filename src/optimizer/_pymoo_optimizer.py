@@ -33,6 +33,7 @@ class PymooOptimizer(Optimizer):
         algo_params: dict[str, Any],
         num_objectives: int,
         solution_shape: tuple[int, ...],
+        save_history: bool = True,
     ) -> None:
         """
         Initialize the genetic learner.
@@ -42,24 +43,25 @@ class PymooOptimizer(Optimizer):
         :param algo_params: Parameters for the pymoo Algorithm.
         :param num_objectives: The number of objectives the learner can handle.
         :param solution_shape: The shape of the solution arrays.
+        :param save_history: Whether pymoo should retain full generation history.
         """
         super().__init__(num_objectives)
-        """Initialize Constants."""
         self._params = algo_params
         self._algorithm = algorithm
         self._bounds = bounds
+        self._save_history = save_history
+        self._evaluator = Evaluator()
 
-        """Initialize optimization problem and initial solutions."""
         self.update_problem(solution_shape)
         self._optimizer_type = type(self._pymoo_algo)
 
     def update(self) -> None:
         """
-        Generate a new population.
+        Advance pymoo by one generation.
         """
-        logging.info("Sampling new population...")
+        logging.info("Advancing pymoo generation...")
         static = StaticProblem(self._problem, F=np.column_stack(self._fitness))
-        Evaluator().eval(static, self._pop_current)
+        self._evaluator.eval(static, self._pop_current)
         self._pymoo_algo.tell(self._pop_current)
 
         self._pop_current = self._pymoo_algo.ask()
@@ -92,7 +94,7 @@ class PymooOptimizer(Optimizer):
 
         self._shape = solution_shape
         self._n_var = int(np.prod(solution_shape))
-        self._pymoo_algo = self._algorithm(**self._params, save_history=True)
+        self._pymoo_algo = self._algorithm(**self._params, save_history=self._save_history)
 
         self._problem = Problem(
             n_var=self._n_var,

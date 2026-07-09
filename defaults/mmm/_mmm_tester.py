@@ -135,27 +135,45 @@ class MMMTester(SMOO):
                 folder_id=folder_id,
             )
 
-            baseline_iou = evaluate_baseline(self._sut, sample)
+            evaluate_baseline(self._sut, sample)
             sample_output_dir = os.path.join(str(output_dir), category, folder_id)
 
-            if baseline_iou < self._config.baseline_iou:
+            if sample.baseline_fail_code is not None:
+                logging.info(
+                    "%s baseline failed with: ",
+                    sample.baseline_fail_code
+                )
+                save_baseline_fail(sample_output_dir, sample)
+                continue
+
+            if sample.baseline_iou < self._config.baseline_iou:
                 logging.info(
                     "%s baseline IoU=%.5f < %.2f",
                     sample_label,
-                    baseline_iou,
+                    sample.baseline_iou,
                     self._config.baseline_iou,
                 )
                 save_baseline_fail(sample_output_dir, sample)
                 continue
 
-            logging.info("%s baseline IoU=%.2f", sample_label, baseline_iou)
+
+            logging.info("%s baseline IoU=%.2f", sample_label, sample.baseline_iou)
             self._optimizer.reset()
+
+            clean_tensor = self._image_to_tensor(sample.clean_image_array)
+            original_text = ", ".join(sample.target_objects)
+            original_embedding, _, _ = self._text_embedder.run_inference(original_text)
+            embedding_cache: dict[str, np.ndarray] = {original_text: original_embedding}
 
             early_stop_generation: int | None = None
             sample_start = time.time()
 
             for generation in range(self._config.generations):
+                generation_start = time.perf_counter()
+
                 genomes = self._optimizer.get_x_current()
+
+                build_start = time.perf_counter()
                 candidates = build_population_candidates(
                     genomes,
                     sample,
@@ -164,20 +182,52 @@ class MMMTester(SMOO):
                     image_dim=image_dim,
                     text_dim=text_dim,
                 )
-                candidates = self.evaluate_population(candidates)
+                build_time = time.perf_counter() - build_start
+
+                candidates, eval_timings = self.evaluate_population(
+                    candidates,
+                    clean_tensor=clean_tensor,
+                    original_embedding=original_embedding,
+                    embedding_cache=embedding_cache,
+                )
+
+                assign_start = time.perf_counter()
                 objective_results = candidates.get_objective_values(self._objectives.names)
                 self._optimizer.assign_fitness(objective_results, candidates)
+                assign_time = time.perf_counter() - assign_start
 
                 for cand in self._optimizer.best_candidates:
                     terminate_early, _ = self._early_termination(cand.data.objective_values)
                     if terminate_early:
                         early_stop_generation = generation + 1
                         break
+
+                update_time = 0.0
+                if early_stop_generation is None and generation + 1 < self._config.generations:
+                    update_start = time.perf_counter()
+                    self._optimizer.update()
+                    update_time = time.perf_counter() - update_start
+
+                total_time = time.perf_counter() - generation_start
+                logging.info(
+                    (
+                        "%s gen=%d timings total=%.3fs build=%.3fs manipulate=%.3fs "
+                        "vlm=%.3fs embed=%.3fs objectives=%.3fs assign=%.3fs update=%.3fs"
+                    ),
+                    sample_label,
+                    generation + 1,
+                    total_time,
+                    build_time,
+                    eval_timings["manipulate"],
+                    eval_timings["vlm"],
+                    eval_timings["embed"],
+                    eval_timings["objectives"],
+                    assign_time,
+                    update_time,
+                )
+
                 if early_stop_generation is not None:
                     break
-
-                if generation + 1 < self._config.generations:
-                    self._optimizer.update()
 
             best_candidate = min(
                 self._optimizer.best_candidates,
@@ -195,19 +245,38 @@ class MMMTester(SMOO):
             )
             self._cleanup()
 
-    def evaluate_population(self, candidates: PerturbCandidateList) -> PerturbCandidateList:
+    def evaluate_population(
+        self,
+        candidates: PerturbCandidateList,
+        *,
+        clean_tensor: torch.Tensor,
+        original_embedding: np.ndarray,
+        embedding_cache: dict[str, np.ndarray],
+    ) -> tuple[PerturbCandidateList, dict[str, float]]:
         """Evaluate one optimizer population and attach objective values to candidates.
 
         :param candidates: Current optimizer population.
-        :returns: The manipulated candidates with objective values and VLM outputs attached.
+        :param clean_tensor: Cached clean-image tensor for the current sample.
+        :param original_embedding: Cached embedding of the original target-object string.
+        :param embedding_cache: Per-sample cache for perturbed-text embeddings.
+        :returns: The manipulated candidates and timing breakdown.
         :raises ValueError: If the VLM response batch size does not match the candidate batch size.
         """
+        manipulate_start = time.perf_counter()
         manipulated = self._manipulator.manipulate(candidates)
-        responses = self._sut.process_input((manipulated.image_arrays, manipulated.prompts))
+        manipulate_time = time.perf_counter() - manipulate_start
 
-        clean_tensor = self._image_to_tensor(manipulated[0].sample.clean_image_pil)
+        prompts = manipulated.prompts
+        vlm_start = time.perf_counter()
+        responses = self._sut.process_input((manipulated.image_arrays, prompts))
+        vlm_time = time.perf_counter() - vlm_start
 
-        for candidate, prompt, response in zip(manipulated, manipulated.prompts, responses):
+        embed_time = 0.0
+        objective_time = 0.0
+        clean_batch = clean_tensor.unsqueeze(0)
+        original_embedding_vector = original_embedding.squeeze()
+
+        for candidate, prompt, response in zip(manipulated, prompts, responses):
             try:
                 parsed_predictions = extract_json_array(response)
             except ValueError as e:
@@ -232,25 +301,36 @@ class MMMTester(SMOO):
                 self._sut.coord_scale,
                 self._sut.bbox_order,
             )
-            original_text = ", ".join(candidate.sample.target_objects)
             perturbed_text = ", ".join(prompt_objects)
-            original_embedding, _, _ = self._text_embedder.run_inference(original_text)
-            perturbed_embedding, _, _ = self._text_embedder.run_inference(perturbed_text)
-            adv_tensor = self._image_to_tensor(candidate.image_array)
 
+            embed_start = time.perf_counter()
+            perturbed_embedding = embedding_cache.get(perturbed_text)
+            if perturbed_embedding is None:
+                perturbed_embedding, _, _ = self._text_embedder.run_inference(perturbed_text)
+                embedding_cache[perturbed_text] = perturbed_embedding
+            embed_time += time.perf_counter() - embed_start
+
+            objective_start = time.perf_counter()
+            adv_tensor = self._image_to_tensor(candidate.image_array)
             self._objectives.evaluate_all(
                 boxes=[pred_boxes, gt_boxes],
-                images=[clean_tensor.unsqueeze(0), adv_tensor.unsqueeze(0)],
-                embeddings=[original_embedding.squeeze(), perturbed_embedding.squeeze()],
+                images=[clean_batch, adv_tensor.unsqueeze(0)],
+                embeddings=[original_embedding_vector, perturbed_embedding.squeeze()],
             )
+            objective_time += time.perf_counter() - objective_start
 
-            candidate.objective_values = self._objectives.results
+            candidate.objective_values = dict(self._objectives.results)
             candidate.vlm_response = response
             candidate.parsed_predictions = parsed_predictions
             candidate.matched_pred_boxes = pred_boxes.tolist()
             candidate.prompt_objects = prompt_objects
 
-        return manipulated
+        return manipulated, {
+            "manipulate": manipulate_time,
+            "vlm": vlm_time,
+            "embed": embed_time,
+            "objectives": objective_time,
+        }
 
     @staticmethod
     def _image_to_tensor(image: Image.Image | np.ndarray) -> torch.Tensor:

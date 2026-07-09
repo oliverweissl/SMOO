@@ -173,6 +173,7 @@ def main() -> None:
         algo_params=params["algo_params"],
         num_objectives=objectives.num_objectives,
         solution_shape=solution_shape,
+        save_history=False,
     )
 
     ############# Instantiate Early Termination

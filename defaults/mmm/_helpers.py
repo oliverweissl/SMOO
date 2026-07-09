@@ -169,6 +169,8 @@ def load_sample(
     target_objects = extract_target_objects(base_data["prompt"])
     ground_truth_boxes = _normalize_ground_truth_boxes(base_data["ground_truth"], target_objects)
 
+    clean_image_array = np.asarray(clean_image, dtype=np.uint8)
+
     return MMMSample(
         folder_path=str(folder),
         category=category,
@@ -179,6 +181,7 @@ def load_sample(
         target_objects=target_objects,
         ground_truth_boxes=ground_truth_boxes,
         original_size=raw_img.size,
+        clean_image_array=clean_image_array,
         baseline_iou=float(base_data.get("IoU", 0.0)),
     )
 
@@ -209,6 +212,8 @@ def save_baseline_fail(output_dir: str | Path, sample: MMMSample) -> None:
         "ground_truth_bboxes": sample.ground_truth_boxes,
         "predicted_bboxes": sample.baseline_predictions,
     }
+    if sample.baseline_fail_code is not None:
+        record["fail_code"] = sample.baseline_fail_code
     with open(Path(output_dir) / BASELINE_FAIL_FILENAME, "w", encoding="utf-8") as handle:
         json.dump(record, handle, indent=2)
 
@@ -417,7 +422,7 @@ def prepare_bbox_pairs(
     return np.vstack(pred_boxes), np.vstack(gt_boxes)
 
 
-def evaluate_baseline(sut: VLMSUT, sample: MMMSample) -> float:
+def evaluate_baseline(sut: VLMSUT, sample: MMMSample):
     """Run baseline VLM inference on the clean sample and compute mean IoU.
 
     :param sut: VLM system under test.
@@ -429,7 +434,15 @@ def evaluate_baseline(sut: VLMSUT, sample: MMMSample) -> float:
     if len(responses) != 1:
         raise ValueError(f"Expected exactly one baseline response, got {len(responses)}.")
 
-    parsed_preds = extract_json_array(responses[0])
+    sample.baseline_fail_code = None
+    try:
+        parsed_preds = extract_json_array(responses[0])
+    except ValueError as exc:
+        sample.baseline_fail_code = str(exc)
+        sample.baseline_predictions =  []
+        sample.baseline_iou = 0.0
+        return
+
     pred_boxes, gt_boxes = prepare_bbox_pairs(
         sample.ground_truth_boxes,
         sample.original_size,
@@ -441,7 +454,6 @@ def evaluate_baseline(sut: VLMSUT, sample: MMMSample) -> float:
     baseline_iou = float(VLMBBoxIoU().evaluate(boxes=[pred_boxes, gt_boxes]))
     sample.baseline_predictions = parsed_preds
     sample.baseline_iou = baseline_iou
-    return baseline_iou
 
 
 def save_best_result(
