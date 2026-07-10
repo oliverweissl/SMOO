@@ -362,67 +362,51 @@ def prepare_bbox_pairs(
     ground_truth_boxes: list[list[int]],
     original_size: tuple[int, int],
     pred_list: list[Any],
-    prompt_objects: list[str],
     coord_scale: int | None,
     bbox_order: str,
 ) -> tuple[np.ndarray, np.ndarray]:
-    """Align GT boxes with the best matching predicted box for each object label.
+    """Normalize prediction and GT boxes for geometry-only IoU matching.
 
     :param ground_truth_boxes: Ground-truth boxes in pixel coordinates.
     :param original_size: Original image size as ``(width, height)``.
     :param pred_list: Parsed VLM predictions.
-    :param prompt_objects: Prompt object labels in order.
     :param coord_scale: Optional coordinate scale used by the VLM output format.
     :param bbox_order: Coordinate order used by predicted boxes.
-    :returns: Matched predicted boxes and ground-truth boxes as arrays.
+    :returns: Predicted boxes and ground-truth boxes as arrays.
     :raises TypeError: If predictions are not a list of dicts.
-    :raises ValueError: If box counts or shapes are invalid.
+    :raises ValueError: If box shapes are invalid.
     """
     if not isinstance(pred_list, list):
         raise TypeError(
             f"Expected parsed predictions to be a list, got {type(pred_list).__name__}."
         )
-    if len(ground_truth_boxes) != len(prompt_objects):
-        raise ValueError(
-            f"Ground-truth/object count mismatch: {len(ground_truth_boxes)} boxes for {len(prompt_objects)} objects."
-        )
 
-    gt_boxes: list[np.ndarray] = []
+    gt_boxes = np.asarray(ground_truth_boxes, dtype=np.float64)
+    if gt_boxes.size == 0:
+        gt_boxes = np.zeros((0, 4), dtype=np.float64)
+    elif gt_boxes.ndim != 2 or gt_boxes.shape[1] != 4:
+        raise ValueError(f"Expected ground_truth_boxes shaped (N, 4), got {gt_boxes.shape}.")
+
     pred_boxes: list[np.ndarray] = []
-    iou_metric = VLMBBoxIoU()
-
-    for prompt_object, bbox in zip(prompt_objects, ground_truth_boxes):
-        gt_box = np.array(bbox, dtype=np.float64)
-        best_pred: np.ndarray = np.zeros(4, dtype=np.float64)
-        best_iou = -1.0
-        for pred in pred_list:
-            if not isinstance(pred, dict):
-                raise TypeError(f"Expected prediction dict, got {type(pred).__name__}.")
-            pred_bbox = _extract_bbox(pred)
-            pred_label = _extract_label(pred)
-            if not _labels_match(pred_label, [prompt_object]):
-                continue
-            pred_box = np.array(
-                _to_pixel_box(
-                    pred_bbox, original_size[0], original_size[1], coord_scale, bbox_order
-                ),
+    for pred in pred_list:
+        if not isinstance(pred, dict):
+            raise TypeError(f"Expected prediction dict, got {type(pred).__name__}.")
+        pred_bbox = _extract_bbox(pred)
+        pred_boxes.append(
+            np.array(
+                _to_pixel_box(pred_bbox, original_size[0], original_size[1], coord_scale, bbox_order),
                 dtype=np.float64,
             )
-            current_iou = iou_metric.evaluate(boxes=[pred_box, gt_box])
-            if current_iou > best_iou:
-                best_iou = current_iou
-                best_pred = pred_box
+        )
 
-        gt_boxes.append(gt_box)
-        pred_boxes.append(best_pred)
-
-    if not gt_boxes:
-        empty: np.ndarray = np.zeros((0, 4), dtype=np.float64)
-        return empty, empty
-    return np.vstack(pred_boxes), np.vstack(gt_boxes)
+    if pred_boxes:
+        pred_box_matrix = np.vstack(pred_boxes)
+    else:
+        pred_box_matrix = np.zeros((0, 4), dtype=np.float64)
+    return pred_box_matrix, gt_boxes
 
 
-def evaluate_baseline(sut: VLMSUT, sample: MMMSample):
+def evaluate_baseline(sut: VLMSUT, sample: MMMSample) -> float:
     """Run baseline VLM inference on the clean sample and compute mean IoU.
 
     :param sut: VLM system under test.
@@ -439,21 +423,21 @@ def evaluate_baseline(sut: VLMSUT, sample: MMMSample):
         parsed_preds = extract_json_array(responses[0])
     except ValueError as exc:
         sample.baseline_fail_code = str(exc)
-        sample.baseline_predictions =  []
+        sample.baseline_predictions = []
         sample.baseline_iou = 0.0
-        return
+        return 0.0
 
     pred_boxes, gt_boxes = prepare_bbox_pairs(
         sample.ground_truth_boxes,
         sample.original_size,
         parsed_preds,
-        sample.target_objects,
         sut.coord_scale,
         sut.bbox_order,
     )
     baseline_iou = float(VLMBBoxIoU().evaluate(boxes=[pred_boxes, gt_boxes]))
     sample.baseline_predictions = parsed_preds
     sample.baseline_iou = baseline_iou
+    return baseline_iou
 
 
 def save_best_result(

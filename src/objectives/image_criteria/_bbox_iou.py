@@ -47,12 +47,12 @@ def _box_iou(box_a: np.ndarray, box_b: np.ndarray) -> float:
 
 
 class VLMBBoxIoU(Criterion):
-    """Mean IoU over already-prepared bounding box pairs."""
+    """Mean IoU over geometrically matched bounding boxes."""
 
     _name: str = "VLMBBoxIoU"
 
     def evaluate(self, *, boxes: list[Any], **_: Any) -> float:
-        """Calculate mean IoU for a matched predicted/ground-truth box set.
+        """Calculate mean IoU for the IoU-optimal predicted/GT assignment.
 
         :param boxes: Predicted and ground-truth box collections.
         :param _: Unused extra criterion inputs.
@@ -61,18 +61,19 @@ class VLMBBoxIoU(Criterion):
         """
         if len(boxes) != 2:
             raise ValueError(f"VLMBBoxIoU expects exactly 2 box collections, got {len(boxes)}.")
-        pred_boxes = _as_box_matrix(boxes[0])
-        gt_boxes = _as_box_matrix(boxes[1])
+        pred_boxes = _as_box_matrix(boxes[1])
+        gt_boxes = _as_box_matrix(boxes[0])
 
         if len(pred_boxes) == 0 or len(gt_boxes) == 0:
-            return 0.0
+            empty_boxes = np.zeros((0, 4), dtype=np.float64)
+            empty_ious = np.zeros((0,), dtype=np.float64)
+            return empty_boxes, empty_boxes, empty_ious
 
-        ious = np.zeros((len(pred_boxes), len(gt_boxes)))
-
+        ious = np.zeros((len(pred_boxes), len(gt_boxes)), dtype=np.float64)
         for i, pred_box in enumerate(pred_boxes):
             for j, gt_box in enumerate(gt_boxes):
                 ious[i, j] = _box_iou(pred_box, gt_box)
-        pred_indices, gt_indices = linear_sum_assignment(-ious)
 
+        pred_indices, gt_indices = linear_sum_assignment(-ious)
         matched_ious = ious[pred_indices, gt_indices]
         return float(np.mean(matched_ious))

@@ -297,7 +297,6 @@ class MMMTester(SMOO):
                 candidate.sample.ground_truth_boxes,
                 candidate.sample.original_size,
                 parsed_predictions,
-                candidate.sample.target_objects,
                 self._sut.coord_scale,
                 self._sut.bbox_order,
             )
@@ -313,7 +312,7 @@ class MMMTester(SMOO):
             objective_start = time.perf_counter()
             adv_tensor = self._image_to_tensor(candidate.image_array)
             self._objectives.evaluate_all(
-                boxes=[pred_boxes, gt_boxes],
+                boxes=[gt_boxes, pred_boxes],
                 images=[clean_batch, adv_tensor.unsqueeze(0)],
                 embeddings=[original_embedding_vector, perturbed_embedding.squeeze()],
             )
@@ -322,7 +321,6 @@ class MMMTester(SMOO):
             candidate.objective_values = dict(self._objectives.results)
             candidate.vlm_response = response
             candidate.parsed_predictions = parsed_predictions
-            candidate.matched_pred_boxes = pred_boxes.tolist()
             candidate.prompt_objects = prompt_objects
 
         return manipulated, {
