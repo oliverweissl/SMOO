@@ -394,7 +394,9 @@ def prepare_bbox_pairs(
         pred_bbox = _extract_bbox(pred)
         pred_boxes.append(
             np.array(
-                _to_pixel_box(pred_bbox, original_size[0], original_size[1], coord_scale, bbox_order),
+                _to_pixel_box(
+                    pred_bbox, original_size[0], original_size[1], coord_scale, bbox_order
+                ),
                 dtype=np.float64,
             )
         )
@@ -467,7 +469,6 @@ def save_best_result(
         candidate.vlm_response is None
         or candidate.parsed_predictions is None
         or candidate.prompt_objects is None
-        or candidate.matched_pred_boxes is None
     ):
         raise ValueError("Best candidate is missing evaluation artifacts required for saving.")
     if sample.baseline_iou is None:

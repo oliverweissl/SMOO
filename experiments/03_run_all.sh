@@ -8,6 +8,7 @@ declare -A PORTS=(
   [intern]=8702
   [gemma]=8703
   [deepseek]=8704
+  [nemotron]=8705
 )
 
 GPU="${1:-0}"

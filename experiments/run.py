@@ -68,6 +68,17 @@ MODEL_SPECS: dict[str, dict[str, Any]] = {
         "image_resize": None,
         "max_model_len": 4096,
     },
+    "nemotron": {
+        "model": "nvidia/Nemotron-3-Nano-Omni-30B-A3B-Reasoning-FP8",
+        "coord_scale": None,
+        "bbox_order": "xyxy",
+        "prompt_mode": "nemotron_ref",
+        "sampling_params": {
+            "temperature": 0.2,
+            "top_k": 1,
+            "max_tokens": 128,
+        },
+    },
 }
 
 
@@ -79,13 +90,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--selection-dir", default="selection")
     parser.add_argument("--save-as", default=None)
     parser.add_argument("--seed", type=int, default=42669)
-    parser.add_argument("--pop-size", type=int, default=30)
-    parser.add_argument("--num-generations", type=int, default=15)
+    parser.add_argument("--pop-size", type=int, default=50)
+    parser.add_argument("--num-generations", type=int, default=100)
     parser.add_argument("--budget-max", type=float, default=1.0)
     parser.add_argument("--baseline-iou-min", type=float, default=0.5)
-    parser.add_argument("--early-stop-iou-max", type=float, default=0.35)
-    parser.add_argument("--early-stop-img-dist-min", type=float, default=0.1)
-    parser.add_argument("--early-stop-txt-dist-min", type=float, default=0.3)
+    parser.add_argument("--early-stop-iou-max", type=float, default=0.5)
+    parser.add_argument("--early-stop-img-dist-max", type=float, default=0.1)
+    parser.add_argument("--early-stop-txt-dist-max", type=float, default=0.3)
     parser.add_argument("--max-resolution", type=int, default=1024)
     parser.add_argument("--max-new-tokens", type=int, default=2048)
     parser.add_argument("--max-model-len", type=int, default=None)
@@ -153,6 +164,7 @@ def main() -> None:
         max_model_len=max_model_len,
         seed=args.seed,
         served_ports=(args.served_port,),
+        sampling_params=spec.get("sampling_params"),
     )
 
     ############# Instantiate Objectives
@@ -181,8 +193,8 @@ def main() -> None:
         objectives,
         lambda values: (
             (values[0] <= args.early_stop_iou_max)
-            & (values[1] <= args.early_stop_img_dist_min)
-            & (values[2] <= args.early_stop_txt_dist_min)
+            & (values[1] <= args.early_stop_img_dist_max)
+            & (values[2] <= args.early_stop_txt_dist_max)
         ),
         fulfill="any",
     )

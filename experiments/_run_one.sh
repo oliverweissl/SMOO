@@ -27,6 +27,7 @@ case "$MODEL" in
   intern) MODEL_ID="OpenGVLab/InternVL3_5-8B" ;;
   gemma) MODEL_ID="google/gemma-3-4b-it" ;;
   deepseek) MODEL_ID="deepseek-ai/deepseek-vl2-tiny" ;;
+  nemotron) MODEL_ID="nvidia/Nemotron-3-Nano-Omni-30B-A3B-Reasoning-FP8" ;;
   *)
     echo "Unknown model: $MODEL" >&2
     exit 1

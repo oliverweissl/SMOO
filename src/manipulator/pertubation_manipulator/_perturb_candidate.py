@@ -76,6 +76,12 @@ class PerturbCandidateList(CandidateList[PerturbCandidate]):
 
     def get_objective_values(self, key: str | list[str]) -> list[NDArray[np.float64]]:
         keys = [key] if isinstance(key, str) else key
-        return [
-            np.array([candidate.objective_values[name] for candidate in self.data]) for name in keys
-        ]
+        try:
+            results = [
+                np.array([candidate.objective_values[name] for candidate in self.data])
+                for name in keys
+            ]
+        except ValueError as e:
+            print(str(e), [candidate.objective_values for candidate in self.data])
+            raise
+        return results

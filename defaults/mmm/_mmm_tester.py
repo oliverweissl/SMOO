@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import torch
 from PIL import Image
+from scipy.optimize import linear_sum_assignment
 
 from src import SMOO, TEarlyTermCallable
 from src.manipulator.pertubation_manipulator import (
@@ -139,10 +140,7 @@ class MMMTester(SMOO):
             sample_output_dir = os.path.join(str(output_dir), category, folder_id)
 
             if sample.baseline_fail_code is not None:
-                logging.info(
-                    "%s baseline failed with: ",
-                    sample.baseline_fail_code
-                )
+                logging.info("%s baseline failed with: ", sample.baseline_fail_code)
                 save_baseline_fail(sample_output_dir, sample)
                 continue
 
@@ -155,7 +153,6 @@ class MMMTester(SMOO):
                 )
                 save_baseline_fail(sample_output_dir, sample)
                 continue
-
 
             logging.info("%s baseline IoU=%.2f", sample_label, sample.baseline_iou)
             self._optimizer.reset()
@@ -300,6 +297,27 @@ class MMMTester(SMOO):
                 self._sut.coord_scale,
                 self._sut.bbox_order,
             )
+            if len(pred_boxes) == 0 or len(gt_boxes) == 0:
+                matched_pred_boxes = np.zeros((0, 4), dtype=np.float64)
+            else:
+                ious = np.zeros((len(pred_boxes), len(gt_boxes)), dtype=np.float64)
+                for i, pred_box in enumerate(pred_boxes):
+                    px1, py1, px2, py2 = pred_box
+                    pred_area = max(0.0, px2 - px1) * max(0.0, py2 - py1)
+                    for j, gt_box in enumerate(gt_boxes):
+                        gx1, gy1, gx2, gy2 = gt_box
+                        inter_x1 = max(px1, gx1)
+                        inter_y1 = max(py1, gy1)
+                        inter_x2 = min(px2, gx2)
+                        inter_y2 = min(py2, gy2)
+                        inter_w = max(0.0, inter_x2 - inter_x1)
+                        inter_h = max(0.0, inter_y2 - inter_y1)
+                        inter_area = inter_w * inter_h
+                        gt_area = max(0.0, gx2 - gx1) * max(0.0, gy2 - gy1)
+                        denom = pred_area + gt_area - inter_area
+                        ious[i, j] = inter_area / denom if denom > 0.0 else 0.0
+                pred_indices, gt_indices = linear_sum_assignment(-ious)
+                matched_pred_boxes = pred_boxes[pred_indices]
             perturbed_text = ", ".join(prompt_objects)
 
             embed_start = time.perf_counter()
@@ -321,6 +339,7 @@ class MMMTester(SMOO):
             candidate.objective_values = dict(self._objectives.results)
             candidate.vlm_response = response
             candidate.parsed_predictions = parsed_predictions
+            candidate.matched_pred_boxes = matched_pred_boxes.tolist()
             candidate.prompt_objects = prompt_objects
 
         return manipulated, {

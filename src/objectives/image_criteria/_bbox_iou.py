@@ -54,20 +54,19 @@ class VLMBBoxIoU(Criterion):
     def evaluate(self, *, boxes: list[Any], **_: Any) -> float:
         """Calculate mean IoU for the IoU-optimal predicted/GT assignment.
 
-        :param boxes: Predicted and ground-truth box collections.
+        :param boxes: Ground-truth and predicted box collections.
         :param _: Unused extra criterion inputs.
         :returns: Mean IoU across matched box pairs.
         :raises ValueError: If the box count or shapes are invalid.
         """
         if len(boxes) != 2:
             raise ValueError(f"VLMBBoxIoU expects exactly 2 box collections, got {len(boxes)}.")
-        pred_boxes = _as_box_matrix(boxes[1])
+
         gt_boxes = _as_box_matrix(boxes[0])
+        pred_boxes = _as_box_matrix(boxes[1])
 
         if len(pred_boxes) == 0 or len(gt_boxes) == 0:
-            empty_boxes = np.zeros((0, 4), dtype=np.float64)
-            empty_ious = np.zeros((0,), dtype=np.float64)
-            return empty_boxes, empty_boxes, empty_ious
+            return 0.0
 
         ious = np.zeros((len(pred_boxes), len(gt_boxes)), dtype=np.float64)
         for i, pred_box in enumerate(pred_boxes):

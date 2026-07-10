@@ -39,6 +39,7 @@ class VLMSUT(SUT):
         max_model_len: Optional[int] = None,
         seed: int = 0,
         served_ports: tuple[int, ...] = _DEFAULT_PORTS,
+        sampling_params: dict[str, Any] | None = None,
     ) -> None:
         """Initialize a general vLLM-based VLM SUT.
 
@@ -53,6 +54,7 @@ class VLMSUT(SUT):
         :param max_model_len: Optional override for vLLM model context length.
         :param seed: Random seed forwarded to vLLM.
         :param served_ports: Ports to scan for a compatible local vLLM server.
+        :param sampling_params: Optional sampling parameters.
         """
         self._model_id = model
         self._coord_scale = coord_scale
@@ -64,7 +66,7 @@ class VLMSUT(SUT):
         self._served_ports = served_ports
         self._served_url: Optional[str] = None
         self.llm: Optional[LLM] = None
-        self.sampling: Optional[SamplingParams] = None
+        self.sampling = SamplingParams(**sampling_params) if sampling_params else None
 
         self._find_served_url()
         if self._served_url is None:
@@ -79,7 +81,9 @@ class VLMSUT(SUT):
                 tensor_parallel_size=tensor_parallel_size,
             )
             self.llm = LLM(**llm_kwargs)
-            self.sampling = SamplingParams(max_tokens=max_new_tokens, temperature=0)
+            self.sampling = self.sampling or SamplingParams(
+                max_tokens=max_new_tokens, temperature=0
+            )
 
     def input_valid(
         self, inpt: Any, cond: Any = None
