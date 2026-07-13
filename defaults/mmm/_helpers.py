@@ -51,34 +51,9 @@ def extract_json_array(text: str) -> list[dict[str, Any]]:
     try:
         payload = json.loads(raw_text)
     except json.JSONDecodeError as exc:
-        decoder = json.JSONDecoder()
-        items: list[dict[str, Any]] = []
-        idx = 0
-        parse_failed = False
-        while idx < len(raw_text):
-            while idx < len(raw_text) and raw_text[idx] in [r'[', r'{']:
-                idx += 1
-            if idx >= len(raw_text):
-                break
-            if raw_text[idx] == ']':
-                idx += 1
-                continue
-            if raw_text[idx] == '}':
-                idx += 1
-                continue
-            try:
-                item, next_idx = decoder.raw_decode(raw_text, idx)
-            except json.JSONDecodeError:
-                parse_failed = True
-                break
-            if not isinstance(item, dict):
-                parse_failed = True
-                break
-            items.append(item)
-            idx = next_idx
-        if items and not parse_failed:
-            payload = items
-        else:
+        try:
+            payload = json.loads(f"[{raw_text}]")
+        except json.JSONDecodeError:
             raise ValueError(f"Failed to decode VLM JSON array: {text[:400]!r}") from exc
 
     if isinstance(payload, dict):
@@ -104,7 +79,6 @@ def extract_json_array(text: str) -> list[dict[str, Any]]:
                 f"Expected each VLM prediction to be a dict, got {type(item).__name__}."
             )
     return payload
-
 
 def extract_target_objects(prompt: str) -> list[str]:
     """Extract the requested object labels from the MMM detection prompt.
