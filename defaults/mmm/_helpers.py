@@ -40,17 +40,62 @@ def resize_image_smart(image: Image.Image, max_resolution: int) -> Image.Image:
 
 
 def extract_json_array(text: str) -> list[dict[str, Any]]:
-    """Decode the VLM response as one JSON array.
+    """Decode the VLM response as prediction records.
 
     :param text: Raw VLM response text.
-    :returns: The decoded JSON array.
+    :returns: The decoded prediction list.
     :raises ValueError: If JSON decoding fails.
-    :raises TypeError: If the decoded payload is not a list of dict objects.
+    :raises TypeError: If the decoded payload cannot be normalized into a list of dict objects.
     """
+    raw_text = text.strip()
     try:
-        payload = json.loads(text.strip())
+        payload = json.loads(raw_text)
     except json.JSONDecodeError as exc:
-        raise ValueError(f"Failed to decode VLM JSON array: {text[:400]!r}") from exc
+        decoder = json.JSONDecoder()
+        items: list[dict[str, Any]] = []
+        idx = 0
+        parse_failed = False
+        while idx < len(raw_text):
+            while idx < len(raw_text) and raw_text[idx] in [r'[', r'{']:
+                idx += 1
+            if idx >= len(raw_text):
+                break
+            if raw_text[idx] == ']':
+                idx += 1
+                continue
+            if raw_text[idx] == '}':
+                idx += 1
+                continue
+            try:
+                item, next_idx = decoder.raw_decode(raw_text, idx)
+            except json.JSONDecodeError:
+                parse_failed = True
+                break
+            if not isinstance(item, dict):
+                parse_failed = True
+                break
+            items.append(item)
+            idx = next_idx
+        if items and not parse_failed:
+            payload = items
+        else:
+            raise ValueError(f"Failed to decode VLM JSON array: {text[:400]!r}") from exc
+
+    if isinstance(payload, dict):
+        if any(key in payload for key in ("bbox", "bbox_2d", "bounding_box", "box")):
+            payload = [payload]
+        else:
+            for key in ("predictions", "objects", "detections", "results", "boxes", "output"):
+                candidate = payload.get(key)
+                if isinstance(candidate, list):
+                    payload = candidate
+                    break
+            else:
+                raise TypeError(
+                    "Expected VLM JSON payload to be a list or prediction container, "
+                    f"got dict with keys {sorted(payload.keys())!r}."
+                )
+
     if not isinstance(payload, list):
         raise TypeError(f"Expected VLM JSON payload to be a list, got {type(payload).__name__}.")
     for item in payload:
@@ -354,8 +399,20 @@ def _to_pixel_box(
         x1, y1, x2, y2 = a, b, c, d
     else:
         raise ValueError(f"Unsupported bbox order: {bbox_order}")
+
     scale = float(coord_scale) if coord_scale else 1.0
-    return [x1 * ref_w / scale, y1 * ref_h / scale, x2 * ref_w / scale, y2 * ref_h / scale]
+    x1 = x1 * ref_w / scale
+    y1 = y1 * ref_h / scale
+    x2 = x2 * ref_w / scale
+    y2 = y2 * ref_h / scale
+
+    x1, x2 = sorted((x1, x2))
+    y1, y2 = sorted((y1, y2))
+    x1 = min(max(x1, 0.0), float(ref_w))
+    y1 = min(max(y1, 0.0), float(ref_h))
+    x2 = min(max(x2, 0.0), float(ref_w))
+    y2 = min(max(y2, 0.0), float(ref_h))
+    return [x1, y1, x2, y2]
 
 
 def prepare_bbox_pairs(
@@ -423,19 +480,25 @@ def evaluate_baseline(sut: VLMSUT, sample: MMMSample) -> float:
     sample.baseline_fail_code = None
     try:
         parsed_preds = extract_json_array(responses[0])
-    except ValueError as exc:
+    except (ValueError, TypeError) as exc:
         sample.baseline_fail_code = str(exc)
         sample.baseline_predictions = []
         sample.baseline_iou = 0.0
         return 0.0
 
-    pred_boxes, gt_boxes = prepare_bbox_pairs(
-        sample.ground_truth_boxes,
-        sample.original_size,
-        parsed_preds,
-        sut.coord_scale,
-        sut.bbox_order,
-    )
+    try:
+        pred_boxes, gt_boxes = prepare_bbox_pairs(
+            sample.ground_truth_boxes,
+            sample.original_size,
+            parsed_preds,
+            sut.coord_scale,
+            sut.bbox_order,
+        )
+    except (ValueError, TypeError) as exc:
+        sample.baseline_fail_code = str(exc)
+        sample.baseline_predictions = []
+        sample.baseline_iou = 0.0
+        return 0.0
     baseline_iou = float(VLMBBoxIoU().evaluate(boxes=[pred_boxes, gt_boxes]))
     sample.baseline_predictions = parsed_preds
     sample.baseline_iou = baseline_iou

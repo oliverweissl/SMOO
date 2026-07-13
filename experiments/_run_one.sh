@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
 if [ "$#" -lt 1 ]; then
   echo "Usage: $0 <model> [gpu] [port] [extra runner args...]" >&2
   exit 1
@@ -19,7 +22,7 @@ if [ "$#" -gt 0 ] && [[ "$1" =~ ^[0-9]+$ ]]; then
   shift
 fi
 
-mkdir -p logs
+mkdir -p "${REPO_ROOT}/logs"
 
 case "$MODEL" in
   qwen) MODEL_ID="Qwen/Qwen3-VL-4B-Instruct" ;;
@@ -44,7 +47,13 @@ trap cleanup EXIT
 
 fuser -k "${PORT}/tcp" 2>/dev/null || true
 sleep 1
-CUDA_VISIBLE_DEVICES="$GPU" vllm serve "$MODEL_ID"   --port "$PORT"   --enforce-eager   --gpu-memory-utilization 0.8   --trust-remote-code   --max-model-len 4096   > "logs/${MODEL}_server.log" 2>&1 &
+CUDA_VISIBLE_DEVICES="$GPU" vllm serve "$MODEL_ID" \
+  --port "$PORT" \
+  --enforce-eager \
+  --gpu-memory-utilization 0.8 \
+  --trust-remote-code \
+  --max-model-len 4096 \
+  > "${REPO_ROOT}/logs/${MODEL}_server.log" 2>&1 &
 SERVER_PID=$!
 
 until curl -sf "http://localhost:${PORT}/health" > /dev/null 2>&1; do
@@ -53,5 +62,5 @@ until curl -sf "http://localhost:${PORT}/health" > /dev/null 2>&1; do
 done
 
 for MODE in multi image text; do
-  python experiments/run.py --vlm "$MODEL" --mode "$MODE" --served-port "$PORT" "$@"
+  python "${REPO_ROOT}/experiments/run.py" --vlm "$MODEL" --mode "$MODE" --served-port "$PORT" "$@"
 done

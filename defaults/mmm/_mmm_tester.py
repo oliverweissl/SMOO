@@ -276,7 +276,7 @@ class MMMTester(SMOO):
         for candidate, prompt, response in zip(manipulated, prompts, responses):
             try:
                 parsed_predictions = extract_json_array(response)
-            except ValueError as e:
+            except (ValueError, TypeError) as e:
                 logging.warning("Corrupted VLM JSON output. Response=%r", response[:400])
                 candidate.fail_code = str(e)
                 parsed_predictions = []
@@ -290,34 +290,20 @@ class MMMTester(SMOO):
                 candidate.fail_code = str(e)
                 prompt_objects = []
 
-            pred_boxes, gt_boxes = prepare_bbox_pairs(
-                candidate.sample.ground_truth_boxes,
-                candidate.sample.original_size,
-                parsed_predictions,
-                self._sut.coord_scale,
-                self._sut.bbox_order,
-            )
-            if len(pred_boxes) == 0 or len(gt_boxes) == 0:
-                matched_pred_boxes = np.zeros((0, 4), dtype=np.float64)
-            else:
-                ious = np.zeros((len(pred_boxes), len(gt_boxes)), dtype=np.float64)
-                for i, pred_box in enumerate(pred_boxes):
-                    px1, py1, px2, py2 = pred_box
-                    pred_area = max(0.0, px2 - px1) * max(0.0, py2 - py1)
-                    for j, gt_box in enumerate(gt_boxes):
-                        gx1, gy1, gx2, gy2 = gt_box
-                        inter_x1 = max(px1, gx1)
-                        inter_y1 = max(py1, gy1)
-                        inter_x2 = min(px2, gx2)
-                        inter_y2 = min(py2, gy2)
-                        inter_w = max(0.0, inter_x2 - inter_x1)
-                        inter_h = max(0.0, inter_y2 - inter_y1)
-                        inter_area = inter_w * inter_h
-                        gt_area = max(0.0, gx2 - gx1) * max(0.0, gy2 - gy1)
-                        denom = pred_area + gt_area - inter_area
-                        ious[i, j] = inter_area / denom if denom > 0.0 else 0.0
-                pred_indices, gt_indices = linear_sum_assignment(-ious)
-                matched_pred_boxes = pred_boxes[pred_indices]
+            try:
+                pred_boxes, gt_boxes = prepare_bbox_pairs(
+                    candidate.sample.ground_truth_boxes,
+                    candidate.sample.original_size,
+                    parsed_predictions,
+                    self._sut.coord_scale,
+                    self._sut.bbox_order,
+                )
+            except (ValueError, TypeError) as e:
+                logging.warning("Malformed VLM prediction payload. Response=%r", response[:400])
+                candidate.fail_code = str(e)
+                pred_boxes = np.zeros((0, 4), dtype=np.float64)
+                gt_boxes = np.asarray(candidate.sample.ground_truth_boxes, dtype=np.float64)
+
             perturbed_text = ", ".join(prompt_objects)
 
             embed_start = time.perf_counter()
@@ -339,7 +325,6 @@ class MMMTester(SMOO):
             candidate.objective_values = dict(self._objectives.results)
             candidate.vlm_response = response
             candidate.parsed_predictions = parsed_predictions
-            candidate.matched_pred_boxes = matched_pred_boxes.tolist()
             candidate.prompt_objects = prompt_objects
 
         return manipulated, {
