@@ -75,4 +75,6 @@ class VLMBBoxIoU(Criterion):
 
         pred_indices, gt_indices = linear_sum_assignment(-ious)
         matched_ious = ious[pred_indices, gt_indices]
-        return float(np.mean(matched_ious))
+        denominator = max(len(pred_boxes), len(gt_boxes))
+
+        return float(matched_ious.sum() / denominator)

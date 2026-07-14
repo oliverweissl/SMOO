@@ -80,6 +80,7 @@ def extract_json_array(text: str) -> list[dict[str, Any]]:
             )
     return payload
 
+
 def extract_target_objects(prompt: str) -> list[str]:
     """Extract the requested object labels from the MMM detection prompt.
 

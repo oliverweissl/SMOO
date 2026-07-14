@@ -8,7 +8,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 import argparse
 import copy
 import random
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import torch
@@ -36,28 +36,21 @@ MODEL_SPECS: dict[str, dict[str, Any]] = {
         "model": "Qwen/Qwen3-VL-4B-Instruct",
         "coord_scale": 1000,
         "bbox_order": "xyxy",
-        "prompt_mode": "plain",
-        "image_resize": None,
     },
     "kimi": {
         "model": "moonshotai/Kimi-VL-A3B-Instruct",
         "coord_scale": 1,
         "bbox_order": "xyxy",
-        "prompt_mode": "plain",
-        "image_resize": None,
     },
     "intern": {
         "model": "OpenGVLab/InternVL3_5-8B",
         "coord_scale": 1000,
         "bbox_order": "xyxy",
-        "prompt_mode": "plain",
-        "image_resize": None,
     },
     "gemma": {
         "model": "google/gemma-3-4b-it",
         "coord_scale": 896,
         "bbox_order": "yxyx",
-        "prompt_mode": "plain",
         "image_resize": (896, 896),
     },
     "deepseek": {
@@ -65,18 +58,19 @@ MODEL_SPECS: dict[str, dict[str, Any]] = {
         "coord_scale": 999,
         "bbox_order": "xyxy",
         "prompt_mode": "deepseek_ref",
-        "image_resize": None,
         "max_model_len": 4096,
     },
     "nemotron": {
         "model": "nvidia/Nemotron-3-Nano-Omni-30B-A3B-Reasoning-FP8",
-        "coord_scale": None,
+        "coord_scale": 1000,
         "bbox_order": "xyxy",
-        "prompt_mode": "nemotron_ref",
         "sampling_params": {
-            "temperature": 0.2,
+            "temperature": 0.0,
             "top_k": 1,
             "max_tokens": 128,
+        },
+        "extra_body": {
+            "chat_template_kwargs": {"enable_thinking": False},
         },
     },
 }
@@ -154,10 +148,10 @@ def main() -> None:
     )
     sut = VLMSUT(
         model=spec["model"],
-        coord_scale=spec["coord_scale"],
-        bbox_order=spec["bbox_order"],
-        prompt_mode=spec["prompt_mode"],
-        image_resize=spec["image_resize"],
+        coord_scale=spec.get("coord_scale"),
+        bbox_order=spec.get("bbox_order"),
+        prompt_mode=spec.get("prompt_mode", "plain"),
+        image_resize=spec.get("image_resize"),
         tensor_parallel_size=args.tensor_parallel_size,
         gpu_memory_utilization=args.gpu_memory_utilization,
         max_new_tokens=args.max_new_tokens,
@@ -165,6 +159,7 @@ def main() -> None:
         seed=args.seed,
         served_ports=(args.served_port,),
         sampling_params=spec.get("sampling_params"),
+        extra_body=spec.get("extra_body"),
     )
 
     ############# Instantiate Objectives

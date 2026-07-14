@@ -46,13 +46,24 @@ cleanup() {
 trap cleanup EXIT
 
 fuser -k "${PORT}/tcp" 2>/dev/null || true
+
+VLLM_ARGS=(
+  --port "$PORT"
+  --enforce-eager
+  --gpu-memory-utilization 0.8
+  --trust-remote-code
+  --max-model-len 4096
+)
+
+if [[ "${MODEL_ID,,}" == *nemotron* ]]; then
+  VLLM_ARGS+=(
+    --default-chat-template-kwargs '{"enable_thinking": false}'
+  )
+fi
+
 sleep 1
 CUDA_VISIBLE_DEVICES="$GPU" vllm serve "$MODEL_ID" \
-  --port "$PORT" \
-  --enforce-eager \
-  --gpu-memory-utilization 0.8 \
-  --trust-remote-code \
-  --max-model-len 4096 \
+  "${VLLM_ARGS[@]}" \
   > "${REPO_ROOT}/logs/${MODEL}_server.log" 2>&1 &
 SERVER_PID=$!
 

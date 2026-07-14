@@ -7,7 +7,6 @@ from pathlib import Path
 import numpy as np
 import torch
 from PIL import Image
-from scipy.optimize import linear_sum_assignment
 
 from src import SMOO, TEarlyTermCallable
 from src.manipulator.pertubation_manipulator import (
@@ -257,7 +256,6 @@ class MMMTester(SMOO):
         :param original_embedding: Cached embedding of the original target-object string.
         :param embedding_cache: Per-sample cache for perturbed-text embeddings.
         :returns: The manipulated candidates and timing breakdown.
-        :raises ValueError: If the VLM response batch size does not match the candidate batch size.
         """
         manipulate_start = time.perf_counter()
         manipulated = self._manipulator.manipulate(candidates)

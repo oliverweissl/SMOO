@@ -17,7 +17,6 @@ from ._sut import SUT
 _TIMEOUT = 10
 _DEFAULT_PORTS = (8700, 8701, 8702, 8703, 8704)
 
-TPromptMode = Literal["plain", "deepseek_ref"]
 TBBoxOrder = Literal["xyxy", "yxyx"]
 
 logger = logging.getLogger(__name__)
@@ -31,7 +30,7 @@ class VLMSUT(SUT):
         model: str,
         coord_scale: Optional[int],
         bbox_order: TBBoxOrder = "xyxy",
-        prompt_mode: TPromptMode = "plain",
+        prompt_mode: str = "plain",
         image_resize: Optional[tuple[int, int]] = None,
         tensor_parallel_size: int = 1,
         gpu_memory_utilization: float = 0.8,
@@ -40,6 +39,7 @@ class VLMSUT(SUT):
         seed: int = 0,
         served_ports: tuple[int, ...] = _DEFAULT_PORTS,
         sampling_params: dict[str, Any] | None = None,
+        extra_body: dict[str, Any] | None = None,
     ) -> None:
         """Initialize a general vLLM-based VLM SUT.
 
@@ -55,6 +55,7 @@ class VLMSUT(SUT):
         :param seed: Random seed forwarded to vLLM.
         :param served_ports: Ports to scan for a compatible local vLLM server.
         :param sampling_params: Optional sampling parameters.
+        :param extra_body: Extra args for chats.
         """
         self._model_id = model
         self._coord_scale = coord_scale
@@ -68,6 +69,7 @@ class VLMSUT(SUT):
         self.llm: Optional[LLM] = None
         self.sampling = SamplingParams(**sampling_params) if sampling_params else None
 
+        self._extra_body = extra_body or dict()
         self._find_served_url()
         if self._served_url is None:
             llm_kwargs: dict[str, Any] = dict(
@@ -142,7 +144,9 @@ class VLMSUT(SUT):
         assert self.llm is not None and self.sampling is not None
         t0 = time.time()
         outputs = self.llm.chat(
-            messages=self._messages(images[0], prompts[0]), sampling_params=self.sampling
+            messages=self._messages(images[0], prompts[0]),
+            sampling_params=self.sampling,
+            **self._extra_body,
         )
         runtime = time.time() - t0
         if len(outputs) != 1:
@@ -199,7 +203,9 @@ class VLMSUT(SUT):
         all_messages = [
             self._messages(image, prompt) for image, prompt in zip(norm_images, norm_prompts)
         ]
-        all_outputs = self.llm.chat(messages=all_messages, sampling_params=self.sampling)
+        all_outputs = self.llm.chat(
+            messages=all_messages, sampling_params=self.sampling, **self._extra_body
+        )
         runtime = time.time() - t0
         if len(all_outputs) != len(norm_images):
             raise RuntimeError(
