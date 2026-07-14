@@ -4,10 +4,9 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import numpy as np
-from numpy.typing import NDArray
 from PIL import Image
 
 from src.manipulator.pertubation_manipulator import (
@@ -48,6 +47,14 @@ def extract_json_array(text: str) -> list[dict[str, Any]]:
     :raises TypeError: If the decoded payload cannot be normalized into a list of dict objects.
     """
     raw_text = text.strip()
+    fence_match = re.fullmatch(
+        r"```(?:json)?\s*(.*?)\s*```",
+        raw_text,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    if fence_match:
+        raw_text = fence_match.group(1).strip()
+
     try:
         payload = json.loads(raw_text)
     except json.JSONDecodeError as exc:
@@ -322,20 +329,20 @@ def build_population_candidates(
     return PerturbCandidateList(*candidates)
 
 
-def ensure_rgb(image: np.ndarray) -> NDArray[np.uint8]:
-    """Ensure a numpy image is RGB-shaped.
-
-    :param image: Image array in grayscale, single-channel, or RGB form.
-    :returns: RGB image array.
-    :raises ValueError: If the array shape cannot be interpreted as an image.
-    """
-    if image.ndim == 2:
-        return cast(NDArray[np.uint8], np.repeat(image[..., None], 3, axis=2).astype(np.uint8))
-    if image.ndim == 3 and image.shape[2] == 1:
-        return cast(NDArray[np.uint8], np.repeat(image, 3, axis=2).astype(np.uint8))
-    if image.ndim != 3 or image.shape[2] != 3:
-        raise ValueError(f"Expected RGB-like image array, got shape {image.shape}.")
-    return cast(NDArray[np.uint8], image.astype(np.uint8, copy=False))
+# def ensure_rgb(image: np.ndarray) -> NDArray[np.uint8]:
+#    """Ensure a numpy image is RGB-shaped.
+#
+#    :param image: Image array in grayscale, single-channel, or RGB form.
+#    :returns: RGB image array.
+#    :raises ValueError: If the array shape cannot be interpreted as an image.
+#    """
+#    if image.ndim == 2:
+#        return cast(NDArray[np.uint8], np.repeat(image[..., None], 3, axis=2).astype(np.uint8))
+#    if image.ndim == 3 and image.shape[2] == 1:
+#        return cast(NDArray[np.uint8], np.repeat(image, 3, axis=2).astype(np.uint8))
+#    if image.ndim != 3 or image.shape[2] != 3:
+#       raise ValueError(f"Expected RGB-like image array, got shape {image.shape}.")
+#    return cast(NDArray[np.uint8], image.astype(np.uint8, copy=False))
 
 
 def _extract_bbox(pred: dict[str, Any]) -> list[float]:
@@ -348,14 +355,14 @@ def _extract_bbox(pred: dict[str, Any]) -> list[float]:
     raise KeyError(f"Prediction is missing bbox field: {pred!r}")
 
 
-def _extract_label(pred: dict[str, Any]) -> str:
-    for key in ("label", "object", "class", "name", "category"):
-        if key in pred:
-            value = str(pred[key]).strip()
-            if not value:
-                raise ValueError(f"Prediction label under key {key!r} is empty: {pred!r}")
-            return value
-    raise KeyError(f"Prediction is missing label field: {pred!r}")
+# def _extract_label(pred: dict[str, Any]) -> str:
+#    for key in ("label", "object", "class", "name", "category"):
+#        if key in pred:
+#            value = str(pred[key]).strip()
+#            if not value:
+#                raise ValueError(f"Prediction label under key {key!r} is empty: {pred!r}")
+#            return value
+#    raise KeyError(f"Prediction is missing label field: {pred!r}")
 
 
 def _to_pixel_box(

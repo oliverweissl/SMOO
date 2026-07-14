@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MODELS=(nemotron) # qwen kimi intern gemma deepseek
+MODELS=(gemma) # qwen kimi intern gemma deepseek nemotron
 
 port_for_model() {
   case "$1" in
