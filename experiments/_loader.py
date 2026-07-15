@@ -93,6 +93,7 @@ _EMPTY_COLUMNS = {
     "pareto_index": pd.Series(dtype="float64"),
     "_best_img_path": pd.Series(dtype="object"),
     "_orig_img_folder": pd.Series(dtype="object"),
+    "_result_json_path": pd.Series(dtype="object"),
     "original_prompt": pd.Series(dtype="object"),
     "perturbed_prompt": pd.Series(dtype="object"),
     "modality_label": pd.Series(dtype="object"),
@@ -237,6 +238,7 @@ def _parse_best_result(path: Path, model: str) -> dict[str, Any] | None:
         "pareto_index": float(data.get("pareto_index", float("nan"))),
         "_best_img_path": str(path.parent / "best_result.png"),
         "_orig_img_folder": folder_path,
+        "_result_json_path": str(path),
         "original_prompt": data.get("original_prompt", ""),
         "perturbed_prompt": vlm.get("perturbed_prompt", ""),
     }
@@ -292,6 +294,7 @@ def _parse_baseline_fail(path: Path, model: str) -> dict[str, Any] | None:
         "pareto_index": float("nan"),
         "_best_img_path": "",
         "_orig_img_folder": folder_path,
+        "_result_json_path": str(path),
         "original_prompt": data.get("original_prompt", ""),
         "perturbed_prompt": "",
     }

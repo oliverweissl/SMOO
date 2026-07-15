@@ -253,16 +253,6 @@ class VLMSUT(SUT):
             return f" <|ref|>{prompt}<|/ref|>."
         raise ValueError(f"Unsupported prompt mode: {self._prompt_mode}.")
 
-    def _transform_image(self, image: Image.Image) -> Image.Image:
-        """Apply optional model-specific image resizing.
-
-        :param image: Input image.
-        :returns: Possibly resized image.
-        """
-        if self._image_resize is None:
-            return image
-        return image.resize(self._image_resize)
-
     def _messages(self, image: Image.Image, prompt: str) -> list[dict[str, Any]]:
         """Build a single-turn multimodal chat payload.
 
@@ -270,7 +260,7 @@ class VLMSUT(SUT):
         :param prompt: Input prompt.
         :returns: vLLM-compatible multimodal chat message payload.
         """
-        image = self._transform_image(image)
+        image = image.resize(self._image_resize) if self._image_resize else image
         prompt = self._transform_prompt(prompt)
         return [
             {

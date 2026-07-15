@@ -372,29 +372,19 @@ def _to_pixel_box(
     coord_scale: int | None,
     bbox_order: str,
 ) -> list[float]:
-    if len(bbox) != 4:
-        raise ValueError(f"Expected bbox of length 4, got {bbox!r}")
-    a, b, c, d = bbox
     if bbox_order == "yxyx":
-        x1, y1, x2, y2 = b, a, d, c
+        y1, x1, y2, x2 = bbox
     elif bbox_order == "xyxy":
-        x1, y1, x2, y2 = a, b, c, d
+        x1, y1, x2, y2 = bbox
     else:
         raise ValueError(f"Unsupported bbox order: {bbox_order}")
 
-    scale = float(coord_scale) if coord_scale else 1.0
-    x1 = x1 * ref_w / scale
-    y1 = y1 * ref_h / scale
-    x2 = x2 * ref_w / scale
-    y2 = y2 * ref_h / scale
-
-    x1, x2 = sorted((x1, x2))
-    y1, y2 = sorted((y1, y2))
-    x1 = min(max(x1, 0.0), float(ref_w))
-    y1 = min(max(y1, 0.0), float(ref_h))
-    x2 = min(max(x2, 0.0), float(ref_w))
-    y2 = min(max(y2, 0.0), float(ref_h))
-    return [x1, y1, x2, y2]
+    return [
+        x1 * ref_w / coord_scale,
+        y1 * ref_h / coord_scale,
+        x2 * ref_w / coord_scale,
+        y2 * ref_h / coord_scale,
+    ]
 
 
 def prepare_bbox_pairs(
