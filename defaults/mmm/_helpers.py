@@ -17,25 +17,11 @@ from src.manipulator.pertubation_manipulator import (
 from src.objectives.image_criteria import VLMBBoxIoU
 from src.sut import VLMSUT
 
+from ._prompts import DETECTION_PROMPT
+
 BEST_RESULT_FILENAME = "best_result.json"
 BEST_RESULT_IMAGE_FILENAME = "best_result.png"
 BASELINE_FAIL_FILENAME = "baseline_fail.json"
-
-
-def resize_image_smart(image: Image.Image, max_resolution: int) -> Image.Image:
-    """Resize an image proportionally when its longest side exceeds the configured limit.
-
-    :param image: Input PIL image.
-    :param max_resolution: Maximum allowed size for the longest image side.
-    :returns: The original image or a resized copy that respects ``max_resolution``.
-    """
-    width, height = image.size
-    if max(width, height) <= max_resolution:
-        return image
-
-    scale = max_resolution / float(max(width, height))
-    resized = (max(1, int(round(width * scale))), max(1, int(round(height * scale))))
-    return image.resize(resized, Image.Resampling.LANCZOS)
 
 
 def extract_json_array(text: str) -> list[dict[str, Any]]:
@@ -105,6 +91,24 @@ def extract_target_objects(prompt: str) -> list[str]:
     if not objects:
         raise ValueError(f"Extracted no target objects from prompt: {prompt!r}")
     return objects
+
+
+def extract_target_objects_from_ground_truth(ground_truth: dict[str, Any]) -> list[str]:
+    """Derive prompt object order from ``ground_truth`` keys when no prompt is stored."""
+    if not isinstance(ground_truth, dict):
+        raise TypeError(
+            f"Expected ground_truth to be a dict, got {type(ground_truth).__name__}."
+        )
+
+    target_objects: list[str] = []
+    for key in ground_truth:
+        base_label = re.sub(r"_\d+$", "", str(key)).strip()
+        if base_label and base_label not in target_objects:
+            target_objects.append(base_label)
+
+    if not target_objects:
+        raise ValueError("Extracted no target objects from ground_truth.")
+    return target_objects
 
 
 def _normalise_label(label: str) -> str:
@@ -186,14 +190,20 @@ def load_sample(
     with input_json.open("r", encoding="utf-8") as handle:
         base_data = json.load(handle)
 
-    if "prompt" not in base_data:
-        raise KeyError(f"Missing 'prompt' in {input_json}")
     if "ground_truth" not in base_data or not isinstance(base_data["ground_truth"], dict):
         raise KeyError(f"Missing or invalid 'ground_truth' in {input_json}")
 
     raw_img = Image.open(input_img).convert("RGB")
-    clean_image = resize_image_smart(raw_img, max_resolution)
-    target_objects = extract_target_objects(base_data["prompt"])
+    width, height = raw_img.size
+    scale = min(max_resolution / max(width, height), 1)
+    clean_image = raw_img.resize(
+        (round(width * scale), round(height * scale)),
+        Image.Resampling.LANCZOS,
+    )
+
+    target_objects = extract_target_objects_from_ground_truth(base_data["ground_truth"])
+    original_prompt = DETECTION_PROMPT.format(objects=", ".join(target_objects))
+
     ground_truth_boxes = _normalize_ground_truth_boxes(base_data["ground_truth"], target_objects)
 
     clean_image_array = np.asarray(clean_image, dtype=np.uint8)
@@ -204,7 +214,7 @@ def load_sample(
         folder_id=folder_id,
         filename=base_data.get("image", input_img.name),
         clean_image_pil=clean_image,
-        original_prompt=base_data["prompt"],
+        original_prompt=original_prompt,
         target_objects=target_objects,
         ground_truth_boxes=ground_truth_boxes,
         original_size=raw_img.size,
@@ -329,22 +339,6 @@ def build_population_candidates(
     return PerturbCandidateList(*candidates)
 
 
-# def ensure_rgb(image: np.ndarray) -> NDArray[np.uint8]:
-#    """Ensure a numpy image is RGB-shaped.
-#
-#    :param image: Image array in grayscale, single-channel, or RGB form.
-#    :returns: RGB image array.
-#    :raises ValueError: If the array shape cannot be interpreted as an image.
-#    """
-#    if image.ndim == 2:
-#        return cast(NDArray[np.uint8], np.repeat(image[..., None], 3, axis=2).astype(np.uint8))
-#    if image.ndim == 3 and image.shape[2] == 1:
-#        return cast(NDArray[np.uint8], np.repeat(image, 3, axis=2).astype(np.uint8))
-#    if image.ndim != 3 or image.shape[2] != 3:
-#       raise ValueError(f"Expected RGB-like image array, got shape {image.shape}.")
-#    return cast(NDArray[np.uint8], image.astype(np.uint8, copy=False))
-
-
 def _extract_bbox(pred: dict[str, Any]) -> list[float]:
     for key in ("bbox", "bbox_2d", "bounding_box", "box"):
         if key in pred:
@@ -353,16 +347,6 @@ def _extract_bbox(pred: dict[str, Any]) -> list[float]:
                 raise ValueError(f"Invalid bbox payload under key {key!r}: {bbox!r}")
             return [float(value) for value in bbox]
     raise KeyError(f"Prediction is missing bbox field: {pred!r}")
-
-
-# def _extract_label(pred: dict[str, Any]) -> str:
-#    for key in ("label", "object", "class", "name", "category"):
-#        if key in pred:
-#            value = str(pred[key]).strip()
-#            if not value:
-#                raise ValueError(f"Prediction label under key {key!r} is empty: {pred!r}")
-#            return value
-#    raise KeyError(f"Prediction is missing label field: {pred!r}")
 
 
 def _to_pixel_box(

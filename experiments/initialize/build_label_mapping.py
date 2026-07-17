@@ -1,40 +1,27 @@
 """Collect unique class labels from selection results and write label_mapping.json."""
 
 import json
-import os
 import re
+from pathlib import Path
 
-from config.paths import LABEL_MAPPING_FILE, RESULTS_DIR, SELECTION_CATEGORIES
+from config.paths import LABEL_MAPPING_FILE, RESULTS_DIR
 
 
 def extract_base_label(key: str) -> str:
-    """Strip a trailing numeric suffix (e.g. ``_1``) from a ground-truth key.
-
-    :param key: Ground-truth key such as ``"dog"`` or ``"dog_2"``.
-    :returns: Base label string without the numeric suffix.
-    """
+    """Strip a trailing numeric suffix (e.g. ``_1``) from a ground-truth key."""
     return re.sub(r"_\d+$", "", key)
 
 
 def collect_labels(results_dir: str = RESULTS_DIR) -> set[str]:
-    """Walk the selection results directory and collect all unique base class labels.
-
-    :param results_dir: Root directory containing category sub-folders with ``original.json`` files.
-    :returns: Set of unique base label strings found across all selections.
-    """
+    """Walk the selection directory recursively and collect all unique base class labels."""
     labels: set[str] = set()
-    for category in SELECTION_CATEGORIES:
-        cat_dir = os.path.join(results_dir, category)
-        if not os.path.isdir(cat_dir):
+    for json_path in sorted(Path(results_dir).rglob("original.json")):
+        if not json_path.is_file():
             continue
-        for folder_name in sorted(os.listdir(cat_dir)):
-            json_path = os.path.join(cat_dir, folder_name, "original.json")
-            if not os.path.isfile(json_path):
-                continue
-            with open(json_path) as f:
-                data = json.load(f)
-            for key in data.get("ground_truth", {}):
-                labels.add(extract_base_label(key))
+        with open(json_path, encoding="utf-8") as f:
+            data = json.load(f)
+        for key in data.get("ground_truth", {}):
+            labels.add(extract_base_label(key))
     return labels
 
 
@@ -43,8 +30,8 @@ def main() -> None:
     labels = collect_labels()
     print(f"Found {len(labels)} unique class labels.")
     mapping = {label: [] for label in sorted(labels)}
-    os.makedirs(os.path.dirname(LABEL_MAPPING_FILE), exist_ok=True)
-    with open(LABEL_MAPPING_FILE, "w") as f:
+    Path(LABEL_MAPPING_FILE).parent.mkdir(parents=True, exist_ok=True)
+    with open(LABEL_MAPPING_FILE, "w", encoding="utf-8") as f:
         json.dump(mapping, f, indent=4)
     print(f"Saved label mapping to {LABEL_MAPPING_FILE}")
 

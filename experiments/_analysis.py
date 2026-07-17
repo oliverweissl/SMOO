@@ -12,6 +12,7 @@ import matplotlib as mpl
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import subprocess
 from scipy.optimize import linear_sum_assignment
 from jiwer import cer
 from PIL import Image
@@ -38,30 +39,6 @@ TERMINATION_COLORS = {
     "No objects found": "#7f7f7f",
     "JSON malformed": "#e41a1c",
     "Other value errors": "#377eb8",
-}
-
-SPLIT_ORDER = [
-    ("multimodal", "multi", "multi"),
-    ("multimodal", "multi", "single/multi"),
-    ("multimodal", "multi", "single/solo"),
-    ("unimodal", "image", "multi"),
-    ("unimodal", "image", "single/multi"),
-    ("unimodal", "image", "single/solo"),
-    ("unimodal", "text", "multi"),
-    ("unimodal", "text", "single/multi"),
-    ("unimodal", "text", "single/solo"),
-]
-
-SPLIT_LABEL = {
-    ("multimodal", "multi", "multi"): "multimodal-multi",
-    ("multimodal", "multi", "single/multi"): "multimodal-single-multi",
-    ("multimodal", "multi", "single/solo"): "multimodal-single-solo",
-    ("unimodal", "image", "multi"): "image-multi",
-    ("unimodal", "image", "single/multi"): "image-single-multi",
-    ("unimodal", "image", "single/solo"): "image-single-solo",
-    ("unimodal", "text", "multi"): "text-multi",
-    ("unimodal", "text", "single/multi"): "text-single-multi",
-    ("unimodal", "text", "single/solo"): "text-single-solo",
 }
 
 
@@ -101,17 +78,6 @@ def compute_text_metrics(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def _resize_image_smart(image: Image.Image, max_resolution: int) -> Image.Image:
-    """Resize an image proportionally when its longest side exceeds the limit."""
-    width, height = image.size
-    if max(width, height) <= max_resolution:
-        return image
-
-    scale = max_resolution / float(max(width, height))
-    resized = (max(1, int(round(width * scale))), max(1, int(round(height * scale))))
-    return image.resize(resized, Image.Resampling.LANCZOS)
-
-
 def _resolve_original_image_path(folder_value: str) -> Path:
     folder = Path(folder_value)
     if not folder.is_absolute():
@@ -129,8 +95,8 @@ def compute_image_metrics(df: pd.DataFrame) -> pd.DataFrame:
     for _, row in df.iterrows():
         orig = _resolve_original_image_path(str(row["_orig_img_folder"]))
         pth = Path(row["_best_img_path"])
-        ref_img = _resize_image_smart(Image.open(orig).convert("RGB"), 1024)
-        dis_img = Image.open(pth).convert("RGB")
+        ref_img = Image.open(orig).convert("RGB")
+        dis_img = Image.open(pth).convert("RGB").resize(size=ref_img.size)
         ref = np.asarray(ref_img, dtype=np.uint8)
         dis = np.asarray(dis_img, dtype=np.uint8)
         ms.append(msssim(ref, dis))
@@ -138,23 +104,34 @@ def compute_image_metrics(df: pd.DataFrame) -> pd.DataFrame:
     df["ms_ssim"] = ms
     return df
 
+def _download_xml(xml_path: Path) -> None:
+    rel = f"ILSVRC/Annotations/CLS-LOC/val/{xml_path.name}"
 
-_SCENE_MAP = {
-    "single/solo": "Isolated",
-    "single/multi": "Clustered",
-    "multi": "Mixed",
-}
-
-_REJECT_REASON_CODE = {
-    "unclear_image": 0,
-    "unclear_label": 1,
-}
+    subprocess.run(
+        [
+            "kaggle",
+            "competitions",
+            "download",
+            "-c",
+            "imagenet-object-localization-challenge",
+            "-f",
+            rel,
+            "-p",
+            str(xml_path.parent),
+        ],
+        check=True,
+    )
 
 
 def _xml_gt_boxes(xml_dir: Path, img_fn: str) -> list:
     """Return list of [xmin, ymin, xmax, ymax] from ILSVRC XML for *img_fn*."""
     stem = os.path.splitext(img_fn)[0]
     xml_path = xml_dir / (stem + ".xml")
+
+    if not xml_path.exists():
+        print(f"Downloading missing annotation: {xml_path.name}")
+        _download_xml(xml_path)
+
     root_el = ElementTree.parse(str(xml_path)).getroot()
 
     boxes = []
@@ -212,13 +189,18 @@ def classify_termination_series(df: pd.DataFrame) -> pd.DataFrame:
     out["termination_type"] = out.apply(classify_termination, axis=1)
     return out
 
+_SCENE_MAP = {
+    "single/solo": "Isolated",
+    "single/multi": "Clustered",
+    "multi": "Mixed",
+}
 
 def load_rq3_data(root: str | Path) -> pd.DataFrame:
     """Load survey + GT and return one row per (image, session)."""
     root = Path(root)
     ann_dir = root / "dataset" / "2017" / "ILSVRC" / "Annotations" / "DET" / "val"
 
-    with open(root / "analysis" / "survey.json") as f:
+    with open(root / "experiments" / "survey.json") as f:
         survey = json.load(f)
 
     records = []
@@ -571,6 +553,12 @@ def recover_json_bboxes_with_ollama(
                 "model": model,
                 "messages": [{"role": "user", "content": prompt}],
                 "stream": False,
+                "keep_alive": "30m",
+                "options": {
+                    "temperature": 0,
+                    "num_predict": 128,
+                    "num_ctx": 4096,
+                },
             },
             timeout=timeout,
         )
@@ -623,3 +611,179 @@ def evaluate_recovered_predictions(
     pred_indices, gt_indices = linear_sum_assignment(-ious)
     matched_ious = ious[pred_indices, gt_indices]
     return float(matched_ious.sum() / max(len(pred_matrix), len(gt_boxes)))
+
+
+class MetricTable:
+    """Render one or more metric groups in a shared LaTeX table."""
+
+    MODES = ["multi", "image", "text"]
+
+    MODE_LABELS = {
+        "multi": r"\faImage\;+ \faFont",
+        "image": r"\faImage",
+        "text": r"\faFont",
+    }
+
+    def __init__(
+        self,
+        df: pd.DataFrame,
+        title: str,
+        model_mapping: dict[str, str],
+        metric_mapping: dict[str, str],
+        scene_mapping: dict[str, str],
+        shared_metrics: set[str] | None = None,
+    ) -> None:
+        self.model_mapping = model_mapping
+        self.scene_mapping = scene_mapping
+
+        self.tables = [
+            {
+                "title": title,
+                "df": df.copy(),
+                "metrics": metric_mapping,
+                "shared_metrics": shared_metrics or set(),
+            }
+        ]
+
+    def __add__(self, other: MetricTable) -> MetricTable:
+        if self.model_mapping != other.model_mapping:
+            raise ValueError("Model mappings differ.")
+
+        if self.scene_mapping != other.scene_mapping:
+            raise ValueError("Scene mappings differ.")
+
+        merged = MetricTable.__new__(MetricTable)
+        merged.model_mapping = self.model_mapping
+        merged.scene_mapping = self.scene_mapping
+        merged.tables = self.tables + other.tables
+        return merged
+
+    @staticmethod
+    def _value(value: object) -> str:
+        if value is None:
+            return "---"
+
+        if isinstance(value, str):
+            return value if value else "---"
+
+        if pd.isna(value):
+            return "---"
+
+        return str(value)
+
+    def __repr__(self) -> str:
+        metric_count = sum(len(table["metrics"]) for table in self.tables)
+
+        separator_count = len(self.tables) - 1
+        column_count = 2 + metric_count + separator_count
+        alignment = "ll" + "c" * (metric_count + separator_count)
+
+        lines = [
+            rf"\begin{{tabular}}{{{alignment}}}",
+            r"\toprule",
+        ]
+
+        if len(self.tables) == 1:
+            table = self.tables[0]
+            metric_titles = " & ".join(table["metrics"].values())
+
+            lines.append(f"Model & Scene & {metric_titles} \\\\")
+        else:
+            group_headers = []
+            detail_headers = ["", ""]
+            cmidrules = []
+
+            column = 3
+
+            for index, table in enumerate(self.tables):
+                width = len(table["metrics"])
+                title = table["title"]
+
+                group_headers.append(rf"\multicolumn{{{width}}}{{c}}{{\textsc{{{title}}}}}")
+
+                detail_headers.extend(table["metrics"].values())
+
+                cmidrules.append(rf"\cmidrule(lr){{{column}-{column + width - 1}}}")
+
+                column += width
+
+                if index < len(self.tables) - 1:
+                    group_headers.append("")
+                    detail_headers.append("")
+                    column += 1
+
+            lines.append(
+                r"\multirow{2}{*}{Model} & "
+                r"\multirow{2}{*}{Scene} & " + " & ".join(group_headers) + r" \\"
+            )
+            lines.extend(cmidrules)
+            lines.append(" & ".join(detail_headers) + r" \\")
+
+        lines.append(r"\midrule")
+
+        model_items = list(self.model_mapping.items())
+        scene_items = list(self.scene_mapping.items())
+
+        for model_index, (model_key, model_label) in enumerate(model_items):
+            model_span = 3 * len(scene_items)
+            first_model_row = True
+
+            for scene_index, (scene_key, scene_label) in enumerate(scene_items):
+                for mode_index, mode in enumerate(self.MODES):
+                    cells = []
+
+                    if first_model_row:
+                        cells.append(rf"\multirow{{{model_span}}}{{*}}{{{model_label}}}")
+                        first_model_row = False
+                    else:
+                        cells.append("")
+
+                    if mode_index == 0:
+                        cells.append(rf"\multirow{{3}}{{*}}{{{scene_label}}}")
+                    else:
+                        cells.append("")
+
+                    for table_index, table in enumerate(self.tables):
+                        df = table["df"]
+                        metrics = table["metrics"]
+                        shared_metrics = table["shared_metrics"]
+
+                        selected = df[
+                            (df["model"] == model_key)
+                            & (df["scene"] == scene_key)
+                            & (df["genome_mode"] == mode)
+                        ]
+
+                        row = selected.iloc[0] if not selected.empty else None
+
+                        for metric in metrics:
+                            if metric in shared_metrics and mode_index > 0:
+                                cells.append("")
+                                continue
+
+                            value = self._value(row[metric]) if row is not None else "---"
+
+                            if metric in shared_metrics:
+                                value = rf"\multirow{{3}}{{*}}{{{value}}}"
+
+                            cells.append(value)
+
+                        if table_index < len(self.tables) - 1:
+                            cells.append("")
+
+                    lines.append(" & ".join(cells) + r" \\")
+
+                if scene_index < len(scene_items) - 1:
+                    lines.append(rf"\cmidrule(lr){{2-{column_count}}}")
+
+            if model_index < len(model_items) - 1:
+                lines.append(r"\midrule")
+
+        lines.extend(
+            [
+                r"\bottomrule",
+                r"\end{tabular}",
+            ]
+        )
+
+        return "\n".join(lines)

@@ -8,7 +8,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 import argparse
 import copy
 import random
-from typing import Any, Literal
+from typing import Any
 
 import numpy as np
 import torch
@@ -49,7 +49,7 @@ MODEL_SPECS: dict[str, dict[str, Any]] = {
     },
     "gemma": {
         "model": "google/gemma-3-4b-it",
-        "coord_scale": 896,
+        "coord_scale": 1000,
         "bbox_order": "yxyx",
         "image_resize": (896, 896),
     },

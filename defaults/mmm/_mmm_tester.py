@@ -343,25 +343,27 @@ class MMMTester(SMOO):
 
     @staticmethod
     def get_all_sample_folders(results_dir: str | Path) -> list[tuple[str, str, str]]:
-        """Discover all valid sample folders under the three annotation categories.
+        """Discover all valid sample folders recursively under the selection root.
 
         :param results_dir: Root results directory produced by the data selector.
         :returns: Sorted list of ``(folder_path, category, folder_id)`` tuples.
         """
+        root = Path(results_dir)
         sample_folders = []
-        for cat_rel in (os.path.join("single", "solo"), os.path.join("single", "multi"), "multi"):
-            cat_abs = os.path.join(results_dir, cat_rel)
-            if not os.path.isdir(cat_abs):
+        if not root.exists():
+            return sample_folders
+
+        for json_path in root.rglob("original.json"):
+            fp = json_path.parent
+            folder_id = fp.name
+            if not folder_id.isdigit():
                 continue
-            for fn in os.listdir(cat_abs):
-                fp = os.path.join(cat_abs, fn)
-                if not os.path.isdir(fp) or not fn.isdigit():
-                    continue
-                if not os.path.exists(os.path.join(fp, "original.json")):
-                    continue
-                if not os.path.exists(os.path.join(fp, "data_point.JPEG")):
-                    continue
-                sample_folders.append((fp, cat_rel, fn))
+            if not (fp / "data_point.JPEG").exists():
+                continue
+            category_path = os.path.relpath(str(fp.parent), str(root))
+            category = "" if category_path == "." else category_path
+            sample_folders.append((str(fp), category, folder_id))
+
         sample_folders.sort(key=lambda item: (item[1], int(item[2])))
         return sample_folders
 

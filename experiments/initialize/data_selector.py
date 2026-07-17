@@ -1,16 +1,20 @@
+from __future__ import annotations
+
 import json
 import os
 import random
 import shutil
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 import numpy as np
 import scipy.io
 import torch
 from config.experiment import NUM_IMAGES, SEED
-from config.prompts import DETECTION_PROMPT
 from config.paths import (
     ANNOTATIONS_PATH,
+    BDD100K_DATASET_PATH,
+    BDD100K_LABELS_PATH,
     DATASET_PATH,
     MAT_FILE_PATH,
 )
@@ -20,11 +24,7 @@ from tqdm import tqdm
 
 
 def load_synset_to_label(mat_file_path):
-    """Load the synset-to-human-label mapping from the ImageNet meta ``.mat`` file.
-
-    :param mat_file_path: Path to the ImageNet ``meta.mat`` file.
-    :returns: Dict mapping synset strings (e.g. ``"n01440764"``) to label strings.
-    """
+    """Load the synset-to-human-label mapping from the ImageNet meta ``.mat`` file."""
     meta = scipy.io.loadmat(mat_file_path)
     synsets = meta["synsets"]
     synset_to_label = {}
@@ -35,13 +35,18 @@ def load_synset_to_label(mat_file_path):
     return synset_to_label
 
 
-def parse_annotation(xml_file, synset_to_label):
-    """Parse an ImageNet PASCAL VOC XML annotation file.
+def _make_unique_gt_key(ground_truth: dict[str, dict[str, int]], label: str) -> str:
+    key = label
+    if key in ground_truth:
+        suffix = 1
+        while f"{label}_{suffix}" in ground_truth:
+            suffix += 1
+        key = f"{label}_{suffix}"
+    return key
 
-    :param xml_file: Path to the XML annotation file.
-    :param synset_to_label: Dict mapping synset IDs to human-readable labels.
-    :returns: Tuple of (ground_truth dict, set of unique labels, instance count).
-    """
+
+def parse_annotation(xml_file, synset_to_label):
+    """Parse an ImageNet PASCAL VOC XML annotation file."""
     tree = ET.parse(xml_file)
     root = tree.getroot()
     ground_truth = {}
@@ -63,49 +68,82 @@ def parse_annotation(xml_file, synset_to_label):
             "ymax": int(bndbox.find("ymax").text),
         }
 
-        key = label
-        if key in ground_truth:
-            suffix = 1
-            while f"{label}_{suffix}" in ground_truth:
-                suffix += 1
-            key = f"{label}_{suffix}"
-        ground_truth[key] = box
+        ground_truth[_make_unique_gt_key(ground_truth, label)] = box
+
+    return ground_truth, unique_labels, instance_count
+
+
+def normalize_bdd100k_stem(stem: str) -> str:
+    """Normalize local BDD100K image stems to the JSON naming convention."""
+    return stem[:-8] if stem.endswith("-0000100") else stem
+
+
+def parse_bdd100k_labels(objects: list[dict]) -> tuple[dict[str, dict[str, int]], set[str], int]:
+    """Normalize BDD100K ``labels`` entries into MMM ``ground_truth`` format."""
+    ground_truth: dict[str, dict[str, int]] = {}
+    unique_labels: set[str] = set()
+    instance_count = 0
+
+    for obj in objects:
+        if not isinstance(obj, dict):
+            continue
+        label = str(obj.get("category", "")).strip()
+        box2d = obj.get("box2d")
+        if not label or not isinstance(box2d, dict):
+            continue
+        required = ("x1", "y1", "x2", "y2")
+        if any(key not in box2d for key in required):
+            continue
+
+        box = {
+            "xmin": int(round(float(box2d["x1"]))),
+            "ymin": int(round(float(box2d["y1"]))),
+            "xmax": int(round(float(box2d["x2"]))),
+            "ymax": int(round(float(box2d["y2"]))),
+        }
+        ground_truth[_make_unique_gt_key(ground_truth, label)] = box
+        unique_labels.add(label)
+        instance_count += 1
 
     return ground_truth, unique_labels, instance_count
 
 
 class DataSelector:
-    """
-    Selects a stratified subset of ImageNet DET val images based purely on
-    annotation structure (no VLM involved).  All VLMs are later evaluated on
-    the same subset; per-VLM baseline IoU is computed at search time.
-    """
+    """Dataset-aware selection builder for MMM sample folders."""
 
     def __init__(
         self,
-        dataset_path: str = DATASET_PATH,
+        dataset_kind: str = "bdd100k",
+        dataset_path: str | None = None,
         annotations_path: str = ANNOTATIONS_PATH,
         mat_file_path: str = MAT_FILE_PATH,
+        bdd100k_labels_path: str = BDD100K_LABELS_PATH,
         seed: int = SEED,
         results_dir: str = RESULTS_BASE_DIR,
     ):
-        self.dataset_path = dataset_path
+        self.dataset_kind = dataset_kind
+        self.dataset_path = dataset_path or (
+            BDD100K_DATASET_PATH if dataset_kind == "bdd100k" else DATASET_PATH
+        )
         self.annotations_path = annotations_path
+        self.bdd100k_labels_path = bdd100k_labels_path
         self.seed = seed
         self.results_dir = results_dir
+        self.synset_to_label = None
 
         random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)
 
-        print("Loading Synset mappings...")
-        self.synset_to_label = load_synset_to_label(mat_file_path)
+        if self.dataset_kind == "imagenet_det":
+            print("Loading Synset mappings...")
+            self.synset_to_label = load_synset_to_label(mat_file_path)
 
     def scan_and_sort_candidates(self):
-        """Scan the annotations directory and bucket images by category.
+        """Scan the ImageNet DET annotations directory and bucket images by category."""
+        if self.synset_to_label is None:
+            raise ValueError("ImageNet selection requested without synset mappings.")
 
-        :returns: Three shuffled lists (solo-instance, multi-instance, multi-class) of candidate dicts.
-        """
         print("Scanning dataset annotations...")
         xml_files = sorted([f for f in os.listdir(self.annotations_path) if f.endswith(".xml")])
 
@@ -120,7 +158,11 @@ class DataSelector:
             )
 
             image_file = os.path.splitext(xml_file)[0] + ".JPEG"
-            candidate = {"xml_file": xml_file, "image_file": image_file, "gt": gt_data}
+            candidate = {
+                "image_file": image_file,
+                "image_path": os.path.join(self.dataset_path, image_file),
+                "gt": gt_data,
+            }
 
             if len(unique_labels) == 1:
                 if instance_count >= 2:
@@ -140,12 +182,43 @@ class DataSelector:
 
         return single_class_solo_instance, single_class_multi_instance, multi_class_candidates
 
-    def get_existing_progress(self, category):
-        """Read existing saved selections to determine resume state.
+    def scan_bdd100k_candidates(self) -> list[dict]:
+        """Collect all local BDD100K subset images with matched JSON labels."""
+        with open(self.bdd100k_labels_path, "r", encoding="utf-8") as handle:
+            labels = json.load(handle)
 
-        :param category: Category subdirectory name (e.g. ``"single/solo"``).
-        :returns: Tuple of (next_index, set of already-saved image filenames).
-        """
+        label_map = {
+            Path(item["name"]).stem: item
+            for item in labels
+            if isinstance(item, dict) and "name" in item
+        }
+
+        candidates: list[dict] = []
+        image_paths = sorted(path for path in Path(self.dataset_path).iterdir() if path.is_file())
+        for image_path in image_paths:
+            image_stem = normalize_bdd100k_stem(image_path.stem)
+            record = label_map.get(image_stem)
+            if record is None:
+                continue
+
+            ground_truth, unique_labels, instance_count = parse_bdd100k_labels(record.get("labels", []))
+            if not ground_truth or not unique_labels or instance_count <= 0:
+                continue
+
+            candidates.append(
+                {
+                    "image_file": image_path.name,
+                    "image_path": str(image_path),
+                    "source_name": record["name"],
+                    "gt": ground_truth,
+                }
+            )
+
+        print(f"Found {len(candidates)} BDD100K candidates with valid 2D boxes.")
+        return candidates
+
+    def get_existing_progress(self, category):
+        """Read existing saved selections to determine resume state."""
         category_dir = os.path.join(self.results_dir, category)
         if not os.path.exists(category_dir):
             return 1, set()
@@ -159,7 +232,7 @@ class DataSelector:
             result_file = os.path.join(category_dir, folder_name, "original.json")
             if os.path.exists(result_file):
                 try:
-                    with open(result_file, "r") as f:
+                    with open(result_file, "r", encoding="utf-8") as f:
                         data = json.load(f)
                     if "image" in data:
                         completed_filenames.add(data["image"])
@@ -171,32 +244,24 @@ class DataSelector:
         return next_index, completed_filenames
 
     def save_selection(self, cand, category, index):
-        """Persist one selected sample: write ``original.json`` and copy the image.
-
-        :param cand: Candidate dict with keys ``image_file`` and ``gt``.
-        :param category: Category subdirectory name.
-        :param index: Numeric folder index for this sample.
-        """
+        """Persist one selected sample: write ``original.json`` and copy the image."""
         dir_path = os.path.join(self.results_dir, category, str(index))
         os.makedirs(dir_path, exist_ok=True)
 
-        image_path = os.path.join(self.dataset_path, cand["image_file"])
+        image_path = cand["image_path"]
         with Image.open(image_path) as img:
             orig_w, orig_h = img.size
 
-        object_names = set(k.split("_")[0] for k in cand["gt"].keys())
-        objects_str = ", ".join(sorted(object_names))
-        prompt = DETECTION_PROMPT.format(objects=objects_str)
-
         data = {
             "image": cand["image_file"],
-            "prompt": prompt,
             "original_dims": [orig_w, orig_h],
             "seed": str(self.seed),
             "ground_truth": cand["gt"],
         }
+        if cand.get("source_name"):
+            data["source_name"] = cand["source_name"]
 
-        with open(os.path.join(dir_path, "original.json"), "w") as f:
+        with open(os.path.join(dir_path, "original.json"), "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4)
 
         try:
@@ -205,12 +270,7 @@ class DataSelector:
             print(f"Error copying {image_path}: {e}")
 
     def process_group(self, candidates, group_name, target_size):
-        """Save selections from ``candidates`` until ``target_size`` samples exist for ``group_name``.
-
-        :param candidates: Shuffled list of candidate dicts from :meth:`scan_and_sort_candidates`.
-        :param group_name: Category directory name (e.g. ``"single/solo"``).
-        :param target_size: Total number of samples required in this group.
-        """
+        """Save selections from ``candidates`` until ``target_size`` samples exist for ``group_name``."""
         print(f"\n--- Processing Group: {group_name} ---")
 
         next_save_index, completed_filenames = self.get_existing_progress(group_name)
@@ -229,8 +289,7 @@ class DataSelector:
                 break
             if cand["image_file"] in completed_filenames:
                 continue
-            image_path = os.path.join(self.dataset_path, cand["image_file"])
-            if not os.path.exists(image_path):
+            if not os.path.exists(cand["image_path"]):
                 continue
             self.save_selection(cand, group_name, next_save_index)
             next_save_index += 1
@@ -243,24 +302,23 @@ class DataSelector:
             )
 
     def run_selection(self):
-        """Orchestrate the full selection pipeline across all three annotation categories."""
-        solo_candidates, multi_inst_candidates, multi_class_candidates = (
-            self.scan_and_sort_candidates()
-        )
-
-        self.process_group(solo_candidates, "single/solo", target_size=NUM_IMAGES)
-        self.process_group(multi_inst_candidates, "single/multi", target_size=NUM_IMAGES)
-        self.process_group(multi_class_candidates, "multi", target_size=NUM_IMAGES)
+        """Orchestrate selection for the configured dataset."""
+        if self.dataset_kind == "bdd100k":
+            candidates = self.scan_bdd100k_candidates()
+            self.process_group(candidates, "bdd100k", target_size=len(candidates))
+        elif self.dataset_kind == "imagenet_det":
+            solo_candidates, multi_inst_candidates, multi_class_candidates = (
+                self.scan_and_sort_candidates()
+            )
+            self.process_group(solo_candidates, "single/solo", target_size=NUM_IMAGES)
+            self.process_group(multi_inst_candidates, "single/multi", target_size=NUM_IMAGES)
+            self.process_group(multi_class_candidates, "multi", target_size=NUM_IMAGES)
+        else:
+            raise ValueError(f"Unsupported dataset_kind: {self.dataset_kind}")
 
         print(f"\nSelection complete. Results saved in: {os.path.abspath(self.results_dir)}")
 
 
 if __name__ == "__main__":
-    selector = DataSelector(
-        dataset_path=DATASET_PATH,
-        annotations_path=ANNOTATIONS_PATH,
-        mat_file_path=MAT_FILE_PATH,
-        seed=SEED,
-        results_dir=RESULTS_BASE_DIR,
-    )
+    selector = DataSelector(dataset_kind="bdd100k")
     selector.run_selection()

@@ -1,7 +1,4 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")"
-PYTHONPATH=python -c "
-from initialize.data_selector import DataSelector
-DataSelector().run_selection()
-"
+python -c 'from initialize.data_selector import DataSelector; DataSelector(dataset_kind="bdd100k").run_selection()'
