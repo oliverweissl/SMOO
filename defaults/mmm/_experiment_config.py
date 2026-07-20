@@ -17,5 +17,6 @@ class ExperimentConfig:
     results_dir: str = "results"
     selection_dir: str = "selection"
     max_resolution: int = 1024
+    min_bbox_area_fraction: float = 0.0
     min_perturbation_scale: float = 0.01
     solution_shape: Optional[tuple[int, ...]] = None

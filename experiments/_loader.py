@@ -143,6 +143,8 @@ def _infer_obj_category(data_source: dict[str, Any], path: Path) -> str:
         return "single/solo"
     if "single/multi" in combined:
         return "single/multi"
+    if "udacity" in combined:
+        return "udacity"
     return "multi"
 
 
@@ -356,6 +358,7 @@ def load_all_results(
                 "multi": "Multi-object",
                 "single/solo": "Single-object (solo)",
                 "single/multi": "Single-object (multi)",
+                "udacity": "Driving",
             }
         )
         .fillna(df["obj_category"])

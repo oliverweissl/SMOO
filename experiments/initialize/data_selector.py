@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import json
 import os
 import random
@@ -17,10 +18,20 @@ from config.paths import (
     BDD100K_LABELS_PATH,
     DATASET_PATH,
     MAT_FILE_PATH,
+    UDACITY_DATASET_PATH,
+    UDACITY_LABELS_PATH,
 )
 from config.paths import RESULTS_DIR as RESULTS_BASE_DIR
 from PIL import Image
 from tqdm import tqdm
+
+UDACITY_CLASS_ID_TO_LABEL = {
+    "1": "car",
+    "2": "truck",
+    "3": "pedestrian",
+    "4": "bicyclist",
+    "5": "light",
+}
 
 
 def load_synset_to_label(mat_file_path):
@@ -45,6 +56,30 @@ def _make_unique_gt_key(ground_truth: dict[str, dict[str, int]], label: str) -> 
     return key
 
 
+def _parse_int(value) -> int | None:
+    try:
+        return int(round(float(value)))
+    except (TypeError, ValueError):
+        return None
+
+
+def _normalize_box(box: dict[str, int]) -> dict[str, int] | None:
+    xmin = _parse_int(box.get("xmin"))
+    ymin = _parse_int(box.get("ymin"))
+    xmax = _parse_int(box.get("xmax"))
+    ymax = _parse_int(box.get("ymax"))
+    if None in (xmin, ymin, xmax, ymax):
+        return None
+    if xmax <= xmin or ymax <= ymin:
+        return None
+    return {
+        "xmin": xmin,
+        "ymin": ymin,
+        "xmax": xmax,
+        "ymax": ymax,
+    }
+
+
 def parse_annotation(xml_file, synset_to_label):
     """Parse an ImageNet PASCAL VOC XML annotation file."""
     tree = ET.parse(xml_file)
@@ -61,12 +96,16 @@ def parse_annotation(xml_file, synset_to_label):
         unique_labels.add(label)
 
         bndbox = obj.find("bndbox")
-        box = {
-            "xmin": int(bndbox.find("xmin").text),
-            "ymin": int(bndbox.find("ymin").text),
-            "xmax": int(bndbox.find("xmax").text),
-            "ymax": int(bndbox.find("ymax").text),
-        }
+        box = _normalize_box(
+            {
+                "xmin": bndbox.find("xmin").text,
+                "ymin": bndbox.find("ymin").text,
+                "xmax": bndbox.find("xmax").text,
+                "ymax": bndbox.find("ymax").text,
+            }
+        )
+        if box is None:
+            continue
 
         ground_truth[_make_unique_gt_key(ground_truth, label)] = box
 
@@ -91,16 +130,56 @@ def parse_bdd100k_labels(objects: list[dict]) -> tuple[dict[str, dict[str, int]]
         box2d = obj.get("box2d")
         if not label or not isinstance(box2d, dict):
             continue
-        required = ("x1", "y1", "x2", "y2")
-        if any(key not in box2d for key in required):
+
+        box = _normalize_box(
+            {
+                "xmin": box2d.get("x1"),
+                "ymin": box2d.get("y1"),
+                "xmax": box2d.get("x2"),
+                "ymax": box2d.get("y2"),
+            }
+        )
+        if box is None:
             continue
 
-        box = {
-            "xmin": int(round(float(box2d["x1"]))),
-            "ymin": int(round(float(box2d["y1"]))),
-            "xmax": int(round(float(box2d["x2"]))),
-            "ymax": int(round(float(box2d["y2"]))),
-        }
+        ground_truth[_make_unique_gt_key(ground_truth, label)] = box
+        unique_labels.add(label)
+        instance_count += 1
+
+    return ground_truth, unique_labels, instance_count
+
+
+def parse_udacity_csv_rows(rows: list[dict]) -> tuple[dict[str, dict[str, int]], set[str], int]:
+    """Normalize Udacity CSV rows into MMM ``ground_truth`` format."""
+    ground_truth: dict[str, dict[str, int]] = {}
+    unique_labels: set[str] = set()
+    instance_count = 0
+
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+
+        label = str(
+            row.get("label")
+            or row.get("class")
+            or row.get("class_name")
+            or row.get("object")
+            or UDACITY_CLASS_ID_TO_LABEL.get(str(row.get("class_id", "")).strip(), "")
+        ).strip()
+        if not label:
+            continue
+
+        box = _normalize_box(
+            {
+                "xmin": row.get("xmin") or row.get("x1"),
+                "ymin": row.get("ymin") or row.get("y1"),
+                "xmax": row.get("xmax") or row.get("x2"),
+                "ymax": row.get("ymax") or row.get("y2"),
+            }
+        )
+        if box is None:
+            continue
+
         ground_truth[_make_unique_gt_key(ground_truth, label)] = box
         unique_labels.add(label)
         instance_count += 1
@@ -118,20 +197,27 @@ class DataSelector:
         annotations_path: str = ANNOTATIONS_PATH,
         mat_file_path: str = MAT_FILE_PATH,
         bdd100k_labels_path: str = BDD100K_LABELS_PATH,
+        udacity_labels_path: str = UDACITY_LABELS_PATH,
         seed: int = SEED,
         results_dir: str = RESULTS_BASE_DIR,
     ):
         self.dataset_kind = dataset_kind
-        self.dataset_path = dataset_path or (
-            BDD100K_DATASET_PATH if dataset_kind == "bdd100k" else DATASET_PATH
-        )
+        if dataset_path is not None:
+            self.dataset_path = dataset_path
+        elif dataset_kind == "bdd100k":
+            self.dataset_path = BDD100K_DATASET_PATH
+        elif dataset_kind == "udacity":
+            self.dataset_path = UDACITY_DATASET_PATH
+        else:
+            self.dataset_path = DATASET_PATH
         self.annotations_path = annotations_path
         self.bdd100k_labels_path = bdd100k_labels_path
+        self.udacity_labels_path = udacity_labels_path
         self.seed = seed
         self.results_dir = results_dir
         self.synset_to_label = None
 
-        random.seed(seed)
+        self.random = random.Random(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)
 
@@ -176,9 +262,9 @@ class DataSelector:
         print(f"Found {len(single_class_solo_instance)} Single-Class (Solo-Instance) candidates.")
         print(f"Found {len(multi_class_candidates)} Multi-Class candidates.")
 
-        random.shuffle(single_class_multi_instance)
-        random.shuffle(single_class_solo_instance)
-        random.shuffle(multi_class_candidates)
+        self.random.shuffle(single_class_multi_instance)
+        self.random.shuffle(single_class_solo_instance)
+        self.random.shuffle(multi_class_candidates)
 
         return single_class_solo_instance, single_class_multi_instance, multi_class_candidates
 
@@ -215,6 +301,57 @@ class DataSelector:
             )
 
         print(f"Found {len(candidates)} BDD100K candidates with valid 2D boxes.")
+        return candidates
+
+    def scan_udacity_candidates(self) -> list[dict]:
+        """Collect local Udacity images with valid CSV annotations."""
+        image_root = Path(self.dataset_path)
+        labels_path = Path(self.udacity_labels_path)
+
+        missing = []
+        if not image_root.exists():
+            missing.append(f"image root: {image_root}")
+        if not labels_path.exists():
+            missing.append(f"labels CSV: {labels_path}")
+        if missing:
+            raise FileNotFoundError(
+                "Udacity dataset is not prepared. Missing "
+                + ", ".join(missing)
+                + ". Run experiments/initialize/download_udacity.py first."
+            )
+
+        rows_by_image: dict[str, list[dict]] = {}
+        with open(labels_path, "r", encoding="utf-8", newline="") as handle:
+            reader = csv.DictReader(handle)
+            for row in reader:
+                frame_name = str(row.get("frame") or row.get("image") or row.get("filename") or "").strip()
+                if not frame_name:
+                    continue
+                rows_by_image.setdefault(Path(frame_name).name, []).append(row)
+
+        image_lookup = {path.name: path for path in sorted(image_root.rglob("*")) if path.is_file()}
+
+        candidates: list[dict] = []
+        for image_name, rows in rows_by_image.items():
+            image_path = image_lookup.get(image_name)
+            if image_path is None:
+                continue
+
+            ground_truth, unique_labels, instance_count = parse_udacity_csv_rows(rows)
+            if not ground_truth or not unique_labels or instance_count <= 0:
+                continue
+
+            candidates.append(
+                {
+                    "image_file": image_path.name,
+                    "image_path": str(image_path),
+                    "source_name": image_name,
+                    "gt": ground_truth,
+                }
+            )
+
+        self.random.shuffle(candidates)
+        print(f"Found {len(candidates)} Udacity candidates with valid 2D boxes.")
         return candidates
 
     def get_existing_progress(self, category):
@@ -306,6 +443,9 @@ class DataSelector:
         if self.dataset_kind == "bdd100k":
             candidates = self.scan_bdd100k_candidates()
             self.process_group(candidates, "bdd100k", target_size=len(candidates))
+        elif self.dataset_kind == "udacity":
+            candidates = self.scan_udacity_candidates()
+            self.process_group(candidates, "udacity", target_size=NUM_IMAGES)
         elif self.dataset_kind == "imagenet_det":
             solo_candidates, multi_inst_candidates, multi_class_candidates = (
                 self.scan_and_sort_candidates()

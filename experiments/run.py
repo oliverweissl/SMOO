@@ -87,11 +87,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--pop-size", type=int, default=50)
     parser.add_argument("--num-generations", type=int, default=100)
     parser.add_argument("--budget-max", type=float, default=1.0)
-    parser.add_argument("--baseline-iou-min", type=float, default=0.5)
-    parser.add_argument("--early-stop-iou-max", type=float, default=0.5)
+    parser.add_argument("--baseline-iou-min", type=float, default=0.25)
+    parser.add_argument("--early-stop-iou-max", type=float, default=0.25)
     parser.add_argument("--early-stop-img-dist-max", type=float, default=0.1)
     parser.add_argument("--early-stop-txt-dist-max", type=float, default=0.3)
     parser.add_argument("--max-resolution", type=int, default=1024)
+    parser.add_argument("--min-bbox-area-fraction", type=float, default=0.015)
     parser.add_argument("--max-new-tokens", type=int, default=2048)
     parser.add_argument("--max-model-len", type=int, default=None)
     parser.add_argument("--gpu-memory-utilization", type=float, default=0.8)
@@ -206,6 +207,7 @@ def main() -> None:
         results_dir=args.results_dir,
         selection_dir=args.selection_dir,
         max_resolution=args.max_resolution,
+        min_bbox_area_fraction=args.min_bbox_area_fraction,
         solution_shape=solution_shape,
     )
 

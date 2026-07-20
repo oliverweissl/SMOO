@@ -99,7 +99,7 @@ def compute_image_metrics(df: pd.DataFrame) -> pd.DataFrame:
         dis_img = Image.open(pth).convert("RGB").resize(size=ref_img.size)
         ref = np.asarray(ref_img, dtype=np.uint8)
         dis = np.asarray(dis_img, dtype=np.uint8)
-        ms.append(msssim(ref, dis))
+        ms.append(msssim(ref, dis).real)
 
     df["ms_ssim"] = ms
     return df
@@ -193,6 +193,7 @@ _SCENE_MAP = {
     "single/solo": "Isolated",
     "single/multi": "Clustered",
     "multi": "Mixed",
+    "udacity": "Driving",
 }
 
 def load_rq3_data(root: str | Path) -> pd.DataFrame:
@@ -270,6 +271,7 @@ _OBJ_CAT_TO_SCENE = {
     "single/solo": "Isolated",
     "single/multi": "Clustered",
     "multi": "Mixed",
+    "udacity": "Driving",
 }
 
 

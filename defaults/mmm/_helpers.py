@@ -4,6 +4,7 @@ import json
 import os
 import re
 from pathlib import Path
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
@@ -22,6 +23,16 @@ from ._prompts import DETECTION_PROMPT
 BEST_RESULT_FILENAME = "best_result.json"
 BEST_RESULT_IMAGE_FILENAME = "best_result.png"
 BASELINE_FAIL_FILENAME = "baseline_fail.json"
+
+
+@dataclass
+class SkippedSample(Exception):
+    """Signal that a sample should be skipped before baseline evaluation."""
+
+    folder_path: str
+    original_bbox_count: int
+    filtered_bbox_count: int
+    threshold: float
 
 
 def extract_json_array(text: str) -> list[dict[str, Any]]:
@@ -164,12 +175,51 @@ def _normalize_ground_truth_boxes(
     return normalized_boxes
 
 
+def _resolve_original_dims(base_data: dict[str, Any], fallback_size: tuple[int, int]) -> tuple[int, int]:
+    dims = base_data.get("original_dims")
+    if (
+        isinstance(dims, (list, tuple))
+        and len(dims) == 2
+        and all(isinstance(value, (int, float)) and value > 0 for value in dims)
+    ):
+        return int(dims[0]), int(dims[1])
+    return fallback_size
+
+
+def _filter_ground_truth_by_area_fraction(
+    ground_truth: dict[str, Any],
+    original_size: tuple[int, int],
+    min_bbox_area_fraction: float,
+) -> dict[str, Any]:
+    if min_bbox_area_fraction < 0:
+        raise ValueError(
+            f"min_bbox_area_fraction must be non-negative, got {min_bbox_area_fraction}."
+        )
+    if min_bbox_area_fraction <= 0:
+        return dict(ground_truth)
+
+    image_width, image_height = original_size
+    image_area = float(image_width * image_height)
+    filtered: dict[str, Any] = {}
+    for label, bbox in ground_truth.items():
+        if not isinstance(bbox, dict):
+            raise TypeError(f"Ground-truth bbox payload must be a dict, got {type(bbox).__name__}.")
+        xyxy = _bbox_dict_to_xyxy(bbox)
+        box_width = max(0, xyxy[2] - xyxy[0])
+        box_height = max(0, xyxy[3] - xyxy[1])
+        bbox_area_fraction = (box_width * box_height) / image_area if image_area > 0 else 0.0
+        if bbox_area_fraction >= min_bbox_area_fraction:
+            filtered[label] = bbox
+    return filtered
+
+
 def load_sample(
     folder_path: str | Path,
     max_resolution: int,
     *,
     category: str,
     folder_id: str,
+    min_bbox_area_fraction: float = 0.0,
 ) -> MMMSample:
     """Load one selected MMM sample into a typed runtime object.
 
@@ -201,10 +251,25 @@ def load_sample(
         Image.Resampling.LANCZOS,
     )
 
-    target_objects = extract_target_objects_from_ground_truth(base_data["ground_truth"])
+    original_size = _resolve_original_dims(base_data, raw_img.size)
+    original_ground_truth = base_data["ground_truth"]
+    filtered_ground_truth = _filter_ground_truth_by_area_fraction(
+        original_ground_truth,
+        original_size,
+        min_bbox_area_fraction,
+    )
+    if not filtered_ground_truth:
+        raise SkippedSample(
+            folder_path=str(folder),
+            original_bbox_count=len(original_ground_truth),
+            filtered_bbox_count=0,
+            threshold=min_bbox_area_fraction,
+        )
+
+    target_objects = extract_target_objects_from_ground_truth(filtered_ground_truth)
     original_prompt = DETECTION_PROMPT.format(objects=", ".join(target_objects))
 
-    ground_truth_boxes = _normalize_ground_truth_boxes(base_data["ground_truth"], target_objects)
+    ground_truth_boxes = _normalize_ground_truth_boxes(filtered_ground_truth, target_objects)
 
     clean_image_array = np.asarray(clean_image, dtype=np.uint8)
 
@@ -217,7 +282,7 @@ def load_sample(
         original_prompt=original_prompt,
         target_objects=target_objects,
         ground_truth_boxes=ground_truth_boxes,
-        original_size=raw_img.size,
+        original_size=original_size,
         clean_image_array=clean_image_array,
         baseline_iou=float(base_data.get("IoU", 0.0)),
     )

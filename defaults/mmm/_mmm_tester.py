@@ -27,6 +27,7 @@ from ._helpers import (
     load_sample,
     prepare_bbox_pairs,
     save_baseline_fail,
+    SkippedSample,
     save_best_result,
 )
 from ._prompts import DETECTION_PROMPT
@@ -128,12 +129,23 @@ class MMMTester(SMOO):
             sample_label = f"{category}/{folder_id}"
             logging.info("SAMPLE %d/%d %s", sample_idx, len(pending), sample_label)
 
-            sample = load_sample(
-                folder_path,
-                max_resolution=self._config.max_resolution,
-                category=category,
-                folder_id=folder_id,
-            )
+            try:
+                sample = load_sample(
+                    folder_path,
+                    max_resolution=self._config.max_resolution,
+                    category=category,
+                    folder_id=folder_id,
+                    min_bbox_area_fraction=self._config.min_bbox_area_fraction,
+                )
+            except SkippedSample as exc:
+                logging.info(
+                    "%s skipped after bbox filtering: threshold=%.6f original=%d filtered=%d",
+                    sample_label,
+                    exc.threshold,
+                    exc.original_bbox_count,
+                    exc.filtered_bbox_count,
+                )
+                continue
 
             evaluate_baseline(self._sut, sample)
             sample_output_dir = os.path.join(str(output_dir), category, folder_id)
