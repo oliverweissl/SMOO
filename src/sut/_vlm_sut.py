@@ -37,6 +37,7 @@ class VLMSUT(SUT):
         max_new_tokens: int = 2048,
         max_model_len: Optional[int] = None,
         seed: int = 0,
+        temperature: float = 0.0,
         served_ports: tuple[int, ...] = _DEFAULT_PORTS,
         sampling_params: dict[str, Any] | None = None,
         extra_body: dict[str, Any] | None = None,
@@ -53,6 +54,7 @@ class VLMSUT(SUT):
         :param max_new_tokens: Maximum generated tokens per sample.
         :param max_model_len: Optional override for vLLM model context length.
         :param seed: Random seed forwarded to vLLM.
+        :param temperature: Sampling temperature for both served and local inference.
         :param served_ports: Ports to scan for a compatible local vLLM server.
         :param sampling_params: Optional sampling parameters.
         :param extra_body: Extra args for chats.
@@ -64,10 +66,15 @@ class VLMSUT(SUT):
         self._image_resize = image_resize
         self._max_new_tokens = max_new_tokens
         self._max_model_len = max_model_len
+        self._temperature = temperature
         self._served_ports = served_ports
         self._served_url: Optional[str] = None
         self.llm: Optional[LLM] = None
-        self.sampling = SamplingParams(**sampling_params) if sampling_params else None
+        resolved_sampling_params = dict(sampling_params or {})
+        resolved_sampling_params["temperature"] = temperature
+        self.sampling = (
+            SamplingParams(**resolved_sampling_params) if sampling_params else None
+        )
 
         self._extra_body = extra_body or dict()
         self._find_served_url()
@@ -84,7 +91,7 @@ class VLMSUT(SUT):
             )
             self.llm = LLM(**llm_kwargs)
             self.sampling = self.sampling or SamplingParams(
-                max_tokens=max_new_tokens, temperature=0
+                max_tokens=max_new_tokens, temperature=temperature
             )
 
     def input_valid(
@@ -286,7 +293,7 @@ class VLMSUT(SUT):
             "model": self._model_id,
             "messages": self._messages(image, prompt),
             "max_tokens": self._max_new_tokens,
-            "temperature": 0,
+            "temperature": self._temperature,
         }
         t0 = time.time()
         response = requests.post(self._served_url, json=payload, timeout=(10, 600))

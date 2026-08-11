@@ -27,15 +27,15 @@ ALL_CORRUPT_COLS = IMG_COLS + TXT_COLS
 PALETTE = sns.color_palette("tab10")
 
 TERMINATION_ORDER = [
-    "Success",
-    "BBOX IoU too small",
+    "IoU Degraded",
+    "Baseline Failure",
     "No objects found",
     "JSON malformed",
     "Other value errors",
 ]
 TERMINATION_COLORS = {
-    "Success": "#4daf4a",
-    "BBOX IoU too small": "#ffb000",
+    "IoU Degraded": "#4daf4a",
+    "Baseline Failure": "#ffb000",
     "No objects found": "#7f7f7f",
     "JSON malformed": "#e41a1c",
     "Other value errors": "#377eb8",

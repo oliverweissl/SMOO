@@ -87,7 +87,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--pop-size", type=int, default=50)
     parser.add_argument("--num-generations", type=int, default=100)
     parser.add_argument("--budget-max", type=float, default=1.0)
-    parser.add_argument("--baseline-iou-min", type=float, default=0.25)
+    parser.add_argument("--baseline-iou-min", type=float, default=0.5)
     parser.add_argument("--early-stop-iou-max", type=float, default=0.25)
     parser.add_argument("--early-stop-img-dist-max", type=float, default=0.1)
     parser.add_argument("--early-stop-txt-dist-max", type=float, default=0.3)

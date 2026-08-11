@@ -227,7 +227,7 @@ def _parse_best_result(path: Path, model: str) -> dict[str, Any] | None:
         "has_predictions": bool(pred_count) if pred_count == pred_count else False,
         "baseline_iou": baseline_iou,
         "final_iou": final_iou,
-        "iou_reduction": baseline_iou - final_iou,
+        "iou_reduction": (baseline_iou - final_iou) / baseline_iou,
         "img_dist": float(objectives.get("img_dist", float("nan"))),
         "txt_dist": float(objectives.get("txt_dist", float("nan"))),
         "txt_sim": float("nan"),
