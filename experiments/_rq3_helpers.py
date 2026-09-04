@@ -1,21 +1,12 @@
 import json
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from irrCAC.raw import CAC
 from scipy.optimize import linear_sum_assignment
 
-CATEGORIES = ["single/solo", "single/multi", "multi", "udacity"]
-CATEGORY_LABELS = {"single/solo": "SC-SI", "single/multi": "SC-MI", "multi": "MC", "udacity": "Driving"}
 MODELS = ["qwen", "nemotron", "intern", "kimi"]
 MODEL_LABELS = {"qwen": "Qwen3-VL", "kimi": "Kimi-VL", "intern": "InternVL-3.5", "nemotron": "Nemotron3-ON"}
-MODALITIES = ["unimodal/text", "unimodal/image", "multimodal"]
-MODALITY_LABELS = {
-    "unimodal/text": "Text-Manipulation",
-    "unimodal/image": "Image-Manipulation",
-    "multimodal": "Combined-Manipulation",
-}
 
 
 def _box_iou(box_a: np.ndarray, box_b: np.ndarray) -> float:
@@ -161,6 +152,8 @@ def compute_human_task_iou(df_valid: pd.DataFrame, case_lookup: dict, case_meta:
             "modality": case["modality"],
             "category": row["category"],
             "filename": row["filename"],
+            "response_type": row["response_type"],
+            "reject_reason": row["reject_reason"],
             "iou": iou,
             "iou_adjusted": iou if interpretable else 0.0,
             "interpretable": interpretable,
@@ -177,49 +170,34 @@ def case_human_iou(human_iou: pd.DataFrame) -> pd.DataFrame:
     and 40% reject is not the same as one every rater rejects, even though a row-level
     average can't tell them apart.
 
-    accept_rate: fraction of this case's raters who gave a usable bbox.
+    accept_rate / reject_image_rate / reject_text_rate / reject_other_rate: fraction
+    of this case's raters landing in each bucket - always sum to 1, since every row is
+    exactly one of {bbox given, reject:unclear_image, reject:unclear_label, reject:
+    other, skip} (skip is folded into "other").
     iou_given_accept: mean IoU among only the accepting raters (undefined, NaN, if none did).
     iou_robust: accept_rate * iou_given_accept - non-accepting raters count as 0 IoU
         rather than being dropped, same quantity `iou_adjusted` already encodes per
         row, made explicit and case-level here.
-    consensus: "unanimous_accept" / "unanimous_reject" / "split" (mixed).
     """
     def _agg(g):
         n = len(g)
+        is_reject = g["response_type"] == "reject"
         n_accept = int(g["interpretable"].sum())
-        accept_rate = n_accept / n
         return pd.Series({
             "model": g["model"].iloc[0],
             "modality": g["modality"].iloc[0],
             "category": g["category"].iloc[0],
-            "n_raters": n,
-            "n_accept": n_accept,
-            "accept_rate": accept_rate,
+            "accept_rate": n_accept / n,
+            "reject_image_rate": (is_reject & (g["reject_reason"] == "unclear_image")).sum() / n,
+            "reject_text_rate": (is_reject & (g["reject_reason"] == "unclear_label")).sum() / n,
+            "reject_other_rate": (
+                (is_reject & (g["reject_reason"] == "other")) | (g["response_type"] == "skip")
+            ).sum() / n,
             "iou_given_accept": g.loc[g["interpretable"], "iou"].mean() if n_accept else float("nan"),
             "iou_robust": g["iou_adjusted"].mean(),
-            "consensus": "unanimous_accept" if accept_rate == 1.0
-            else "unanimous_reject" if accept_rate == 0.0
-            else "split",
         })
 
     return human_iou.groupby("case_id").apply(_agg, include_groups=False)
-
-
-def acceptance_consensus(case_df: pd.DataFrame, by: str | list[str]) -> pd.DataFrame:
-    """Per `by` (e.g. "category" or "model"): how often cases are cleanly accepted or
-    rejected by every rater vs. split between them, plus the mean per-case accept rate.
-    """
-    def _summ(g):
-        n = len(g)
-        return pd.Series({
-            "n_cases": n,
-            "mean_accept_rate": g["accept_rate"].mean(),
-            "frac_unanimous_accept": (g["consensus"] == "unanimous_accept").sum() / n,
-            "frac_split": (g["consensus"] == "split").sum() / n,
-            "frac_unanimous_reject": (g["consensus"] == "unanimous_reject").sum() / n,
-        })
-
-    return case_df.groupby(by).apply(_summ, include_groups=False)
 
 
 def human_vs_model_iou_by_model(case_df: pd.DataFrame, model_iou_cases: pd.DataFrame) -> pd.DataFrame:
@@ -229,23 +207,19 @@ def human_vs_model_iou_by_model(case_df: pd.DataFrame, model_iou_cases: pd.DataF
     human = case_df.groupby("model").agg(
         human_iou=("iou_given_accept", "mean"),
         human_iou_robust=("iou_robust", "mean"),
-        n_human_cases=("iou_robust", "count"),
     )
-    model = model_iou_cases.groupby("model")["iou"].agg(model_iou="mean", n_model_cases="count")
+    model = model_iou_cases.groupby("model")["iou"].agg(model_iou="mean")
     return human.join(model)
 
 
-def reject_skip_fractions(df_valid: pd.DataFrame) -> pd.DataFrame:
-    def _fracs(g):
-        n = len(g)
-        return pd.Series({
-            "n_rows": n,
-            "frac_reject_unclear_image": (g["reject_reason"] == "unclear_image").sum() / n,
-            "frac_reject_unclear_label": (g["reject_reason"] == "unclear_label").sum() / n,
-            "frac_reject_other": (g["reject_reason"] == "other").sum() / n,
-            "frac_skip": (g["response_type"] == "skip").sum() / n,
-        })
-    return df_valid.groupby("category").apply(_fracs, include_groups=False)
+def model_level_summary(case_df: pd.DataFrame, model_iou_cases: pd.DataFrame) -> pd.DataFrame:
+    """One row per model: human vs. model mean IoU (`human_vs_model_iou_by_model`)
+    joined with case-level accept/reject-reason rates, averaged per model
+    (accept_rate + the 3 reject_*_rate columns sum to 1)."""
+    rates = case_df.groupby("model")[
+        ["accept_rate", "reject_image_rate", "reject_text_rate", "reject_other_rate"]
+    ].mean()
+    return human_vs_model_iou_by_model(case_df, model_iou_cases).join(rates)
 
 
 def _response_class(row) -> str:
@@ -311,32 +285,6 @@ def krippendorff_alpha_by_category(df_valid: pd.DataFrame) -> dict:
     for category, group in df_valid.groupby("category"):
         result[category] = _alpha(group)
     return result
-
-
-def load_model_results(mmm_root: str) -> pd.DataFrame:
-    rows = []
-    for model in MODELS:
-        for modality in MODALITIES:
-            base = Path(mmm_root) / model / modality
-            for best_path in base.glob("**/best_result.json"):
-                doc = json.load(open(best_path))
-                rows.append({
-                    "model": model,
-                    "modality": modality,
-                    "category": doc["data_source"]["category"],
-                    "folder_id": doc["data_source"]["folder_id"],
-                    "iou": doc["objectives"]["iou"],
-                })
-            for fail_path in base.glob("**/baseline_fail.json"):
-                doc = json.load(open(fail_path))
-                rows.append({
-                    "model": model,
-                    "modality": modality,
-                    "category": doc["data_source"]["category"],
-                    "folder_id": doc["data_source"]["folder_id"],
-                    "iou": 0.0,
-                })
-    return pd.DataFrame(rows)
 
 
 def case_model_iou(case_meta: dict) -> pd.DataFrame:
