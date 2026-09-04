@@ -220,10 +220,18 @@ def classify_termination_series(
 def add_cumulative_asr_outcomes(
     df: pd.DataFrame, iou_threshold: float = 0.25
 ) -> pd.DataFrame:
-    """Add cumulative ASR indicators; baseline failures stay out of denominators."""
+    """Add cumulative ASR indicators; baseline failures stay out of denominators.
+
+    A "Terminated with BBOX" row only counts as an `asr_bbox` success if the attack
+    actually degraded `final_iou` below `iou_threshold` - a well-formed bbox on its own
+    doesn't mean the attack worked. `asr_bbox_empty`/`asr_bbox_empty_malformed` don't
+    need that check: "No objects found"/"JSON malformed" are already unambiguous
+    full failures of the victim model regardless of IoU.
+    """
     out = classify_termination_series(df, iou_threshold=iou_threshold)
     eligible = out["status"].eq("success")
-    bbox = eligible & out["termination_type"].eq("Terminated with BBOX")
+    degraded = pd.to_numeric(out["final_iou"], errors="coerce") <= iou_threshold
+    bbox = eligible & out["termination_type"].eq("Terminated with BBOX") & degraded
     empty = eligible & out["termination_type"].eq("No objects found")
     malformed = eligible & out["termination_type"].eq("JSON malformed")
     out["asr_bbox"] = bbox.where(eligible)
