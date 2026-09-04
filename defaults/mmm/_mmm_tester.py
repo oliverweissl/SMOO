@@ -174,6 +174,7 @@ class MMMTester(SMOO):
             embedding_cache: dict[str, np.ndarray] = {original_text: original_embedding}
 
             early_stop_generation: int | None = None
+            total_evaluations = 0
             sample_start = time.time()
 
             for generation in range(self._config.generations):
@@ -198,6 +199,7 @@ class MMMTester(SMOO):
                     original_embedding=original_embedding,
                     embedding_cache=embedding_cache,
                 )
+                total_evaluations += len(candidates)
 
                 assign_start = time.perf_counter()
                 objective_results = candidates.get_objective_values(self._objectives.names)
@@ -250,6 +252,8 @@ class MMMTester(SMOO):
                 runtime=time.time() - sample_start,
                 generations_completed=early_stop_generation or self._config.generations,
                 early_stop_generation=early_stop_generation,
+                population_size=self._config.pop_size,
+                total_evaluations=total_evaluations,
             )
             self._cleanup()
 

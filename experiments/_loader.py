@@ -87,6 +87,8 @@ _EMPTY_COLUMNS = {
     "runtime": pd.Series(dtype="float64"),
     "generations_completed": pd.Series(dtype="float64"),
     "total_evaluations": pd.Series(dtype="float64"),
+    "population_size": pd.Series(dtype="float64"),
+    "evaluation_count_source": pd.Series(dtype="object"),
     "skipped_evaluations": pd.Series(dtype="float64"),
     "early_stopped": pd.Series(dtype="bool"),
     "early_stop_generation": pd.Series(dtype="float64"),
@@ -214,6 +216,14 @@ def _parse_best_result(path: Path, model: str) -> dict[str, Any] | None:
 
     parsed_predictions = vlm.get("parsed_predictions", [])
     pred_count = len(parsed_predictions) if isinstance(parsed_predictions, list) else float("nan")
+    population_size = float(data.get("population_size", 50))
+    stored_evaluations = data.get("total_evaluations")
+    if stored_evaluations is None:
+        total_evaluations = float(data.get("generations_completed", float("nan"))) * population_size
+        evaluation_count_source = "estimated"
+    else:
+        total_evaluations = float(stored_evaluations)
+        evaluation_count_source = "recorded"
     row: dict[str, Any] = {
         "model": model,
         "modality": modality,
@@ -227,14 +237,20 @@ def _parse_best_result(path: Path, model: str) -> dict[str, Any] | None:
         "has_predictions": bool(pred_count) if pred_count == pred_count else False,
         "baseline_iou": baseline_iou,
         "final_iou": final_iou,
-        "iou_reduction": (baseline_iou - final_iou) / baseline_iou,
+        "iou_reduction": (
+            (baseline_iou - final_iou) / baseline_iou
+            if baseline_iou > 0
+            else float("nan")
+        ),
         "img_dist": float(objectives.get("img_dist", float("nan"))),
         "txt_dist": float(objectives.get("txt_dist", float("nan"))),
         "txt_sim": float("nan"),
         "budget_max": 1.0,
         "runtime": float(data.get("runtime", float("nan"))),
         "generations_completed": float(data.get("generations_completed", float("nan"))),
-        "total_evaluations": float(data.get("total_evaluations", float("nan"))),
+        "total_evaluations": total_evaluations,
+        "population_size": population_size,
+        "evaluation_count_source": evaluation_count_source,
         "skipped_evaluations": float(data.get("skipped_evaluations", float("nan"))),
         "early_stop_generation": data.get("early_stop_generation"),
         "pareto_index": float(data.get("pareto_index", float("nan"))),
@@ -290,6 +306,8 @@ def _parse_baseline_fail(path: Path, model: str) -> dict[str, Any] | None:
         "runtime": float("nan"),
         "generations_completed": float("nan"),
         "total_evaluations": float("nan"),
+        "population_size": float("nan"),
+        "evaluation_count_source": "not_applicable",
         "skipped_evaluations": float("nan"),
         "early_stopped": False,
         "early_stop_generation": None,

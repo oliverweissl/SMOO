@@ -533,6 +533,8 @@ def save_best_result(
     runtime: float,
     generations_completed: int,
     early_stop_generation: int | None,
+    population_size: int,
+    total_evaluations: int,
 ) -> None:
     """Persist the selected best MMM testcase and its metadata.
 
@@ -569,6 +571,8 @@ def save_best_result(
         "runtime": runtime,
         "generations_completed": generations_completed,
         "early_stop_generation": early_stop_generation,
+        "population_size": population_size,
+        "total_evaluations": total_evaluations,
         "baseline_iou": float(f"{sample.baseline_iou:.5f}"),
         "genome": np.asarray(best_candidate.solution).reshape(-1).tolist(),
         "objectives": {

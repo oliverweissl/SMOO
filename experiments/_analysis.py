@@ -27,14 +27,14 @@ ALL_CORRUPT_COLS = IMG_COLS + TXT_COLS
 PALETTE = sns.color_palette("tab10")
 
 TERMINATION_ORDER = [
-    "IoU Degraded",
+    "Terminated with BBOX",
     "Baseline Failure",
     "No objects found",
     "JSON malformed",
     "Other value errors",
 ]
 TERMINATION_COLORS = {
-    "IoU Degraded": "#4daf4a",
+    "Terminated with BBOX": "#4daf4a",
     "Baseline Failure": "#ffb000",
     "No objects found": "#7f7f7f",
     "JSON malformed": "#e41a1c",
@@ -78,6 +78,20 @@ def compute_text_metrics(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def compute_swad(df: pd.DataFrame) -> pd.DataFrame:
+    """Add stealth and stealth-weighted adversarial degradation (SWAD)."""
+    out = df.copy()
+    baseline = pd.to_numeric(out["baseline_iou"], errors="coerce")
+    final = pd.to_numeric(out["final_iou"], errors="coerce")
+    image_distance = pd.to_numeric(out["img_dist"], errors="coerce").clip(0.0, 1.0)
+    # Cosine distance spans [0, 2]; normalize it to the SWAD domain [0, 1].
+    text_distance = pd.to_numeric(out["txt_dist"], errors="coerce").clip(0.0, 2.0) / 2.0
+    degradation = ((baseline - final) / baseline.where(baseline > 0)).clip(0.0, 1.0)
+    out["stealth_product"] = (1.0 - image_distance) * (1.0 - text_distance)
+    out["swad"] = degradation * out["stealth_product"]
+    return out
+
+
 def _resolve_original_image_path(folder_value: str) -> Path:
     folder = Path(folder_value)
     if not folder.is_absolute():
@@ -95,11 +109,15 @@ def compute_image_metrics(df: pd.DataFrame) -> pd.DataFrame:
     for _, row in df.iterrows():
         orig = _resolve_original_image_path(str(row["_orig_img_folder"]))
         pth = Path(row["_best_img_path"])
-        ref_img = Image.open(orig).convert("RGB")
-        dis_img = Image.open(pth).convert("RGB").resize(size=ref_img.size)
-        ref = np.asarray(ref_img, dtype=np.uint8)
-        dis = np.asarray(dis_img, dtype=np.uint8)
-        ms.append(msssim(ref, dis).real)
+        try:
+            with Image.open(orig) as ref_source, Image.open(pth) as dis_source:
+                ref_img = ref_source.convert("RGB")
+                dis_img = dis_source.convert("RGB").resize(size=ref_img.size)
+                ref = np.asarray(ref_img, dtype=np.uint8)
+                dis = np.asarray(dis_img, dtype=np.uint8)
+            ms.append(msssim(ref, dis).real)
+        except (OSError, ValueError):
+            ms.append(np.nan)
 
     df["ms_ssim"] = ms
     return df
@@ -160,7 +178,7 @@ def _bbox_iou(a: list, b: list) -> float:
     return inter / union if union > 0 else 0.0
 
 
-def classify_termination(row: pd.Series) -> str:
+def classify_termination(row: pd.Series, iou_threshold: float = 0.25) -> str:
     """Classify one testcase row by its terminal outcome."""
     status = str(row.get("status", "") or "")
     fail_code = str(row.get("fail_code", "") or "")
@@ -170,23 +188,47 @@ def classify_termination(row: pd.Series) -> str:
     except (TypeError, ValueError):
         pred_count = -1
 
-    if "Failed to decode VLM JSON array" in fail_code:
+    if status == "baseline_fail":
+        return "Baseline Failure"
+    malformed_markers = (
+        "Failed to decode VLM JSON array",
+        "Expected VLM JSON payload",
+        "Expected each VLM prediction",
+        "Invalid bbox payload",
+        "Prediction is missing bbox field",
+    )
+    if any(marker in fail_code for marker in malformed_markers):
         return "JSON malformed"
     if pred_count == 0:
         return "No objects found"
-    if status == "success" and not fail_code:
-        return "Success"
-    if status == "baseline_fail" and not fail_code:
-        return "BBOX IoU too small"
     if fail_code:
         return "Other value errors"
-    return "BBOX IoU too small"
+    return "Terminated with BBOX"
 
 
-def classify_termination_series(df: pd.DataFrame) -> pd.DataFrame:
+def classify_termination_series(
+    df: pd.DataFrame, iou_threshold: float = 0.25
+) -> pd.DataFrame:
     """Return a copy of ``df`` with a ``termination_type`` column added."""
     out = df.copy()
-    out["termination_type"] = out.apply(classify_termination, axis=1)
+    out["termination_type"] = out.apply(
+        classify_termination, axis=1, iou_threshold=iou_threshold
+    )
+    return out
+
+
+def add_cumulative_asr_outcomes(
+    df: pd.DataFrame, iou_threshold: float = 0.25
+) -> pd.DataFrame:
+    """Add cumulative ASR indicators; baseline failures stay out of denominators."""
+    out = classify_termination_series(df, iou_threshold=iou_threshold)
+    eligible = out["status"].eq("success")
+    bbox = eligible & out["termination_type"].eq("Terminated with BBOX")
+    empty = eligible & out["termination_type"].eq("No objects found")
+    malformed = eligible & out["termination_type"].eq("JSON malformed")
+    out["asr_bbox"] = bbox.where(eligible)
+    out["asr_bbox_empty"] = (bbox | empty).where(eligible)
+    out["asr_bbox_empty_malformed"] = (bbox | empty | malformed).where(eligible)
     return out
 
 _SCENE_MAP = {

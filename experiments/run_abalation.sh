@@ -8,7 +8,7 @@ PORT=8700
 source "${SCRIPT_DIR}/_vllm_server.sh"
 cleanup() { stop_vllm_server; }
 trap cleanup EXIT
-for MODEL in qwen kimi intern gemma deepseek nemotron; do
+for MODEL in nemotron; do # gemma deepseek qwen kimi intern
   start_vllm_server "$MODEL" "$GPU" "$PORT" "$REPO_ROOT"
   python "${SCRIPT_DIR}/run_ablation.py" --model "$MODEL" --served-port "$PORT" "$@"
   stop_vllm_server

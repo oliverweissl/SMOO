@@ -156,8 +156,20 @@ def evaluate_testcase(sut: "VLMSUT", testcase: SavedTestcase, temperature: float
 
 
 def _write(path: Path, data: dict[str, Any]) -> None:
+    """Write a result atomically so an interrupted run cannot leave a partial JSON file."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    temporary_path = path.with_name(f".{path.name}.tmp")
+    temporary_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    temporary_path.replace(path)
+
+
+def _is_completed_record(path: Path) -> bool:
+    """Return True only for a readable result produced to completion."""
+    try:
+        record = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return False
+    return isinstance(record, dict) and record.get("status") == "complete"
 
 
 def run(args: argparse.Namespace) -> int:
@@ -172,9 +184,11 @@ def run(args: argparse.Namespace) -> int:
         for testcase in testcases:
             for replicate in range(1, args.replicate_count + 1):
                 destination = output_path(args.ablation_results_dir.resolve(), temperature, args.model, testcase, replicate)
-                if destination.exists() and not args.overwrite:
-                    logging.info("Skipping existing %s", destination)
+                if not args.overwrite and _is_completed_record(destination):
+                    logging.info("Skipping completed %s", destination)
                     continue
+                if destination.exists() and not args.overwrite:
+                    logging.info("Recomputing incomplete or invalid %s", destination)
                 try:
                     payload = evaluate_testcase(sut, testcase, temperature, replicate)
                 except Exception as exc:
