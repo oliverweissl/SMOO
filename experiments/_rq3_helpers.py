@@ -94,12 +94,22 @@ def load_case_lookup(emmt_root: str) -> dict:
     return lookup
 
 
+# session_0001 (annotator_0001, variant 1) logged one response with a null task_index
+# at session start - task_index 10 and 18 are both absent from its numbered sequence but
+# only one extra unindexed row exists, so exactly one of those two tasks was never
+# actually submitted and we can't tell which. 47/48 rows for an otherwise-valid rater
+# isn't a case `load_survey`'s upstream filtering (attention checks, all-reject/skip
+# annotators) was meant to catch, so drop it here explicitly.
+_CORRUPTED_SESSIONS = {"session_0001"}
+
+
 def load_survey(csv_path: str) -> pd.DataFrame:
     """`csv_path` is already filtered (no attention-check rows, no annotators who never
     gave a single bbox) and anonymized (annotator_id/session_id are stable per-person
     pseudonyms, not real MTurk worker IDs) - this just parses it for analysis.
     """
     df = pd.read_csv(csv_path)
+    df = df[~df["session_id"].isin(_CORRUPTED_SESSIONS)].copy()
 
     def _clamp(box, width, height):
         x1, y1, x2, y2 = box

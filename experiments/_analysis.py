@@ -79,16 +79,20 @@ def compute_text_metrics(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def compute_swad(df: pd.DataFrame) -> pd.DataFrame:
-    """Add stealth and stealth-weighted adversarial degradation (SWAD)."""
+    """Add stealth and stealth-weighted adversarial degradation (SWAD).
+
+    Distance measures are MS-SSIM (image) and NED (text). MS-SSIM is a
+    similarity score (1 = identical), so it's inverted to a distance;
+    NED is already a distance (0 = identical), so it's used as-is.
+    """
     out = df.copy()
     baseline = pd.to_numeric(out["baseline_iou"], errors="coerce")
     final = pd.to_numeric(out["final_iou"], errors="coerce")
-    image_distance = pd.to_numeric(out["img_dist"], errors="coerce").clip(0.0, 1.0)
-    # Cosine distance spans [0, 2]; normalize it to the SWAD domain [0, 1].
-    text_distance = pd.to_numeric(out["txt_dist"], errors="coerce").clip(0.0, 2.0) / 2.0
+    image_distance = (1.0 - pd.to_numeric(out["ms_ssim"], errors="coerce")).clip(0.0, 1.0)
+    text_distance = pd.to_numeric(out["ned"], errors="coerce").clip(0.0, 1.0)
     degradation = ((baseline - final) / baseline.where(baseline > 0)).clip(0.0, 1.0)
-    out["stealth_product"] = (1.0 - image_distance) * (1.0 - text_distance)
-    out["swad"] = degradation * out["stealth_product"]
+    out["stealth"] = 1.0 - (image_distance + text_distance) / 2.0
+    out["swad"] = degradation * out["stealth"]
     return out
 
 
