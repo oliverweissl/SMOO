@@ -1,0 +1,74 @@
+{
+  "survey_case_id": "case_115",
+  "model": "kimi",
+  "modality": "multimodal",
+  "scene_type": "single/solo",
+  "testcase_id": "87",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/kimi/multimodal/single/solo/87/best_result.json",
+    "adversarial_image": "defaults/mmm/results/kimi/multimodal/single/solo/87/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/single/solo/87/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/single/solo/87",
+      "folder_id": "87",
+      "category": "single/solo",
+      "filename": "ILSVRC2012_val_00017504.JPEG"
+    },
+    "runtime": 122.92970824241638,
+    "generations_completed": 56,
+    "early_stop_generation": 56,
+    "baseline_iou": 0.5514,
+    "genome": [
+      0.03101945427776636,
+      0.04713522768521686,
+      0.017534172501067743,
+      0.011257779476162069,
+      0.024864681785950294,
+      0.0012710182888691804,
+      0.025972294109210897,
+      0.017409140307240906,
+      0.0515685853278024,
+      0.001358998089187425,
+      0.003624930845496584,
+      0.0024075559821500597,
+      0.0023156808922937507,
+      0.00496628533656282,
+      0.09239196283571036,
+      0.03536209547167354,
+      0.0494132680346305,
+      0.0008901460384078213,
+      0.004964153856800621,
+      0.03715709139845039
+    ],
+    "objectives": {
+      "iou": 0.0,
+      "img_dist": 0.11811,
+      "txt_dist": 0.0
+    },
+    "original_prompt": "Detect the object(s) \"perfume\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        43,
+        67,
+        236,
+        345
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"perfume\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "{\"label\": \"perfume\", \"bbox\": [0.300, 0.210, 0.700, 0.880]}}",
+      "parsed_predictions": [],
+      "matched_pred_boxes": null,
+      "prompt_objects": [
+        "perfume"
+      ]
+    },
+    "fail_code": "Failed to decode VLM JSON array: '{\"label\": \"perfume\", \"bbox\": [0.300, 0.210, 0.700, 0.880]}}'"
+  }
+}

@@ -13,21 +13,9 @@ UDACITY_DATASET_PATH = str(ROOT_DIR / "dataset/udacity/images")
 UDACITY_LABELS_PATH = str(ROOT_DIR / "dataset/udacity/labels_train.csv")
 
 RESULTS_DIR = str(ROOT_DIR / "defaults/mmm/results/selection")
-SELECTION_CATEGORIES = ["single/solo", "single/multi", "multi"]
 
-LABEL_MAPPING_FILE = str(ROOT_DIR / "methodology/auxiliary_files/label_mapping.json")
-HOMOPHONE_MAPPING_FILE = str(ROOT_DIR / "methodology/auxiliary_files/homophone_mapping.json")
-SYNONYM_MAPPING_FILE = str(ROOT_DIR / "methodology/auxiliary_files/synonym_mapping.json")
+LABEL_MAPPING_FILE = str(ROOT_DIR / "experiments/auxiliary_files/label_mapping.json")
+HOMOPHONE_MAPPING_FILE = str(ROOT_DIR / "experiments/auxiliary_files/homophone_mapping.json")
+SYNONYM_MAPPING_FILE = str(ROOT_DIR / "experiments/auxiliary_files/synonym_mapping.json")
 
 OLLAMA_HOST = "http://localhost:11434"
-
-OUTPUT_BASE_DIRS = {
-    "multi": "multimodal",
-    "image": "unimodal/image",
-    "text": "unimodal/text",
-}
-
-PARETO_FILE = "pareto_front.json"
-BEST_FILE = "best_result.json"
-BEST_IMAGE_FILE = "best_result.png"
-BASELINE_FAIL_FILE = "baseline_fail.json"

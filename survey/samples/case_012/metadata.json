@@ -1,0 +1,75 @@
+{
+  "survey_case_id": "case_012",
+  "model": "nemotron",
+  "modality": "image",
+  "scene_type": "single/multi",
+  "testcase_id": "43",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/nemotron/unimodal/image/single/multi/43/best_result.json",
+    "adversarial_image": "defaults/mmm/results/nemotron/unimodal/image/single/multi/43/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/single/multi/43/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/single/multi/43",
+      "folder_id": "43",
+      "category": "single/multi",
+      "filename": "ILSVRC2012_val_00041903.JPEG"
+    },
+    "runtime": 487.78324246406555,
+    "generations_completed": 100,
+    "early_stop_generation": null,
+    "baseline_iou": 0.95784,
+    "genome": [
+      0.6736801721142163,
+      0.00016637716123677013,
+      0.08149258051198316,
+      0.0015141538684407137,
+      0.0013378563954839463,
+      6.16262107033947e-05,
+      0.0003370368011625896,
+      0.00047311957762409453,
+      0.004201819165848684,
+      0.04266084343242368,
+      0.0016896009851977418,
+      0.0016749931840927593
+    ],
+    "objectives": {
+      "iou": 0.85484,
+      "img_dist": 0.05824,
+      "txt_dist": 0.0
+    },
+    "original_prompt": "Detect the object(s) \"salt or pepper shaker\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        87,
+        310,
+        371,
+        808
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"salt or pepper shaker\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[{\"label\": \"salt or pepper shaker\", \"bbox_2d\": [162, 382, 584, 986]}]",
+      "parsed_predictions": [
+        {
+          "label": "salt or pepper shaker",
+          "bbox_2d": [
+            162,
+            382,
+            584,
+            986
+          ]
+        }
+      ],
+      "matched_pred_boxes": null,
+      "prompt_objects": [
+        "salt or pepper shaker"
+      ]
+    }
+  }
+}

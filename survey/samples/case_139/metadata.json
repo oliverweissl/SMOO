@@ -1,0 +1,62 @@
+{
+  "survey_case_id": "case_139",
+  "model": "kimi",
+  "modality": "text",
+  "scene_type": "udacity",
+  "testcase_id": "39",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/kimi/unimodal/text/udacity/39/best_result.json",
+    "adversarial_image": "defaults/mmm/results/kimi/unimodal/text/udacity/39/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/udacity/39/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/udacity/39",
+      "folder_id": "39",
+      "category": "udacity",
+      "filename": "1479500700123235425.jpg"
+    },
+    "runtime": 1.7485454082489014,
+    "generations_completed": 1,
+    "early_stop_generation": 1,
+    "baseline_iou": 0.91752,
+    "genome": [
+      0.005267518623132628,
+      0.24029754456929076,
+      0.03614445196452225,
+      0.0013175121196359815,
+      0.04652413422305385,
+      0.022909599693008077,
+      0.0006245671667728936,
+      0.11795822434131778
+    ],
+    "objectives": {
+      "iou": 0.0,
+      "img_dist": 0.0,
+      "txt_dist": 0.0
+    },
+    "original_prompt": "Detect the object(s) \"truck\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        1,
+        109,
+        102,
+        182
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Note: Image data may contain noise. Detect the object(s) \"truck\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "{\"label\": \"truck\", \"bbox\": [0.000, 0.367, 0.220, 0.600]}}",
+      "parsed_predictions": [],
+      "matched_pred_boxes": null,
+      "prompt_objects": [
+        "truck"
+      ]
+    },
+    "fail_code": "Failed to decode VLM JSON array: '{\"label\": \"truck\", \"bbox\": [0.000, 0.367, 0.220, 0.600]}}'"
+  }
+}

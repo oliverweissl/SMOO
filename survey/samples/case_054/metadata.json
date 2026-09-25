@@ -1,0 +1,90 @@
+{
+  "survey_case_id": "case_054",
+  "model": "qwen",
+  "modality": "multimodal",
+  "scene_type": "single/multi",
+  "testcase_id": "22",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/qwen/multimodal/single/multi/22/best_result.json",
+    "adversarial_image": "defaults/mmm/results/qwen/multimodal/single/multi/22/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/single/multi/22/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/single/multi/22",
+      "folder_id": "22",
+      "category": "single/multi",
+      "filename": "ILSVRC2012_val_00039795.JPEG"
+    },
+    "runtime": 2.4538824558258057,
+    "generations_completed": 1,
+    "early_stop_generation": 1,
+    "baseline_iou": 0.71997,
+    "genome": [
+      0.0006613948974763533,
+      0.0011782587800638965,
+      0.0008526319005203948,
+      8.166885539860396e-06,
+      0.0004015476426372784,
+      8.082128192300541e-05,
+      0.00012369414442577997,
+      0.004404903833142815,
+      0.0004017570214232889,
+      0.004347941826970448,
+      3.689535029945156e-05,
+      0.0009016900334272776,
+      0.0008114505394624995,
+      0.0016931035229559494,
+      0.11486392578907581,
+      0.00043749810158610555,
+      0.0068817129254219594,
+      0.0009703624987554995,
+      0.10668182800038474,
+      0.0479875342609042
+    ],
+    "objectives": {
+      "iou": 0.0,
+      "img_dist": 0.0,
+      "txt_dist": 0.24744
+    },
+    "original_prompt": "Detect the object(s) \"bear\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        102,
+        9,
+        223,
+        142
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Yestedray I wenvtoo Yhe parrk and saw a strrange bird flying backwards i nthe rain while eating a sandwich.... Now, Detect the object(s) \"bare\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[{\"label\": \"bare\", \"bbox\": [100, 380, 380, 920]}]",
+      "parsed_predictions": [
+        {
+          "label": "bare",
+          "bbox": [
+            100,
+            380,
+            380,
+            920
+          ]
+        }
+      ],
+      "matched_pred_boxes": [
+        [
+          25.0,
+          63.84,
+          95.0,
+          154.56
+        ]
+      ],
+      "prompt_objects": [
+        "bare"
+      ]
+    }
+  }
+}

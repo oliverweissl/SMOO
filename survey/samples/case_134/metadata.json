@@ -1,0 +1,88 @@
+{
+  "survey_case_id": "case_134",
+  "model": "kimi",
+  "modality": "multimodal",
+  "scene_type": "multi",
+  "testcase_id": "84",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/kimi/multimodal/multi/84/best_result.json",
+    "adversarial_image": "defaults/mmm/results/kimi/multimodal/multi/84/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/multi/84/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/multi/84",
+      "folder_id": "84",
+      "category": "multi",
+      "filename": "ILSVRC2013_val_00001956.JPEG"
+    },
+    "runtime": 7.736006736755371,
+    "generations_completed": 1,
+    "early_stop_generation": 1,
+    "baseline_iou": 0.70992,
+    "genome": [
+      0.004073149904634013,
+      0.0024863423015542875,
+      0.015708636669167914,
+      0.014793759704151782,
+      0.018113119460726003,
+      0.0019808013792198343,
+      0.0435388973216596,
+      0.07217383514074362,
+      0.022920757791682955,
+      0.0257840830075136,
+      0.007013798352159444,
+      0.00035157002535825656,
+      0.04347940886531179,
+      0.0012893549421449776,
+      0.015616791097102654,
+      0.051566116951081056,
+      0.12174431166687925,
+      0.05478491162521233,
+      0.04212425726944605,
+      0.03398853424706502
+    ],
+    "objectives": {
+      "iou": 0.0,
+      "img_dist": 0.14019,
+      "txt_dist": 0.07759
+    },
+    "original_prompt": "Detect the object(s) \"cup or mug, strawberry, table\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        346,
+        133,
+        484,
+        400
+      ],
+      [
+        45,
+        52,
+        116,
+        110
+      ],
+      [
+        19,
+        19,
+        483,
+        484
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"ucp or mug, strawberry, table\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "{\"label\": \"ucp or mug, strawberry, table\", \"bbox\": [0.000, 0.000, 1.000, 0.800]}}",
+      "parsed_predictions": [],
+      "matched_pred_boxes": null,
+      "prompt_objects": [
+        "ucp or mug",
+        "strawberry",
+        "table"
+      ]
+    },
+    "fail_code": "Failed to decode VLM JSON array: '{\"label\": \"ucp or mug, strawberry, table\", \"bbox\": [0.000, 0.000, 1.000, 0.800]}}'"
+  }
+}

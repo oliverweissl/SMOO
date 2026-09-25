@@ -1,0 +1,91 @@
+{
+  "survey_case_id": "case_019",
+  "model": "nemotron",
+  "modality": "image",
+  "scene_type": "multi",
+  "testcase_id": "2",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/nemotron/unimodal/image/multi/2/best_result.json",
+    "adversarial_image": "defaults/mmm/results/nemotron/unimodal/image/multi/2/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/multi/2/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/multi/2",
+      "folder_id": "2",
+      "category": "multi",
+      "filename": "ILSVRC2013_val_00000449.JPEG"
+    },
+    "runtime": 406.6997163295746,
+    "generations_completed": 100,
+    "early_stop_generation": null,
+    "baseline_iou": 0.97493,
+    "genome": [
+      0.09652148628527525,
+      0.004656008774659666,
+      0.07265796274376346,
+      0.14786179187889423,
+      0.001426339374708994,
+      0.0005155746330766972,
+      0.005608419459248501,
+      0.0004350542559090906,
+      0.004202645598113112,
+      0.01013216447562433,
+      0.0017045372380457141,
+      2.7943948873678306e-05
+    ],
+    "objectives": {
+      "iou": 0.71652,
+      "img_dist": 0.04938,
+      "txt_dist": -0.0
+    },
+    "original_prompt": "Detect the object(s) \"bowl, person\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        115,
+        377,
+        343,
+        498
+      ],
+      [
+        2,
+        2,
+        373,
+        497
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"bowl, person\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[{\"label\": \"bowl\", \"bbox_2d\": [306, 781, 616, 998]}, {\"label\": \"person\", \"bbox_2d\": [0, 0, 998, 998]}]",
+      "parsed_predictions": [
+        {
+          "label": "bowl",
+          "bbox_2d": [
+            306,
+            781,
+            616,
+            998
+          ]
+        },
+        {
+          "label": "person",
+          "bbox_2d": [
+            0,
+            0,
+            998,
+            998
+          ]
+        }
+      ],
+      "matched_pred_boxes": null,
+      "prompt_objects": [
+        "bowl",
+        "person"
+      ]
+    }
+  }
+}

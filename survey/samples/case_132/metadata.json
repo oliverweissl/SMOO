@@ -1,0 +1,69 @@
+{
+  "survey_case_id": "case_132",
+  "model": "kimi",
+  "modality": "text",
+  "scene_type": "multi",
+  "testcase_id": "76",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/kimi/unimodal/text/multi/76/best_result.json",
+    "adversarial_image": "defaults/mmm/results/kimi/unimodal/text/multi/76/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/multi/76/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/multi/76",
+      "folder_id": "76",
+      "category": "multi",
+      "filename": "ILSVRC2012_val_00038720.JPEG"
+    },
+    "runtime": 62.879271507263184,
+    "generations_completed": 1,
+    "early_stop_generation": 1,
+    "baseline_iou": 0.52739,
+    "genome": [
+      0.11098370879771279,
+      0.1259122164201141,
+      0.001386942128782899,
+      0.15228840331164942,
+      0.029321429308293824,
+      0.15621789964799382,
+      0.11790435070352072,
+      0.236612496367817
+    ],
+    "objectives": {
+      "iou": 0.0,
+      "img_dist": 0.0,
+      "txt_dist": 0.0
+    },
+    "original_prompt": "Detect the object(s) \"elephant, person\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        312,
+        13,
+        349,
+        222
+      ],
+      [
+        111,
+        38,
+        171,
+        110
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Note: Image data may contain noise. The quick brown fox  jumms ver the lazy do but tde dog was actaullja robot sent from thZ future.... Now, Detect the object(s) \"elephant, person\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}] ",
+      "raw_response": "[\n    {\"label\": \"elephant\", \"bbox\": [0.250, 0.256, 0.670, 0.976]},\n    {\"label\": \"person\", \"bbox\": [0.000, 0.556, 0.050, 0.816]},\n    {\"label\": \"person\", \"bbox\": [0.050, 0.556, 0.100, 0.816]},\n    {\"label\": \"person\", \"bbox\": [0.100, 0.556, 0.150, 0.816]},\n    {\"label\": \"person\", \"bbox\": [0.150, 0.556, 0.200, 0.816]},\n    {\"label\": \"person\", \"bbox\": [0.200, 0.556, 0.250, 0.816]},\n    {\"label\": \"person\", \"bbox\": [0.250, 0.556, 0.300, 0.816]},\n    {\"label\": \"person\", \"bbox\": [0.300, 0.556, 0.350, 0.816]},\n    {\"label\": \"person\", \"bbox\": [0.350, 0.556, 0.400, 0.816]},\n    {\"label\": \"person\", \"bbox\": [0.400, 0.556, 0.450, 0.816]},\n    {\"label\": \"person\", \"bbox\": [0.450, 0.556, 0.500, 0.816]},\n    {\"label\": \"person\", \"bbox\": [0.500, 0.556, 0.550, 0.816]},\n    {\"label\": \"person\", \"bbox\": [0.550, 0.556, 0.600, 0.816]},\n    {\"label\": \"person\", \"bbox\": [0.600, 0.556, 0.650, 0.816]},\n    {\"label\": \"person\", \"bbox\": [0.650, 0.556, 0.700, 0.816]},\n    {\"label\": \"person\", \"bbox\": [0.700, 0.556, 0.750, 0.816]},\n    {\"label\": \"person\", \"bbox\": [0.750, 0.556, 0.800, 0.816]},\n    {\"label\": \"person\", \"bbox\": [0.800, 0.556, 0.850, 0.816]},\n    {\"label\": \"person\", \"bbox\": [0.850, 0.556, 0.900, 0.816]},\n    {\"label\": \"person\", \"bbox\": [0.900, 0.556, 0.950, 0.816]},\n    {\"label\": \"person\", \"bbox\": [0.950, 0.556, 1.000, 0.816]},\n    {\"label\": \"person\", \"bbox\": [0.000, 0.356, 0.050, 0.556]},\n    {\"label\": \"person\", \"bbox\": [0.050, 0.356, 0.100, 0.556]},\n    {\"label\": \"person\", \"bbox\": [0.100, 0.356, 0.150, 0.556]},\n    {\"label\": \"person\", \"bbox\": [0.150, 0.356, 0.200, 0.556]},\n    {\"label\": \"person\", \"bbox\": [0.200, 0.356, 0.250, 0.556]},\n    {\"label\": \"person\", \"bbox\": [0.250, 0.356, 0.300, 0.556]},\n    {\"label\": \"person\", \"bbox\": [0.300, 0.356, 0.350, 0.556]},\n    {\"label\": \"person\", \"bbox\": [0.350, 0.356, 0.400, 0.556]},\n    {\"label\": \"person\", \"bbox\": [0.400, 0.356, 0.450, 0.556]},\n    {\"label\": \"person\", \"bbox\": [0.450, 0.356, 0.500, 0.556]},\n    {\"label\": \"person\", \"bbox\": [0.500, 0.356, 0.550, 0.556]},\n    {\"label\": \"person\", \"bbox\": [0.550, 0.356, 0.600, 0.556]},\n    {\"label\": \"person\", \"bbox\": [0.600, 0.356, 0.650, 0.556]},\n    {\"label\": \"person\", \"bbox\": [0.650, 0.356, 0.700, 0.556]},\n    {\"label\": \"person\", \"bbox\": [0.700, 0.356, 0.750, 0.556]},\n    {\"label\": \"person\", \"bbox\": [0.750, 0.356, 0.800, 0.556]},\n    {\"label\": \"person\", \"bbox\": [0.800, 0.356, 0.850, 0.556]},\n    {\"label\": \"person\", \"bbox\": [0.850, 0.356, 0.900, 0.556]},\n    {\"label\": \"person\", \"bbox\": [0.900, 0.356, 0.950, 0.556]},\n    {\"label\": \"person\", \"bbox\": [0.950, 0.356, 1.000, 0.556]},\n    {\"label\": \"person\", \"bbox\": [0.000, 0.156, 0.050, 0.356]},\n    {\"label\": \"person\", \"bbox\": [0.050, 0.156, 0.100, 0.356]},\n    {\"label\": \"person\", \"bbox\": [0.100, 0.156, 0.150, 0.356]},\n    {\"label\": \"person\", \"bbox\": [0.150, 0.156, 0.200, 0.356]},\n    {\"label\": \"person\", \"bbox\": [0.200, 0.156, 0.250, 0.356]},\n    {\"label\": \"person\", \"bbox\": [0.250, 0.156, 0.300, 0.356]},\n    {\"label\": \"person\", \"bbox\": [0.300, 0.156, 0.350, 0.356]},\n    {\"label\": \"person\", \"bbox\": [0.350, 0.156, 0.400, 0.356]},\n    {\"label\": \"person\", \"bbox\": [0.400, 0.156, 0.450, 0.356]},\n    {\"label\": \"person\", \"bbox\": [0.450, 0.156, 0.500, 0.356]},\n    {\"label\": \"person\", \"bbox\": [0.500, 0.156, 0.550, 0.356]},\n    {\"label\": \"person\", \"bbox\": [0.550, 0.156, 0.600, 0.356]},\n    {\"label\": \"person\", \"bbox\": [0.600, 0.156, 0.650, 0.356]},\n    {\"label\": \"person\", \"bbox\": [0.650, 0.156, 0.700, 0.356]},\n    {\"label\": \"person\", \"bbox\": [0.700, 0.156, 0.750, 0.356]},\n    {\"label\": \"person\", \"bbox\": [0.750, 0.156, 0.800, 0.356]},\n    {\"label\": \"person\", \"bbox\": [0.800, 0.156, 0.850, 0.356]},\n    {\"label\": \"person\", \"bbox\": [0.850, 0.156, 0.900, 0.356]},\n    {\"label\": \"person\", \"bbox\": [0.900, 0.156, 0.950, 0.356]},\n    {\"label\": \"person\", \"bbox\": [0.950, 0.156, 1.000, 0.356]},\n    {\"label\": \"person\", \"bbox\": [0.000, 0.056, 0.050, 0.156]},\n    {\"label\": \"person\", \"bbox\": [0.050, 0.056, 0.100, 0.156]},\n    {\"label\": \"person\", \"bbox\": [0.100, 0.056, 0.150, 0.156]},\n    {\"label\": \"person\", \"bbox\": [0.150, 0.056, 0.200, 0.156]},\n    {\"label\": \"person\", \"bbox\": [0.200, 0.056, 0.250, 0.156]},\n    {\"label\": \"person\", \"bbox\": [0.250, 0.056, 0.300, 0.156]},\n    {\"label\": \"person\", \"bbox\": [0.300, 0.056, 0.350, 0.156]},\n    {\"label\": \"person",
+      "parsed_predictions": [],
+      "matched_pred_boxes": null,
+      "prompt_objects": [
+        "elephant",
+        "person"
+      ]
+    },
+    "fail_code": "Failed to decode VLM JSON array: '[\\n    {\"label\": \"elephant\", \"bbox\": [0.250, 0.256, 0.670, 0.976]},\\n    {\"label\": \"person\", \"bbox\": [0.000, 0.556, 0.050, 0.816]},\\n    {\"label\": \"person\", \"bbox\": [0.050, 0.556, 0.100, 0.816]},\\n    {\"label\": \"person\", \"bbox\": [0.100, 0.556, 0.150, 0.816]},\\n    {\"label\": \"person\", \"bbox\": [0.150, 0.556, 0.200, 0.816]},\\n    {\"label\": \"person\", \"bbox\": [0.200, 0.556, 0.250, 0.816]},\\n    {\"label\": \"per'"
+  }
+}

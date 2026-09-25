@@ -1,0 +1,73 @@
+{
+  "survey_case_id": "case_009",
+  "model": "nemotron",
+  "modality": "multimodal",
+  "scene_type": "single/solo",
+  "testcase_id": "36",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/nemotron/multimodal/single/solo/36/best_result.json",
+    "adversarial_image": "defaults/mmm/results/nemotron/multimodal/single/solo/36/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/single/solo/36/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/single/solo/36",
+      "folder_id": "36",
+      "category": "single/solo",
+      "filename": "ILSVRC2012_val_00043730.JPEG"
+    },
+    "runtime": 3.089211940765381,
+    "generations_completed": 1,
+    "early_stop_generation": 1,
+    "baseline_iou": 0.95688,
+    "genome": [
+      0.0012033992108158634,
+      0.002503253517891659,
+      0.0012124541414164486,
+      0.00017641936533903564,
+      0.00367012011258307,
+      0.00885491777135044,
+      0.002717199448032249,
+      0.07379696598828295,
+      0.0058496652461902925,
+      0.010743399184717641,
+      0.0017429771584686832,
+      8.907868349492085e-05,
+      0.002290509548464912,
+      0.0024137562699469983,
+      0.00210249831940856,
+      0.05232411855088985,
+      0.12209438014978821,
+      0.0032749861479736773,
+      0.011346062823422388,
+      0.00012564936958728664
+    ],
+    "objectives": {
+      "iou": 0.0,
+      "img_dist": 0.08602,
+      "txt_dist": 0.26261
+    },
+    "original_prompt": "Detect the object(s) \"bear\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        149,
+        59,
+        335,
+        185
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"behr\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[]",
+      "parsed_predictions": [],
+      "matched_pred_boxes": null,
+      "prompt_objects": [
+        "behr"
+      ]
+    }
+  }
+}

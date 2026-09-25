@@ -1,0 +1,87 @@
+{
+  "survey_case_id": "case_096",
+  "model": "intern",
+  "modality": "text",
+  "scene_type": "multi",
+  "testcase_id": "58",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/intern/unimodal/text/multi/58/best_result.json",
+    "adversarial_image": "defaults/mmm/results/intern/unimodal/text/multi/58/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/multi/58/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/multi/58",
+      "folder_id": "58",
+      "category": "multi",
+      "filename": "ILSVRC2012_val_00038249.JPEG"
+    },
+    "runtime": 3.477529525756836,
+    "generations_completed": 1,
+    "early_stop_generation": 1,
+    "baseline_iou": 0.70943,
+    "genome": [
+      0.039853140020987415,
+      0.014747987230183598,
+      0.006754266047478544,
+      0.012013160450881098,
+      0.011696765209480757,
+      0.010155046219395388,
+      0.003667379969914123,
+      0.016767553567463008
+    ],
+    "objectives": {
+      "iou": 0.2913,
+      "img_dist": 0.0,
+      "txt_dist": 0.10102
+    },
+    "original_prompt": "Detect the object(s) \"bookshelf, dishwasher\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        46,
+        107,
+        534,
+        312
+      ],
+      [
+        525,
+        481,
+        587,
+        677
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"bookshelf, disxwasher\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[{\"label\": \"bookshelf\", \"bbox\": [50, 120, 900, 500]}, {\"label\": \"disxwasher\", \"bbox\": [150, 410, 370, 480]}]",
+      "parsed_predictions": [
+        {
+          "label": "bookshelf",
+          "bbox": [
+            50,
+            120,
+            900,
+            500
+          ]
+        },
+        {
+          "label": "disxwasher",
+          "bbox": [
+            150,
+            410,
+            370,
+            480
+          ]
+        }
+      ],
+      "matched_pred_boxes": null,
+      "prompt_objects": [
+        "bookshelf",
+        "disxwasher"
+      ]
+    }
+  }
+}

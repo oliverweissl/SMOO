@@ -1,0 +1,91 @@
+{
+  "survey_case_id": "case_046",
+  "model": "qwen",
+  "modality": "image",
+  "scene_type": "single/multi",
+  "testcase_id": "2",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/qwen/unimodal/image/single/multi/2/best_result.json",
+    "adversarial_image": "defaults/mmm/results/qwen/unimodal/image/single/multi/2/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/single/multi/2/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/single/multi/2",
+      "folder_id": "2",
+      "category": "single/multi",
+      "filename": "ILSVRC2012_val_00029698.JPEG"
+    },
+    "runtime": 222.77023315429688,
+    "generations_completed": 100,
+    "early_stop_generation": null,
+    "baseline_iou": 0.75981,
+    "genome": [
+      0.0031421089520887006,
+      0.0018784705034595934,
+      0.00984261910220757,
+      9.575891671204014e-05,
+      0.006393246665004976,
+      0.00015458068281841566,
+      0.00020255671206688766,
+      0.004666017743682999,
+      0.001443654486851465,
+      0.14549306028183445,
+      0.0017143527969974539,
+      0.0009199777747798885
+    ],
+    "objectives": {
+      "iou": 0.70314,
+      "img_dist": 0.11648,
+      "txt_dist": 0.0
+    },
+    "original_prompt": "Detect the object(s) \"bird\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        111,
+        34,
+        412,
+        329
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"bird\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[{\"label\": \"bird\", \"bbox\": [50, 166, 820, 864]}, {\"label\": \"bird\", \"bbox\": [78, 250, 506, 838]}]",
+      "parsed_predictions": [
+        {
+          "label": "bird",
+          "bbox": [
+            50,
+            166,
+            820,
+            864
+          ]
+        },
+        {
+          "label": "bird",
+          "bbox": [
+            78,
+            250,
+            506,
+            838
+          ]
+        }
+      ],
+      "matched_pred_boxes": [
+        [
+          25.0,
+          62.25,
+          410.0,
+          324.0
+        ]
+      ],
+      "prompt_objects": [
+        "bird"
+      ]
+    }
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "survey_case_id": "case_006",
+  "model": "nemotron",
+  "modality": "text",
+  "scene_type": "single/solo",
+  "testcase_id": "9",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/nemotron/unimodal/text/single/solo/9/best_result.json",
+    "adversarial_image": "defaults/mmm/results/nemotron/unimodal/text/single/solo/9/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/single/solo/9/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/single/solo/9",
+      "folder_id": "9",
+      "category": "single/solo",
+      "filename": "ILSVRC2012_val_00031771.JPEG"
+    },
+    "runtime": 2.7207562923431396,
+    "generations_completed": 1,
+    "early_stop_generation": 1,
+    "baseline_iou": 0.87773,
+    "genome": [
+      0.02305485246885339,
+      0.042175155433449116,
+      0.02667805540246117,
+      0.04046323656146205,
+      0.02060517674356957,
+      0.014705814982669013,
+      0.16583120018647743,
+      0.12622196045343947
+    ],
+    "objectives": {
+      "iou": 0.0,
+      "img_dist": 0.0,
+      "txt_dist": 0.17844
+    },
+    "original_prompt": "Detect the object(s) \"croquet ball\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        173,
+        138,
+        287,
+        236
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Note: Image data may contain noise. Please remember tob uy milk, egggs, and bread  fr mt hhe groery torC today because we are rnnig cGt of supplies.... Now, Detect the object(s) \"crooked ball\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "\n[]",
+      "parsed_predictions": [],
+      "matched_pred_boxes": null,
+      "prompt_objects": [
+        "crooked ball"
+      ]
+    }
+  }
+}

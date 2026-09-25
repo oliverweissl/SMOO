@@ -1,0 +1,71 @@
+{
+  "survey_case_id": "case_067",
+  "model": "qwen",
+  "modality": "text",
+  "scene_type": "udacity",
+  "testcase_id": "74",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/qwen/unimodal/text/udacity/74/best_result.json",
+    "adversarial_image": "defaults/mmm/results/qwen/unimodal/text/udacity/74/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/udacity/74/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/udacity/74",
+      "folder_id": "74",
+      "category": "udacity",
+      "filename": "1479501447174309879.jpg"
+    },
+    "runtime": 1.084458351135254,
+    "generations_completed": 1,
+    "early_stop_generation": 1,
+    "baseline_iou": 0.98324,
+    "genome": [
+      0.03658166950787413,
+      0.1591553073655722,
+      0.019965131304280674,
+      0.006779407108528397,
+      0.012878526147624303,
+      0.07583342521037238,
+      0.012233448761225079,
+      0.05090107744466446
+    ],
+    "objectives": {
+      "iou": 0.0,
+      "img_dist": 0.0,
+      "txt_dist": 0.28293
+    },
+    "original_prompt": "Detect the object(s) \"car\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        0,
+        109,
+        346,
+        237
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"cam\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[{\"label\": \"cam\", \"bbox\": [808, 0, 856, 50]}]",
+      "parsed_predictions": [
+        {
+          "label": "cam",
+          "bbox": [
+            808,
+            0,
+            856,
+            50
+          ]
+        }
+      ],
+      "matched_pred_boxes": null,
+      "prompt_objects": [
+        "cam"
+      ]
+    }
+  }
+}

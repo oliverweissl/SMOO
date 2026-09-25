@@ -1,0 +1,83 @@
+{
+  "survey_case_id": "case_117",
+  "model": "kimi",
+  "modality": "multimodal",
+  "scene_type": "single/solo",
+  "testcase_id": "61",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/kimi/multimodal/single/solo/61/best_result.json",
+    "adversarial_image": "defaults/mmm/results/kimi/multimodal/single/solo/61/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/single/solo/61/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/single/solo/61",
+      "folder_id": "61",
+      "category": "single/solo",
+      "filename": "ILSVRC2012_val_00024314.JPEG"
+    },
+    "runtime": 7.074128866195679,
+    "generations_completed": 2,
+    "early_stop_generation": 2,
+    "baseline_iou": 0.96737,
+    "genome": [
+      0.0008349323911688814,
+      0.0015597345606393257,
+      0.0011725673141405471,
+      0.0012901137145302916,
+      0.000338417551364621,
+      0.0038801877864923645,
+      0.0005273310894163351,
+      0.0001735016624775937,
+      0.00015942235477446124,
+      0.02424123553822028,
+      8.635300562352937e-05,
+      0.0011273701131626127,
+      0.00042255295960006296,
+      0.012519688467351343,
+      0.1891859421001077,
+      0.0012206321934275688,
+      0.0005341723618757302,
+      0.0017227178393204225,
+      0.0006457319792598287,
+      0.001208136865744267
+    ],
+    "objectives": {
+      "iou": 0.0,
+      "img_dist": 0.03535,
+      "txt_dist": 0.19099
+    },
+    "original_prompt": "Detect the object(s) \"snake\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        138,
+        176,
+        459,
+        375
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"sneak\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[\n    {\"label\": \"sneak\", \"bbox\": [0.000, 0.200, 0.320, 0.267]}\n]",
+      "parsed_predictions": [
+        {
+          "label": "sneak",
+          "bbox": [
+            0.0,
+            0.2,
+            0.32,
+            0.267
+          ]
+        }
+      ],
+      "matched_pred_boxes": null,
+      "prompt_objects": [
+        "sneak"
+      ]
+    }
+  }
+}

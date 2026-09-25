@@ -8,13 +8,13 @@ sys.path.insert(0, str(PROJECT_ROOT))
 import argparse
 import copy
 import random
-from typing import Any
 
 import numpy as np
 import torch
 
 from defaults.early_termination import get_early_termination
 from defaults.mmm import ExperimentConfig, MMMTester
+from defaults.mmm._genome import active_solution_shape
 from defaults.objective_configs import MMM as MMM_OBJECTIVES
 from defaults.optimizer_configs import PYMOO_NSGA2_DEFAULT_PARAMS
 from defaults.mmm.optimizer_modules import BudgetRepair, BudgetAwareSampling
@@ -30,50 +30,7 @@ from defaults.logging_utils import setup_logging
 from src.objectives import CriterionCollection
 from src.optimizer import PymooOptimizer
 from src.sut import VLMSUT
-
-MODEL_SPECS: dict[str, dict[str, Any]] = {
-    "qwen": {
-        "model": "Qwen/Qwen3-VL-4B-Instruct",
-        "coord_scale": 1000,
-        "bbox_order": "xyxy",
-    },
-    "kimi": {
-        "model": "moonshotai/Kimi-VL-A3B-Instruct",
-        "coord_scale": 1,
-        "bbox_order": "xyxy",
-    },
-    "intern": {
-        "model": "OpenGVLab/InternVL3_5-8B",
-        "coord_scale": 1000,
-        "bbox_order": "xyxy",
-    },
-    "gemma": {
-        "model": "google/gemma-3-4b-it",
-        "coord_scale": 1000,
-        "bbox_order": "yxyx",
-        "image_resize": (896, 896),
-    },
-    "deepseek": {
-        "model": "deepseek-ai/deepseek-vl2-tiny",
-        "coord_scale": 999,
-        "bbox_order": "xyxy",
-        "prompt_mode": "deepseek_ref",
-        "max_model_len": 4096,
-    },
-    "nemotron": {
-        "model": "nvidia/Nemotron-3-Nano-Omni-30B-A3B-Reasoning-FP8",
-        "coord_scale": 1000,
-        "bbox_order": "xyxy",
-        "sampling_params": {
-            "temperature": 0.0,
-            "top_k": 1,
-            "max_tokens": 128,
-        },
-        "extra_body": {
-            "chat_template_kwargs": {"enable_thinking": False},
-        },
-    },
-}
+from experiments.config.models import MODEL_SPECS
 
 
 def parse_args() -> argparse.Namespace:
@@ -116,16 +73,6 @@ def _infer_dims(manipulator: MultimodalManipulator) -> tuple[int, int]:
     return image_dim, text_dim
 
 
-def _solution_shape(mode: str, image_dim: int, text_dim: int) -> tuple[int, ...]:
-    if mode == "image":
-        return (image_dim,)
-    if mode == "text":
-        return (text_dim,)
-    if mode == "multi":
-        return (image_dim + text_dim,)
-    raise ValueError(f"Unsupported MMM mode: {mode}")
-
-
 def main() -> None:
     _ = setup_logging()
     args = parse_args()
@@ -140,7 +87,7 @@ def main() -> None:
         manipulator_args=[{}, {}],
     )
     image_dim, text_dim = _infer_dims(manipulator)
-    solution_shape = _solution_shape(args.mode, image_dim, text_dim)
+    solution_shape = active_solution_shape(args.mode, image_dim, text_dim)
 
     ############# Instantiate SUT
     spec = copy.deepcopy(MODEL_SPECS[args.vlm])

@@ -1,0 +1,82 @@
+{
+  "survey_case_id": "case_073",
+  "model": "intern",
+  "modality": "image",
+  "scene_type": "single/solo",
+  "testcase_id": "14",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/intern/unimodal/image/single/solo/14/best_result.json",
+    "adversarial_image": "defaults/mmm/results/intern/unimodal/image/single/solo/14/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/single/solo/14/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/single/solo/14",
+      "folder_id": "14",
+      "category": "single/solo",
+      "filename": "ILSVRC2013_val_00004426.JPEG"
+    },
+    "runtime": 12.5915846824646,
+    "generations_completed": 1,
+    "early_stop_generation": 1,
+    "baseline_iou": 0.87088,
+    "genome": [
+      0.03552768007353742,
+      0.008178947371927453,
+      0.019319368833937665,
+      0.010034894186411633,
+      0.008934242209678075,
+      0.0017984737077866857,
+      0.03266548648271322,
+      0.0005907756681860581,
+      0.015208692916697096,
+      0.04346189695081514,
+      0.0130370272001496,
+      0.011899092458277733
+    ],
+    "objectives": {
+      "iou": 0.12123,
+      "img_dist": 0.13335,
+      "txt_dist": 0.0
+    },
+    "original_prompt": "Detect the object(s) \"koala bear\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        13,
+        81,
+        329,
+        491
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"koala bear\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[{\"label\": \"koala bear\", \"bbox\": [100, 150, 500, 400]}]",
+      "parsed_predictions": [
+        {
+          "label": "koala bear",
+          "bbox": [
+            100,
+            150,
+            500,
+            400
+          ]
+        }
+      ],
+      "matched_pred_boxes": [
+        [
+          33.2,
+          75.0,
+          166.0,
+          200.0
+        ]
+      ],
+      "prompt_objects": [
+        "koala bear"
+      ]
+    }
+  }
+}

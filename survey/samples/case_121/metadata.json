@@ -1,0 +1,62 @@
+{
+  "survey_case_id": "case_121",
+  "model": "kimi",
+  "modality": "text",
+  "scene_type": "single/multi",
+  "testcase_id": "80",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/kimi/unimodal/text/single/multi/80/best_result.json",
+    "adversarial_image": "defaults/mmm/results/kimi/unimodal/text/single/multi/80/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/single/multi/80/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/single/multi/80",
+      "folder_id": "80",
+      "category": "single/multi",
+      "filename": "ILSVRC2012_val_00042837.JPEG"
+    },
+    "runtime": 2.082688093185425,
+    "generations_completed": 1,
+    "early_stop_generation": 1,
+    "baseline_iou": 0.63664,
+    "genome": [
+      0.2892464727271601,
+      0.06953510374575299,
+      0.02875766992361318,
+      0.00022636924726475536,
+      0.04950819214801095,
+      0.16436181059667457,
+      0.2068617966794741,
+      0.024686911973475605
+    ],
+    "objectives": {
+      "iou": 0.0,
+      "img_dist": 0.0,
+      "txt_dist": 0.08176
+    },
+    "original_prompt": "Detect the object(s) \"perfume\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        262,
+        137,
+        423,
+        431
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "The yuick brown fox jupms over the laz dg ut thetodg was acually a roobt sBnt froomt he fuuture.... Now, Detect the object(s) \"per𝐟ume\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}] ",
+      "raw_response": "{\"label\": \"per𝐟ume\", \"bbox\": [0.500, 0.200, 0.800, 0.800]}}",
+      "parsed_predictions": [],
+      "matched_pred_boxes": null,
+      "prompt_objects": [
+        "per𝐟ume"
+      ]
+    },
+    "fail_code": "Failed to decode VLM JSON array: '{\"label\": \"per𝐟ume\", \"bbox\": [0.500, 0.200, 0.800, 0.800]}}'"
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "survey_case_id": "case_062",
+  "model": "qwen",
+  "modality": "multimodal",
+  "scene_type": "multi",
+  "testcase_id": "50",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/qwen/multimodal/multi/50/best_result.json",
+    "adversarial_image": "defaults/mmm/results/qwen/multimodal/multi/50/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/multi/50/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/multi/50",
+      "folder_id": "50",
+      "category": "multi",
+      "filename": "ILSVRC2013_val_00003860.JPEG"
+    },
+    "runtime": 3.210883855819702,
+    "generations_completed": 1,
+    "early_stop_generation": 1,
+    "baseline_iou": 0.69589,
+    "genome": [
+      0.0016106803087673005,
+      0.00022104382257558344,
+      0.000775997161203683,
+      2.179707287185702e-05,
+      0.0022129564110135004,
+      2.679833287085238e-05,
+      0.00012363777222421395,
+      0.0036920727018768303,
+      0.002854148286877075,
+      0.0007411927067072542,
+      0.00012305243375976136,
+      0.0011519824036578844,
+      0.0013749724067892415,
+      0.035470125420161806,
+      0.1924409116992957,
+      0.008368998956165882,
+      0.0034280835676961784,
+      0.0009685799937679058,
+      0.10791918474057584,
+      0.0004809066538611628
+    ],
+    "objectives": {
+      "iou": 0.22814,
+      "img_dist": 0.0,
+      "txt_dist": 0.10967
+    },
+    "original_prompt": "Detect the object(s) \"digital clock, person\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        92,
+        90,
+        135,
+        108
+      ],
+      [
+        173,
+        30,
+        496,
+        492
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "The quick brown fox juump ovre teh lazy dog buU the dog was ctually a robott sentt from thee futume.... Now, Detect the object(s) \"digital clock, pearson\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[{\"label\": \"digital clock\", \"bbox\": [194, 183, 244, 210]}, {\"label\": \"pearson\", \"bbox\": [371, 545, 432, 743]}]",
+      "parsed_predictions": [
+        {
+          "label": "digital clock",
+          "bbox": [
+            194,
+            183,
+            244,
+            210
+          ]
+        },
+        {
+          "label": "pearson",
+          "bbox": [
+            371,
+            545,
+            432,
+            743
+          ]
+        }
+      ],
+      "matched_pred_boxes": [
+        [
+          97.0,
+          91.5,
+          122.0,
+          105.0
+        ],
+        [
+          185.5,
+          272.5,
+          216.0,
+          371.5
+        ]
+      ],
+      "prompt_objects": [
+        "digital clock",
+        "pearson"
+      ]
+    }
+  }
+}

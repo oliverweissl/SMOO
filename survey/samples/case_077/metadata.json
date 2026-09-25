@@ -1,0 +1,71 @@
+{
+  "survey_case_id": "case_077",
+  "model": "intern",
+  "modality": "text",
+  "scene_type": "single/solo",
+  "testcase_id": "65",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/intern/unimodal/text/single/solo/65/best_result.json",
+    "adversarial_image": "defaults/mmm/results/intern/unimodal/text/single/solo/65/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/single/solo/65/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/single/solo/65",
+      "folder_id": "65",
+      "category": "single/solo",
+      "filename": "ILSVRC2013_val_00004383.JPEG"
+    },
+    "runtime": 20.302153825759888,
+    "generations_completed": 11,
+    "early_stop_generation": 11,
+    "baseline_iou": 0.97514,
+    "genome": [
+      0.017269988699374718,
+      0.029899213490225618,
+      0.14999643285853412,
+      0.014268451659977567,
+      0.014291035462948442,
+      0.2671204463997471,
+      0.12870477608810316,
+      0.09366398732961168
+    ],
+    "objectives": {
+      "iou": 0.08733,
+      "img_dist": 0.0,
+      "txt_dist": 0.0
+    },
+    "original_prompt": "Detect the object(s) \"person\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        3,
+        3,
+        331,
+        498
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Yseterday Iw ent to he park and saw a strnage bird fyling baackwadrs in the rain while eating a  sbndwdcch.... Now, Detect the object(s) \"person\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]  &&& mysterious_string_noise_## $$ %%",
+      "raw_response": "[{\"label\": \"person\", \"bbox\": [0, 0, 300, 300]}]",
+      "parsed_predictions": [
+        {
+          "label": "person",
+          "bbox": [
+            0,
+            0,
+            300,
+            300
+          ]
+        }
+      ],
+      "matched_pred_boxes": null,
+      "prompt_objects": [
+        "person"
+      ]
+    }
+  }
+}

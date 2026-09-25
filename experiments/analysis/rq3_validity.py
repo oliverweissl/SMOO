@@ -1,0 +1,310 @@
+"""RQ3: human-vs-model validity analysis of the survey responses."""
+
+import json
+
+import numpy as np
+import pandas as pd
+from irrCAC.raw import CAC
+from statsmodels.stats.inter_rater import fleiss_kappa
+
+from .box_iou import matched_box_iou
+
+MODELS = ["qwen", "nemotron", "intern", "kimi"]
+MODEL_LABELS = {"qwen": "Qwen3-VL", "kimi": "Kimi-VL", "intern": "InternVL-3.5", "nemotron": "Nemotron3-ON"}
+
+
+_SURVEY_MODALITY_MAP = {"text": "unimodal/text", "image": "unimodal/image", "multimodal": "multimodal"}
+
+
+def load_case_metadata(survey_root: str) -> dict:
+    """The survey artifact's `samples/manifest.json` + per-case `metadata.json` is the
+    authoritative record of which (model, modality) generated each of the 144 survey
+    cases, and carries that exact case's ground-truth boxes and model IoU straight from
+    the `best_result.json`/`baseline_fail.json` used to build it - so human and model
+    IoU can be compared on the literal same testcase instead of a heuristic guess.
+
+    case_id -> {model, modality, category, folder_id, ground_truth_boxes, model_iou}.
+    """
+    manifest = json.load(open(f"{survey_root}/samples/manifest.json"))
+    case_meta = {}
+    for c in manifest["cases"]:
+        result = json.load(open(f"{survey_root}/samples/{c['directory']}/metadata.json"))["result"]
+        case_meta[c["survey_case_id"]] = {
+            "model": c["model"],
+            "modality": _SURVEY_MODALITY_MAP[c["modality"]],
+            "category": result["data_source"]["category"],
+            "folder_id": result["data_source"]["folder_id"],
+            "ground_truth_boxes": result["ground_truth_bboxes"],
+            "model_iou": result.get("objectives", {}).get("iou", result.get("baseline_iou", 0.0)),
+        }
+    return case_meta
+
+
+def load_case_lookup(survey_root: str) -> dict:
+    """(variant, category, filename, label) -> case_id, from `data/variants/variant-{1,2,3}.json`.
+
+    This is an exact join key: the survey frontend (app.js) sets a task's `category`/
+    `filename`/`label` fields verbatim from the matching variant-file entry
+    (`label = item.labels.join(', ')`), so every real (non-attention) survey row round-
+    trips back to exactly one case with no fuzzy matching needed.
+    """
+    lookup = {}
+    for variant in (1, 2, 3):
+        entries = json.load(open(f"{survey_root}/data/variants/variant-{variant}.json"))
+        for e in entries:
+            lookup[(variant, e["category"], e["filename"], ", ".join(e["labels"]))] = e["case_id"]
+    return lookup
+
+
+# session_0001 (annotator_0001, variant 1) logged one response with a null task_index
+# at session start - task_index 10 and 18 are both absent from its numbered sequence but
+# only one extra unindexed row exists, so exactly one of those two tasks was never
+# actually submitted and we can't tell which. 47/48 rows for an otherwise-valid rater
+# isn't a case `load_survey`'s upstream filtering (attention checks, all-reject/skip
+# annotators) was meant to catch, so drop it here explicitly.
+_CORRUPTED_SESSIONS = {"session_0001"}
+
+
+def load_survey(csv_path: str) -> pd.DataFrame:
+    """`csv_path` is already filtered (no attention-check rows, no annotators who never
+    gave a single bbox) and anonymized (annotator_id/session_id are stable per-person
+    pseudonyms, not real MTurk worker IDs) - this just parses it for analysis.
+    """
+    df = pd.read_csv(csv_path)
+    df = df[~df["session_id"].isin(_CORRUPTED_SESSIONS)].copy()
+
+    def _clamp(box, width, height):
+        x1, y1, x2, y2 = box
+        return [
+            min(max(x1, 0), width),
+            min(max(y1, 0), height),
+            min(max(x2, 0), width),
+            min(max(y2, 0), height),
+        ]
+
+    def _parse_bboxes(row):
+        if row["response_type"] not in ("bbox", "reject", "skip"):
+            return []
+        raw = row["bboxes"]
+        if pd.isna(raw):
+            return []
+        parsed = json.loads(raw)
+        if not isinstance(parsed, list):
+            return []
+        # the UI is responsible for keeping boxes on-image; clamp here for the rows where it didn't
+        return [_clamp(b, row["image_width"], row["image_height"]) for b in parsed]
+
+    df["bboxes_parsed"] = df.apply(_parse_bboxes, axis=1)
+    df["reject_reason"] = df["reject_reason"].fillna("")
+    return df
+
+
+def compute_human_task_iou(df_valid: pd.DataFrame, case_lookup: dict, case_meta: dict) -> pd.DataFrame:
+    """One survey row already *is* one full task: `label`/`bboxes` cover every target
+    object of that task at once (e.g. label="bench, dog" with 2 boxes), and
+    (annotator_id, session_id, task_index) is one-to-one with the row. So the
+    "task-level" unit for IoU is just the row itself, no grouping needed.
+    """
+    rows = []
+    for _, row in df_valid.iterrows():
+        case_id = case_lookup.get((row["variant"], row["category"], row["filename"], row["label"]))
+        case = case_meta.get(case_id)
+        if case is None:
+            continue
+
+        interpretable = row["response_type"] == "bbox"
+        pred_boxes = row["bboxes_parsed"] if interpretable else []
+        iou = matched_box_iou(pred_boxes, case["ground_truth_boxes"])
+
+        rows.append({
+            "annotator_id": row["annotator_id"],
+            "session_id": row["session_id"],
+            "case_id": case_id,
+            "model": case["model"],
+            "modality": case["modality"],
+            "category": row["category"],
+            "filename": row["filename"],
+            "response_type": row["response_type"],
+            "reject_reason": row["reject_reason"],
+            "iou": iou,
+            "iou_adjusted": iou if interpretable else 0.0,
+            "interpretable": interpretable,
+        })
+    return pd.DataFrame(rows)
+
+
+def case_human_iou(human_iou: pd.DataFrame) -> pd.DataFrame:
+    """Collapse `compute_human_task_iou`'s per-rater rows to one row per case.
+
+    Each case is rated by 10-38 raters, so pooling raw rows in a category/model mean
+    pseudo-replicates the true sample size (n cases, not n ratings) and hides that
+    raters don't all accept or reject a case together - a case where 60% give a bbox
+    and 40% reject is not the same as one every rater rejects, even though a row-level
+    average can't tell them apart.
+
+    accept_rate / reject_image_rate / reject_text_rate / reject_other_rate: fraction
+    of this case's raters landing in each bucket - always sum to 1, since every row is
+    exactly one of {bbox given, reject:unclear_image, reject:unclear_label, reject:
+    other, skip} (skip is folded into "other").
+    iou_given_accept: mean IoU among only the accepting raters (undefined, NaN, if none did).
+    iou_robust: accept_rate * iou_given_accept - non-accepting raters count as 0 IoU
+        rather than being dropped, same quantity `iou_adjusted` already encodes per
+        row, made explicit and case-level here.
+    """
+    def _agg(g):
+        n = len(g)
+        is_reject = g["response_type"] == "reject"
+        n_accept = int(g["interpretable"].sum())
+        return pd.Series({
+            "model": g["model"].iloc[0],
+            "modality": g["modality"].iloc[0],
+            "category": g["category"].iloc[0],
+            "accept_rate": n_accept / n,
+            "reject_image_rate": (is_reject & (g["reject_reason"] == "unclear_image")).sum() / n,
+            "reject_text_rate": (is_reject & (g["reject_reason"] == "unclear_label")).sum() / n,
+            "reject_other_rate": (
+                (is_reject & (g["reject_reason"] == "other")) | (g["response_type"] == "skip")
+            ).sum() / n,
+            "iou_given_accept": g.loc[g["interpretable"], "iou"].mean() if n_accept else float("nan"),
+            "iou_robust": g["iou_adjusted"].mean(),
+        })
+
+    return human_iou.groupby("case_id").apply(_agg, include_groups=False)
+
+
+def human_vs_model_iou_by_model(case_df: pd.DataFrame, model_iou_cases: pd.DataFrame) -> pd.DataFrame:
+    """Human vs. model mean IoU aggregated over modality and category - a per-stratum
+    (model x modality x category) comparison leaves each cell only ~3-12 cases; this
+    pools every case for a model into one estimate."""
+    human = case_df.groupby("model").agg(
+        human_iou=("iou_given_accept", "mean"),
+        human_iou_robust=("iou_robust", "mean"),
+    )
+    model = model_iou_cases.groupby("model")["iou"].agg(model_iou="mean")
+    return human.join(model)
+
+
+def model_level_summary(case_df: pd.DataFrame, model_iou_cases: pd.DataFrame) -> pd.DataFrame:
+    """One row per model: human vs. model mean IoU (`human_vs_model_iou_by_model`)
+    joined with case-level accept/reject-reason rates, averaged per model
+    (accept_rate + the 3 reject_*_rate columns sum to 1)."""
+    rates = case_df.groupby("model")[
+        ["accept_rate", "reject_image_rate", "reject_text_rate", "reject_other_rate"]
+    ].mean()
+    return human_vs_model_iou_by_model(case_df, model_iou_cases).join(rates)
+
+
+def _response_class(row) -> str:
+    """Abstracts the 3 reject-reason subtypes into one "reject" class: the specific
+    reason is a subjective free-choice label, not a real agreement dimension, and
+    folding it into Fleiss'/Cohen's kappa's 5-class scheme was adding noise to (and
+    truncating items out of, via the modal-rater-count restriction) a statistic meant
+    to measure whether raters agree on accept/reject/skip, not on *why* they rejected.
+    """
+    if row["response_type"] == "bbox":
+        return "accept"
+    if row["response_type"] == "reject":
+        return "reject"
+    if row["response_type"] == "skip":
+        return "skip"
+    raise ValueError(f"unexpected response_type {row['response_type']!r}")
+
+
+_CLASSES = ["accept", "reject", "skip"]
+
+
+def _raw_ratings_table(df: pd.DataFrame) -> pd.DataFrame:
+    """One row per rated item, one column per rater slot, NaN-padded to the widest
+    item - the "raw ratings" format `irrCAC.raw.CAC` expects (rater identity in the
+    columns is arbitrary; CAC only reads per-row category counts, so padding with NaN
+    correctly represents items rated fewer times without assuming any correspondence
+    between column N on one row and column N on another).
+
+    `label` (a task's full, possibly multi-object target description, e.g. "bench, dog")
+    together with (category, filename) identifies one rated item; `label_index` is not
+    used as it is always null in this survey export. `variant` is part of the key:
+    15 (category, filename, label) triples are shared by 2-3 different cases across
+    variants, so leaving it out would pool ratings of distinct stimuli into one item
+    (144 cases -> 127 items). Each case is rated 11-27 times.
+    """
+    df = df.copy()
+    df["response_class"] = df.apply(_response_class, axis=1)
+    item_cols = ["variant", "category", "filename", "label"]
+    per_item = df.groupby(item_cols)["response_class"].apply(list)
+    width = per_item.map(len).max()
+    return pd.DataFrame(
+        [row + [np.nan] * (width - len(row)) for row in per_item],
+        index=per_item.index,
+    )
+
+
+def krippendorff_alpha_by_category(df_valid: pd.DataFrame) -> dict:
+    """Krippendorff's alpha (nominal) via `irrCAC.raw.CAC.krippendorff`, on the
+    abstracted 3-class accept/reject/skip response.
+
+    Chosen over Fleiss'/Cohen's kappa for this scenario because it (a) handles a
+    variable, unequal number of raters per item natively - no modal-count truncation,
+    no mismatched "overall" vs. per-category item subsample - and (b) generalizes
+    cleanly to ordinal/interval/ratio measurement and custom distance functions, so
+    the same framework could later fold in the continuous IoU spatial agreement
+    between accepted boxes (distance = 1 - IoU) instead of only the accept/reject/skip
+    decision, without switching statistics.
+    """
+    def _alpha(df):
+        ratings = _raw_ratings_table(df)
+        result = CAC(ratings, categories=_CLASSES).krippendorff()["est"]
+        return {"alpha": result["coefficient_value"], "n_items": len(ratings)}
+
+    result = {"overall": _alpha(df_valid)}
+    for category, group in df_valid.groupby("category"):
+        result[category] = _alpha(group)
+    return result
+
+
+def randolph_kappa(df: pd.DataFrame) -> dict:
+    """Randolph's free-marginal multirater kappa on the binary decision "gave bboxes"
+    vs. "did not" (any reject reason or skip), via statsmodels' `fleiss_kappa(...,
+    method="randolph")`.
+
+    Chance agreement is fixed at 1/q = 0.5 instead of being estimated from the
+    marginals, so the skewed bbox/no-bbox split (~2:1) does not drag kappa down the
+    way it does for Fleiss'/Krippendorff (the kappa paradox). Items are cases, keyed as
+    in `_raw_ratings_table`.
+
+    statsmodels asserts an equal rater count per item, but cases here are rated 11, 12,
+    24 or 27 times. Since kappa is linear in P_o, the mean per-item pairwise agreement,
+    computing it per rater-count stratum and taking the item-weighted mean is exactly
+    the pooled variable-rater Randolph kappa.
+    """
+    gave_bbox = (df["response_type"] == "bbox").astype(int)
+    counts = gave_bbox.groupby([df[c] for c in ["variant", "category", "filename", "label"]]).agg(["sum", "count"])
+    counts = counts[counts["count"] >= 2]
+    table = np.column_stack([counts["sum"], counts["count"] - counts["sum"]])
+    n_raters = table.sum(axis=1)
+    strata = np.unique(n_raters)
+    kappas = [fleiss_kappa(table[n_raters == k], method="randolph") for k in strata]
+    weights = [(n_raters == k).sum() for k in strata]
+    return {"kappa": float(np.average(kappas, weights=weights)), "n_items": len(table), "n_ratings": int(n_raters.sum())}
+
+
+def randolph_kappa_by_category(df_valid: pd.DataFrame) -> dict:
+    result = {"overall": randolph_kappa(df_valid)}
+    for category, group in df_valid.groupby("category"):
+        result[category] = randolph_kappa(group)
+    return result
+
+
+def case_model_iou(case_meta: dict) -> pd.DataFrame:
+    """Model IoU restricted to just the 144 cases actually shown to humans (3 per
+    model x modality x category stratum) - the fair comparison set, as opposed to
+    `load_model_results`'s full ~100-per-category population."""
+    return pd.DataFrame(
+        {
+            "model": c["model"],
+            "modality": c["modality"],
+            "category": c["category"],
+            "folder_id": c["folder_id"],
+            "iou": c["model_iou"],
+        }
+        for c in case_meta.values()
+    )

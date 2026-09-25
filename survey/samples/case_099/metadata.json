@@ -1,0 +1,178 @@
+{
+  "survey_case_id": "case_099",
+  "model": "intern",
+  "modality": "multimodal",
+  "scene_type": "multi",
+  "testcase_id": "15",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/intern/multimodal/multi/15/best_result.json",
+    "adversarial_image": "defaults/mmm/results/intern/multimodal/multi/15/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/multi/15/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/multi/15",
+      "folder_id": "15",
+      "category": "multi",
+      "filename": "ILSVRC2012_val_00024444.JPEG"
+    },
+    "runtime": 33.171886682510376,
+    "generations_completed": 1,
+    "early_stop_generation": 1,
+    "baseline_iou": 0.64818,
+    "genome": [
+      0.022776688918579733,
+      0.024728847259968868,
+      0.031615916562939224,
+      0.004579192342306449,
+      0.0024959338225321462,
+      0.0036004959891969127,
+      0.09502227517712131,
+      0.012005823510585895,
+      0.014504479464127541,
+      0.03209980794455178,
+      0.04147219412339364,
+      0.014133105720164876,
+      0.010155933023196442,
+      0.0026859480963466664,
+      0.0011285942522079818,
+      0.00781801365394304,
+      0.022595038982899936,
+      0.003909835767812335,
+      0.03484343032292814,
+      0.0021112486630341046
+    ],
+    "objectives": {
+      "iou": 0.06629,
+      "img_dist": 0.13343,
+      "txt_dist": 0.01316
+    },
+    "original_prompt": "Detect the object(s) \"bench, cello, chair, person, piano\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        34,
+        205,
+        104,
+        292
+      ],
+      [
+        155,
+        127,
+        242,
+        311
+      ],
+      [
+        1,
+        404,
+        195,
+        498
+      ],
+      [
+        142,
+        120,
+        256,
+        361
+      ],
+      [
+        116,
+        46,
+        362,
+        294
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"bench, cello, chair, pe rson, piano\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[{\"label\": \"bench\", \"bbox\": [100, 300, 200, 400]}, {\"label\": \"cello\", \"bbox\": [300, 350, 400, 500]}, {\"label\": \"chair\", \"bbox\": [50, 400, 150, 500]}, {\"label\": \"person\", \"bbox\": [150, 200, 250, 400]}, {\"label\": \"piano\", \"bbox\": [400, 80, 600, 300]}]",
+      "parsed_predictions": [
+        {
+          "label": "bench",
+          "bbox": [
+            100,
+            300,
+            200,
+            400
+          ]
+        },
+        {
+          "label": "cello",
+          "bbox": [
+            300,
+            350,
+            400,
+            500
+          ]
+        },
+        {
+          "label": "chair",
+          "bbox": [
+            50,
+            400,
+            150,
+            500
+          ]
+        },
+        {
+          "label": "person",
+          "bbox": [
+            150,
+            200,
+            250,
+            400
+          ]
+        },
+        {
+          "label": "piano",
+          "bbox": [
+            400,
+            80,
+            600,
+            300
+          ]
+        }
+      ],
+      "matched_pred_boxes": [
+        [
+          39.2,
+          150.0,
+          78.4,
+          200.0
+        ],
+        [
+          117.6,
+          175.0,
+          156.8,
+          250.0
+        ],
+        [
+          19.6,
+          200.0,
+          58.8,
+          250.0
+        ],
+        [
+          58.8,
+          100.0,
+          98.0,
+          200.0
+        ],
+        [
+          156.8,
+          40.0,
+          235.2,
+          150.0
+        ]
+      ],
+      "prompt_objects": [
+        "bench",
+        "cello",
+        "chair",
+        "pe rson",
+        "piano"
+      ]
+    }
+  }
+}

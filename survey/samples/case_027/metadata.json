@@ -1,0 +1,97 @@
+{
+  "survey_case_id": "case_027",
+  "model": "nemotron",
+  "modality": "multimodal",
+  "scene_type": "multi",
+  "testcase_id": "4",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/nemotron/multimodal/multi/4/best_result.json",
+    "adversarial_image": "defaults/mmm/results/nemotron/multimodal/multi/4/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/multi/4/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/multi/4",
+      "folder_id": "4",
+      "category": "multi",
+      "filename": "ILSVRC2012_val_00004761.JPEG"
+    },
+    "runtime": 26.16232943534851,
+    "generations_completed": 4,
+    "early_stop_generation": 4,
+    "baseline_iou": 0.83785,
+    "genome": [
+      0.026609344650386724,
+      0.0029277429479832124,
+      0.13919852008991662,
+      0.007734055082447908,
+      0.023303117550211482,
+      0.00010043267628651216,
+      0.0036421811791006557,
+      0.0051520532005378825,
+      0.0005115802186568738,
+      0.0023788262071155206,
+      0.036367348882837276,
+      0.0006498244500194074,
+      0.0036785990674816863,
+      0.0014517941450680636,
+      0.18573009992170092,
+      0.01217891143845007,
+      0.0028328573903497736,
+      0.05147686388669416,
+      0.0037823991059506186,
+      0.013527839327105304
+    ],
+    "objectives": {
+      "iou": 0.26821,
+      "img_dist": 0.10727,
+      "txt_dist": 0.17913
+    },
+    "original_prompt": "Detect the object(s) \"bird, person, saxophone\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        192,
+        11,
+        287,
+        110
+      ],
+      [
+        153,
+        68,
+        366,
+        498
+      ],
+      [
+        142,
+        150,
+        217,
+        496
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"fowl, pearson, saxophone\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[{\"label\": \"fowl, pearson, saxophone\", \"bbox_2d\": [286, 325, 456, 966]}]",
+      "parsed_predictions": [
+        {
+          "label": "fowl, pearson, saxophone",
+          "bbox_2d": [
+            286,
+            325,
+            456,
+            966
+          ]
+        }
+      ],
+      "matched_pred_boxes": null,
+      "prompt_objects": [
+        "fowl",
+        "pearson",
+        "saxophone"
+      ]
+    }
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "survey_case_id": "case_124",
+  "model": "kimi",
+  "modality": "multimodal",
+  "scene_type": "single/multi",
+  "testcase_id": "43",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/kimi/multimodal/single/multi/43/best_result.json",
+    "adversarial_image": "defaults/mmm/results/kimi/multimodal/single/multi/43/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/single/multi/43/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/single/multi/43",
+      "folder_id": "43",
+      "category": "single/multi",
+      "filename": "ILSVRC2012_val_00041903.JPEG"
+    },
+    "runtime": 7.607407331466675,
+    "generations_completed": 1,
+    "early_stop_generation": 1,
+    "baseline_iou": 0.93189,
+    "genome": [
+      0.00238147381008132,
+      0.013186740335447552,
+      0.0024627747020548366,
+      0.008305433808787555,
+      0.006897643362777404,
+      0.00020129114292578707,
+      0.009595810918648567,
+      0.008075976514743526,
+      0.008850782624641784,
+      0.018989907832297166,
+      0.001927322852888678,
+      0.008611849425666214,
+      0.03497874844481431,
+      0.02525302868143803,
+      0.0027607690881201814,
+      0.005810493693108271,
+      0.009718765919631889,
+      0.01126143231199314,
+      0.030531044876409338,
+      0.05328880722206027
+    ],
+    "objectives": {
+      "iou": 0.0,
+      "img_dist": 0.02651,
+      "txt_dist": 0.0
+    },
+    "original_prompt": "Detect the object(s) \"salt or pepper shaker\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        87,
+        310,
+        371,
+        808
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"salt or pepper shaker\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "{\"label\": \"salt or pepper shaker\", \"bbox\": [0.167, 0.380, 0.633, 0.998]}}",
+      "parsed_predictions": [],
+      "matched_pred_boxes": null,
+      "prompt_objects": [
+        "salt or pepper shaker"
+      ]
+    },
+    "fail_code": "Failed to decode VLM JSON array: '{\"label\": \"salt or pepper shaker\", \"bbox\": [0.167, 0.380, 0.633, 0.998]}}'"
+  }
+}

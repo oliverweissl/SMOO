@@ -15,14 +15,10 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from PIL import Image
 from defaults.logging_utils import setup_logging
-MODEL_SPECS: dict[str, dict[str, Any]] = {
-    "qwen": {"model": "Qwen/Qwen3-VL-4B-Instruct", "coord_scale": 1000, "bbox_order": "xyxy"},
-    "kimi": {"model": "moonshotai/Kimi-VL-A3B-Instruct", "coord_scale": 1, "bbox_order": "xyxy"},
-    "intern": {"model": "OpenGVLab/InternVL3_5-8B", "coord_scale": 1000, "bbox_order": "xyxy"},
-    #"gemma": {"model": "google/gemma-3-4b-it", "coord_scale": 1000, "bbox_order": "yxyx", "image_resize": (896, 896)},
-    #"deepseek": {"model": "deepseek-ai/deepseek-vl2-tiny", "coord_scale": 999, "bbox_order": "xyxy", "prompt_mode": "deepseek_ref", "max_model_len": 4096},
-    "nemotron": {"model": "nvidia/Nemotron-3-Nano-Omni-30B-A3B-Reasoning-FP8", "coord_scale": 1000, "bbox_order": "xyxy", "sampling_params": {"temperature": 0.0, "top_k": 1, "max_tokens": 128}, "extra_body": {"chat_template_kwargs": {"enable_thinking": False}}},
-}
+from experiments.config.models import MODEL_SPECS
+
+# Gemma and DeepSeek are excluded from the paper (<5% IoU-degraded runs), so they are not re-scored.
+ABLATION_MODELS = ["qwen", "kimi", "intern", "nemotron"]
 
 
 @dataclass(frozen=True)
@@ -36,7 +32,7 @@ class SavedTestcase:
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--model", required=True, choices=sorted(MODEL_SPECS))
+    parser.add_argument("--model", required=True, choices=ABLATION_MODELS)
     parser.add_argument("--served-port", type=int, default=8700)
     parser.add_argument("--source-results-dir", type=Path, default=PROJECT_ROOT / "defaults/mmm/results")
     parser.add_argument("--ablation-results-dir", type=Path, default=PROJECT_ROOT / "defaults/mmm/ablation_results")
@@ -107,11 +103,12 @@ def output_path(base: Path, temperature: float, model: str, testcase: SavedTestc
 
 def _score(raw: str, record: dict[str, Any], sut: "VLMSUT", original_size: tuple[int, int]) -> dict[str, Any]:
     try:
-        from defaults.mmm._helpers import extract_json_array, prepare_bbox_pairs
+        from defaults.mmm._parsing import extract_json_array
+        from defaults.mmm._scoring import prepare_bbox_pairs
         from src.objectives.image_criteria import VLMBBoxIoU
         predictions = extract_json_array(raw)
         pred, ground_truth = prepare_bbox_pairs(record["ground_truth_bboxes"], original_size, predictions, sut.coord_scale, sut.bbox_order)
-        return {"raw_response": raw, "parsed_predictions": predictions, "iou": float(VLMBBoxIoU().evaluate(boxes=[pred, ground_truth])), "error": None}
+        return {"raw_response": raw, "parsed_predictions": predictions, "iou": float(VLMBBoxIoU().evaluate(boxes=[ground_truth, pred])), "error": None}
     except Exception as exc:
         return {"raw_response": raw, "parsed_predictions": None, "iou": 0.0, "error": f"{type(exc).__name__}: {exc}"}
 

@@ -33,6 +33,6 @@ trap cleanup EXIT
 
 start_vllm_server "$MODEL" "$GPU" "$PORT" "$REPO_ROOT"
 
-for MODE in multi image text driving; do
+for MODE in multi image text; do
   python "${REPO_ROOT}/experiments/run.py" --vlm "$MODEL" --mode "$MODE" --served-port "$PORT" "$@"
 done

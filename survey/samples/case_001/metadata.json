@@ -1,0 +1,65 @@
+{
+  "survey_case_id": "case_001",
+  "model": "nemotron",
+  "modality": "image",
+  "scene_type": "single/solo",
+  "testcase_id": "52",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/nemotron/unimodal/image/single/solo/52/best_result.json",
+    "adversarial_image": "defaults/mmm/results/nemotron/unimodal/image/single/solo/52/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/single/solo/52/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/single/solo/52",
+      "folder_id": "52",
+      "category": "single/solo",
+      "filename": "ILSVRC2012_val_00032560.JPEG"
+    },
+    "runtime": 3.2159359455108643,
+    "generations_completed": 1,
+    "early_stop_generation": 1,
+    "baseline_iou": 0.93169,
+    "genome": [
+      0.5064371159464551,
+      0.0031038898846066283,
+      0.28358407889467563,
+      0.014495377523112071,
+      0.00048814615242017453,
+      3.5181420795154446e-05,
+      0.0006394069740249828,
+      0.007955947592333545,
+      0.08504244195640923,
+      0.002491870860524867,
+      0.006716187352599476,
+      7.84279312722215e-05
+    ],
+    "objectives": {
+      "iou": 0.0,
+      "img_dist": 0.03629,
+      "txt_dist": 0.0
+    },
+    "original_prompt": "Detect the object(s) \"beaker\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        86,
+        210,
+        196,
+        498
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"beaker\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[]",
+      "parsed_predictions": [],
+      "matched_pred_boxes": null,
+      "prompt_objects": [
+        "beaker"
+      ]
+    }
+  }
+}

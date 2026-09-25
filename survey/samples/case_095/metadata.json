@@ -1,0 +1,122 @@
+{
+  "survey_case_id": "case_095",
+  "model": "intern",
+  "modality": "text",
+  "scene_type": "multi",
+  "testcase_id": "20",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/intern/unimodal/text/multi/20/best_result.json",
+    "adversarial_image": "defaults/mmm/results/intern/unimodal/text/multi/20/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/multi/20/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/multi/20",
+      "folder_id": "20",
+      "category": "multi",
+      "filename": "ILSVRC2012_val_00018814.JPEG"
+    },
+    "runtime": 6.228978633880615,
+    "generations_completed": 1,
+    "early_stop_generation": 1,
+    "baseline_iou": 0.53312,
+    "genome": [
+      0.007343996649232656,
+      0.006625139968542125,
+      0.041895297829503006,
+      0.009666678053617006,
+      0.04310788538376607,
+      0.008088193319842686,
+      0.00924447610715614,
+      0.0098683478439788
+    ],
+    "objectives": {
+      "iou": 0.11585,
+      "img_dist": 0.0,
+      "txt_dist": 0.10676
+    },
+    "original_prompt": "Detect the object(s) \"croquet ball, person, ping-pong ball\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        163,
+        279,
+        199,
+        320
+      ],
+      [
+        0,
+        0,
+        138,
+        342
+      ],
+      [
+        165,
+        286,
+        198,
+        316
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"croquet ball, person, pingpogg bawl\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[{\"label\": \"croquet ball\", \"bbox\": [330, 680, 380, 720]}, {\"label\": \"person\", \"bbox\": [490, 0, 720, 500]}, {\"label\": \"pingpogg bawl\", \"bbox\": [200, 680, 250, 720]}]",
+      "parsed_predictions": [
+        {
+          "label": "croquet ball",
+          "bbox": [
+            330,
+            680,
+            380,
+            720
+          ]
+        },
+        {
+          "label": "person",
+          "bbox": [
+            490,
+            0,
+            720,
+            500
+          ]
+        },
+        {
+          "label": "pingpogg bawl",
+          "bbox": [
+            200,
+            680,
+            250,
+            720
+          ]
+        }
+      ],
+      "matched_pred_boxes": [
+        [
+          165.0,
+          283.56,
+          190.0,
+          300.24
+        ],
+        [
+          245.0,
+          0.0,
+          360.0,
+          208.5
+        ],
+        [
+          100.0,
+          283.56,
+          125.0,
+          300.24
+        ]
+      ],
+      "prompt_objects": [
+        "croquet ball",
+        "person",
+        "pingpogg bawl"
+      ]
+    }
+  }
+}

@@ -1,0 +1,92 @@
+{
+  "survey_case_id": "case_034",
+  "model": "nemotron",
+  "modality": "multimodal",
+  "scene_type": "udacity",
+  "testcase_id": "16",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/nemotron/multimodal/udacity/16/best_result.json",
+    "adversarial_image": "defaults/mmm/results/nemotron/multimodal/udacity/16/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/udacity/16/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/udacity/16",
+      "folder_id": "16",
+      "category": "udacity",
+      "filename": "1479500714623724165.jpg"
+    },
+    "runtime": 6.2334511280059814,
+    "generations_completed": 1,
+    "early_stop_generation": 1,
+    "baseline_iou": 0.43977,
+    "genome": [
+      0.1931253646300592,
+      0.000556782261075727,
+      0.042623928923074955,
+      0.0011750375080380989,
+      0.0008379561558832342,
+      0.001867298662409726,
+      0.0030280730958073933,
+      0.024789998358908525,
+      0.00025094361173210903,
+      0.02370628059116274,
+      0.003236061241521128,
+      1.4103936008707726e-05,
+      0.09802695618143856,
+      6.215712763674396e-05,
+      0.007923149019605552,
+      0.00041084781818105133,
+      0.04975359834683313,
+      0.059122047472529714,
+      0.00148226872441346,
+      0.0007622089643752334
+    ],
+    "objectives": {
+      "iou": 0.0122,
+      "img_dist": 0.06895,
+      "txt_dist": 0.0
+    },
+    "original_prompt": "Detect the object(s) \"car\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        0,
+        146,
+        66,
+        182
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"car\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[{\"label\": \"car\", \"bbox\": [132, 350, 363, 525]}, {\"label\": \"car\", \"bbox\": [0, 400, 125, 492]}]",
+      "parsed_predictions": [
+        {
+          "label": "car",
+          "bbox": [
+            132,
+            350,
+            363,
+            525
+          ]
+        },
+        {
+          "label": "car",
+          "bbox": [
+            0,
+            400,
+            125,
+            492
+          ]
+        }
+      ],
+      "matched_pred_boxes": null,
+      "prompt_objects": [
+        "car"
+      ]
+    }
+  }
+}

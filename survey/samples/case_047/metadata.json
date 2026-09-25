@@ -1,0 +1,91 @@
+{
+  "survey_case_id": "case_047",
+  "model": "qwen",
+  "modality": "image",
+  "scene_type": "single/multi",
+  "testcase_id": "84",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/qwen/unimodal/image/single/multi/84/best_result.json",
+    "adversarial_image": "defaults/mmm/results/qwen/unimodal/image/single/multi/84/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/single/multi/84/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/single/multi/84",
+      "folder_id": "84",
+      "category": "single/multi",
+      "filename": "ILSVRC2012_val_00008726.JPEG"
+    },
+    "runtime": 222.99356126785278,
+    "generations_completed": 100,
+    "early_stop_generation": null,
+    "baseline_iou": 0.97388,
+    "genome": [
+      0.014209140496155138,
+      0.0019496416091825592,
+      0.035888286664289774,
+      0.001094999171352202,
+      0.0005889218705639487,
+      0.01157367208732133,
+      0.0003856059710517755,
+      0.00395851520642008,
+      0.0016589158516715635,
+      0.11339495094281016,
+      0.14442322914849326,
+      0.023890530302423857
+    ],
+    "objectives": {
+      "iou": 0.51692,
+      "img_dist": 0.14188,
+      "txt_dist": 0.0
+    },
+    "original_prompt": "Detect the object(s) \"fox\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        255,
+        142,
+        454,
+        329
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"fox\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[{\"label\": \"fox\", \"bbox\": [88, 62, 634, 812]}, {\"label\": \"fox\", \"bbox\": [400, 396, 792, 878]}]",
+      "parsed_predictions": [
+        {
+          "label": "fox",
+          "bbox": [
+            88,
+            62,
+            634,
+            812
+          ]
+        },
+        {
+          "label": "fox",
+          "bbox": [
+            400,
+            396,
+            792,
+            878
+          ]
+        }
+      ],
+      "matched_pred_boxes": [
+        [
+          200.0,
+          141.372,
+          396.0,
+          313.446
+        ]
+      ],
+      "prompt_objects": [
+        "fox"
+      ]
+    }
+  }
+}

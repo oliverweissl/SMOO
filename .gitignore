@@ -15,3 +15,19 @@
 **/wandb/
 **/results/
 **/runs/
+
+# Local-only artifacts
+/models/
+experiments/*.pdf
+exportToHTML/
+experiments/cache/
+
+# Data the notebooks and data-generation scripts need
+!experiments/effectiveness.csv
+!experiments/efficiency.csv
+!experiments/stats/
+!experiments/stats/*.csv
+!experiments/auxiliary_files/*.json
+!survey/
+!survey/data/
+!survey/**/*.json

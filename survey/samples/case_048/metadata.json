@@ -1,0 +1,109 @@
+{
+  "survey_case_id": "case_048",
+  "model": "qwen",
+  "modality": "image",
+  "scene_type": "single/multi",
+  "testcase_id": "79",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/qwen/unimodal/image/single/multi/79/best_result.json",
+    "adversarial_image": "defaults/mmm/results/qwen/unimodal/image/single/multi/79/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/single/multi/79/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/single/multi/79",
+      "folder_id": "79",
+      "category": "single/multi",
+      "filename": "ILSVRC2012_val_00048808.JPEG"
+    },
+    "runtime": 5.075599193572998,
+    "generations_completed": 1,
+    "early_stop_generation": 1,
+    "baseline_iou": 0.58172,
+    "genome": [
+      0.0071764529904606664,
+      0.0024098918408308884,
+      0.002459682195809892,
+      6.822180937667368e-05,
+      0.010586614952537309,
+      7.0880458937204795e-06,
+      4.984231009508068e-05,
+      0.002487314801471457,
+      0.04016062335707933,
+      0.1467146061187367,
+      0.00208137845190527,
+      0.00036444131861970773
+    ],
+    "objectives": {
+      "iou": 0.0,
+      "img_dist": 0.06604,
+      "txt_dist": 0.0
+    },
+    "original_prompt": "Detect the object(s) \"isopod\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        159,
+        166,
+        281,
+        242
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"isopod\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[{\"label\": \"isopod\", \"bbox\": [688, 500, 928, 900]}, {\"label\": \"isopod\", \"bbox\": [0, 390, 312, 997]}, {\"label\": \"isopod\", \"bbox\": [688, 500, 928, 900]}, {\"label\": \"isopod\", \"bbox\": [0, 390, 312, 997]}]",
+      "parsed_predictions": [
+        {
+          "label": "isopod",
+          "bbox": [
+            688,
+            500,
+            928,
+            900
+          ]
+        },
+        {
+          "label": "isopod",
+          "bbox": [
+            0,
+            390,
+            312,
+            997
+          ]
+        },
+        {
+          "label": "isopod",
+          "bbox": [
+            688,
+            500,
+            928,
+            900
+          ]
+        },
+        {
+          "label": "isopod",
+          "bbox": [
+            0,
+            390,
+            312,
+            997
+          ]
+        }
+      ],
+      "matched_pred_boxes": [
+        [
+          344.0,
+          187.5,
+          464.0,
+          337.5
+        ]
+      ],
+      "prompt_objects": [
+        "isopod"
+      ]
+    }
+  }
+}

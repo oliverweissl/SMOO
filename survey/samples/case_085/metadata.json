@@ -1,0 +1,80 @@
+{
+  "survey_case_id": "case_085",
+  "model": "intern",
+  "modality": "text",
+  "scene_type": "single/multi",
+  "testcase_id": "67",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/intern/unimodal/text/single/multi/67/best_result.json",
+    "adversarial_image": "defaults/mmm/results/intern/unimodal/text/single/multi/67/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/single/multi/67/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/single/multi/67",
+      "folder_id": "67",
+      "category": "single/multi",
+      "filename": "ILSVRC2013_val_00001740.JPEG"
+    },
+    "runtime": 3.0217456817626953,
+    "generations_completed": 1,
+    "early_stop_generation": 1,
+    "baseline_iou": 0.66176,
+    "genome": [
+      0.01800544306177926,
+      0.08616555771631579,
+      0.29705688831749494,
+      0.3606505573855549,
+      0.06602524496085198,
+      0.00956487208466951,
+      0.05127508574806414,
+      0.08084010345416126
+    ],
+    "objectives": {
+      "iou": 0.24764,
+      "img_dist": 0.0,
+      "txt_dist": 0.04292
+    },
+    "original_prompt": "Detect the object(s) \"bicycle\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        257,
+        192,
+        331,
+        260
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"bicycl e\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[{\"label\": \"bicycl e\", \"bbox\": [700, 400, 850, 500]}, {\"label\": \"bicycl e\", \"bbox\": [750, 450, 900, 550]}]",
+      "parsed_predictions": [
+        {
+          "label": "bicycl e",
+          "bbox": [
+            700,
+            400,
+            850,
+            500
+          ]
+        },
+        {
+          "label": "bicycl e",
+          "bbox": [
+            750,
+            450,
+            900,
+            550
+          ]
+        }
+      ],
+      "matched_pred_boxes": null,
+      "prompt_objects": [
+        "bicycl e"
+      ]
+    }
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "survey_case_id": "case_133",
+  "model": "kimi",
+  "modality": "multimodal",
+  "scene_type": "multi",
+  "testcase_id": "48",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/kimi/multimodal/multi/48/best_result.json",
+    "adversarial_image": "defaults/mmm/results/kimi/multimodal/multi/48/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/multi/48/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/multi/48",
+      "folder_id": "48",
+      "category": "multi",
+      "filename": "ILSVRC2012_val_00015213.JPEG"
+    },
+    "runtime": 5.766476154327393,
+    "generations_completed": 1,
+    "early_stop_generation": 1,
+    "baseline_iou": 0.97685,
+    "genome": [
+      0.0022754607187493343,
+      0.009515517226478098,
+      0.0040639307103421335,
+      0.008060024986795816,
+      0.0036729496805614995,
+      0.000747056526069679,
+      0.0027546768613043067,
+      0.0037694554384069033,
+      0.000455904815643406,
+      6.020065048173051e-05,
+      0.018421179918536083,
+      0.0013184700917660136,
+      0.0009772713414067508,
+      0.009460903523375199,
+      0.0002006294264301693,
+      0.03429554559715533,
+      0.03053522794130218,
+      0.19778243366843978,
+      0.13576718341896882,
+      0.05286461416425758
+    ],
+    "objectives": {
+      "iou": 0.0,
+      "img_dist": 0.01035,
+      "txt_dist": 0.0
+    },
+    "original_prompt": "Detect the object(s) \"dog, person\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        131,
+        250,
+        450,
+        492
+      ],
+      [
+        51,
+        14,
+        322,
+        462
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "The quick brown fox jumps overt he lazy dog but the Nog was actaully a robotzsetnfrom the uture.... Now, Detect the object(s) \"dog, person\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}] ",
+      "raw_response": "{\"label\": \"dog\", \"bbox\": [0.267, 0.500, 0.928, 0.980]}, {\"label\": \"person\", \"bbox\": [0.106, 0.030, 0.661, 0.920]}}",
+      "parsed_predictions": [],
+      "matched_pred_boxes": null,
+      "prompt_objects": [
+        "dog",
+        "person"
+      ]
+    },
+    "fail_code": "Failed to decode VLM JSON array: '{\"label\": \"dog\", \"bbox\": [0.267, 0.500, 0.928, 0.980]}, {\"label\": \"person\", \"bbox\": [0.106, 0.030, 0.661, 0.920]}}'"
+  }
+}

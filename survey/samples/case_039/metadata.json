@@ -1,0 +1,82 @@
+{
+  "survey_case_id": "case_039",
+  "model": "qwen",
+  "modality": "image",
+  "scene_type": "single/solo",
+  "testcase_id": "12",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/qwen/unimodal/image/single/solo/12/best_result.json",
+    "adversarial_image": "defaults/mmm/results/qwen/unimodal/image/single/solo/12/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/single/solo/12/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/single/solo/12",
+      "folder_id": "12",
+      "category": "single/solo",
+      "filename": "ILSVRC2012_val_00047636.JPEG"
+    },
+    "runtime": 182.80185651779175,
+    "generations_completed": 100,
+    "early_stop_generation": null,
+    "baseline_iou": 0.78813,
+    "genome": [
+      0.0061099799353997505,
+      0.0014142855130001505,
+      0.0018927123935224268,
+      0.00016349245123567654,
+      0.009737087880495519,
+      1.7695787164060963e-05,
+      0.0071117238605979734,
+      0.0018192685010232426,
+      1.1356215966126917e-05,
+      0.14237021081354234,
+      0.0004774336261734346,
+      0.005071502200729581
+    ],
+    "objectives": {
+      "iou": 0.62933,
+      "img_dist": 0.01487,
+      "txt_dist": -0.0
+    },
+    "original_prompt": "Detect the object(s) \"flower pot\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        87,
+        402,
+        295,
+        488
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"flower pot\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[{\"label\": \"flower pot\", \"bbox\": [286, 847, 760, 972]}]",
+      "parsed_predictions": [
+        {
+          "label": "flower pot",
+          "bbox": [
+            286,
+            847,
+            760,
+            972
+          ]
+        }
+      ],
+      "matched_pred_boxes": [
+        [
+          108.68,
+          423.5,
+          288.8,
+          486.0
+        ]
+      ],
+      "prompt_objects": [
+        "flower pot"
+      ]
+    }
+  }
+}

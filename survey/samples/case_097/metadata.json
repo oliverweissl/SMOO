@@ -1,0 +1,112 @@
+{
+  "survey_case_id": "case_097",
+  "model": "intern",
+  "modality": "multimodal",
+  "scene_type": "multi",
+  "testcase_id": "34",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/intern/multimodal/multi/34/best_result.json",
+    "adversarial_image": "defaults/mmm/results/intern/multimodal/multi/34/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/multi/34/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/multi/34",
+      "folder_id": "34",
+      "category": "multi",
+      "filename": "ILSVRC2012_val_00004068.JPEG"
+    },
+    "runtime": 23.319363355636597,
+    "generations_completed": 1,
+    "early_stop_generation": 1,
+    "baseline_iou": 0.54852,
+    "genome": [
+      0.025817109021731163,
+      0.005933027174264056,
+      0.00872857450512602,
+      0.0042215655572958016,
+      0.10410632267888126,
+      0.001993702705624253,
+      0.011428482157822792,
+      0.010359418819353976,
+      0.05790619700728267,
+      5.0096639632520035e-05,
+      0.004052248107875223,
+      0.0012112737347088984,
+      0.01772219116170879,
+      0.006829401942050066,
+      0.003360004621012896,
+      0.0002779742000240007,
+      0.027414663134476276,
+      0.005621574163148569,
+      0.024546421497354424,
+      0.008267684054766626
+    ],
+    "objectives": {
+      "iou": 0.09602,
+      "img_dist": 0.17577,
+      "txt_dist": 0.0
+    },
+    "original_prompt": "Detect the object(s) \"axe, person\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        111,
+        241,
+        373,
+        498
+      ],
+      [
+        5,
+        0,
+        145,
+        142
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"axe, person\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[{\"label\": \"axe\", \"bbox\": [250, 400, 400, 600]}, {\"label\": \"person\", \"bbox\": [0, 0, 100, 200]}]",
+      "parsed_predictions": [
+        {
+          "label": "axe",
+          "bbox": [
+            250,
+            400,
+            400,
+            600
+          ]
+        },
+        {
+          "label": "person",
+          "bbox": [
+            0,
+            0,
+            100,
+            200
+          ]
+        }
+      ],
+      "matched_pred_boxes": [
+        [
+          93.75,
+          200.0,
+          150.0,
+          300.0
+        ],
+        [
+          0.0,
+          0.0,
+          37.5,
+          100.0
+        ]
+      ],
+      "prompt_objects": [
+        "axe",
+        "person"
+      ]
+    }
+  }
+}

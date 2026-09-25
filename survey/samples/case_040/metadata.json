@@ -1,0 +1,78 @@
+{
+  "survey_case_id": "case_040",
+  "model": "qwen",
+  "modality": "text",
+  "scene_type": "single/solo",
+  "testcase_id": "86",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/qwen/unimodal/text/single/solo/86/best_result.json",
+    "adversarial_image": "defaults/mmm/results/qwen/unimodal/text/single/solo/86/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/single/solo/86/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/single/solo/86",
+      "folder_id": "86",
+      "category": "single/solo",
+      "filename": "ILSVRC2012_val_00043873.JPEG"
+    },
+    "runtime": 41.58379578590393,
+    "generations_completed": 34,
+    "early_stop_generation": 34,
+    "baseline_iou": 0.91899,
+    "genome": [
+      0.00021383447007886774,
+      0.04594711686392527,
+      0.024380126041995256,
+      0.0010646064888512525,
+      0.2654551151721791,
+      0.03806836296933586,
+      0.13945251786658217,
+      0.018502060630047258
+    ],
+    "objectives": {
+      "iou": 0.0,
+      "img_dist": 0.0,
+      "txt_dist": 0.29684
+    },
+    "original_prompt": "Detect the object(s) \"dog\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        248,
+        158,
+        285,
+        218
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "The quiick brown fox jupms oser the lzyy dog butWthe dog was actually a rrobot sCtt nfrm the future.... Now, Detect the object(s) \"dig\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[{\"label\": \"dig\", \"bbox\": [840, 357, 900, 400]}]",
+      "parsed_predictions": [
+        {
+          "label": "dig",
+          "bbox": [
+            840,
+            357,
+            900,
+            400
+          ]
+        }
+      ],
+      "matched_pred_boxes": [
+        [
+          420.0,
+          133.875,
+          450.0,
+          150.0
+        ]
+      ],
+      "prompt_objects": [
+        "dig"
+      ]
+    }
+  }
+}

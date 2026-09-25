@@ -18,18 +18,11 @@ from src.optimizer import Optimizer
 from src.sut import VLMSUT
 
 from ._experiment_config import ExperimentConfig
-from ._helpers import (
-    active_solution_shape,
-    build_population_candidates,
-    evaluate_baseline,
-    extract_json_array,
-    extract_target_objects,
-    load_sample,
-    prepare_bbox_pairs,
-    save_baseline_fail,
-    SkippedSample,
-    save_best_result,
-)
+from ._data import SkippedSample, load_sample
+from ._genome import active_solution_shape, build_population_candidates
+from ._parsing import extract_json_array, extract_target_objects
+from ._results_io import save_baseline_fail, save_best_result
+from ._scoring import evaluate_baseline, prepare_bbox_pairs
 from ._prompts import DETECTION_PROMPT
 from ._qwen3_embedding import Qwen3EmbeddingInstance
 

@@ -1,0 +1,148 @@
+{
+  "survey_case_id": "case_091",
+  "model": "intern",
+  "modality": "image",
+  "scene_type": "multi",
+  "testcase_id": "73",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/intern/unimodal/image/multi/73/best_result.json",
+    "adversarial_image": "defaults/mmm/results/intern/unimodal/image/multi/73/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/multi/73/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/multi/73",
+      "folder_id": "73",
+      "category": "multi",
+      "filename": "ILSVRC2013_val_00002848.JPEG"
+    },
+    "runtime": 15.800113439559937,
+    "generations_completed": 1,
+    "early_stop_generation": 1,
+    "baseline_iou": 0.6114,
+    "genome": [
+      0.2647503824376111,
+      0.06485186692205111,
+      0.04005466011104353,
+      0.00709808658145385,
+      0.006761867196054103,
+      0.0009698488996044976,
+      0.002134970748661022,
+      0.0015514194375994559,
+      0.08343283449967219,
+      0.0438095569612596,
+      0.011459492111710169,
+      0.022448739781308666
+    ],
+    "objectives": {
+      "iou": 0.22084,
+      "img_dist": 0.12302,
+      "txt_dist": 0.0
+    },
+    "original_prompt": "Detect the object(s) \"bookshelf, chair, refrigerator, table\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        307,
+        71,
+        369,
+        158
+      ],
+      [
+        263,
+        155,
+        301,
+        222
+      ],
+      [
+        8,
+        94,
+        147,
+        296
+      ],
+      [
+        304,
+        162,
+        376,
+        249
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"bookshelf, chair, refrigerator, table\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[{\"label\": \"bookshelf\", \"bbox\": [610, 220, 730, 790]}, {\"label\": \"chair\", \"bbox\": [630, 640, 730, 810]}, {\"label\": \"refrigerator\", \"bbox\": [800, 130, 980, 960]}, {\"label\": \"table\", \"bbox\": [630, 540, 730, 640]}]",
+      "parsed_predictions": [
+        {
+          "label": "bookshelf",
+          "bbox": [
+            610,
+            220,
+            730,
+            790
+          ]
+        },
+        {
+          "label": "chair",
+          "bbox": [
+            630,
+            640,
+            730,
+            810
+          ]
+        },
+        {
+          "label": "refrigerator",
+          "bbox": [
+            800,
+            130,
+            980,
+            960
+          ]
+        },
+        {
+          "label": "table",
+          "bbox": [
+            630,
+            540,
+            730,
+            640
+          ]
+        }
+      ],
+      "matched_pred_boxes": [
+        [
+          305.0,
+          65.34,
+          365.0,
+          234.63
+        ],
+        [
+          315.0,
+          190.08,
+          365.0,
+          240.57
+        ],
+        [
+          400.0,
+          38.61,
+          490.0,
+          285.12
+        ],
+        [
+          315.0,
+          160.38,
+          365.0,
+          190.08
+        ]
+      ],
+      "prompt_objects": [
+        "bookshelf",
+        "chair",
+        "refrigerator",
+        "table"
+      ]
+    }
+  }
+}

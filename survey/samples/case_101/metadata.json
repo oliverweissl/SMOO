@@ -1,0 +1,75 @@
+{
+  "survey_case_id": "case_101",
+  "model": "intern",
+  "modality": "image",
+  "scene_type": "udacity",
+  "testcase_id": "15",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/intern/unimodal/image/udacity/15/best_result.json",
+    "adversarial_image": "defaults/mmm/results/intern/unimodal/image/udacity/15/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/udacity/15/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/udacity/15",
+      "folder_id": "15",
+      "category": "udacity",
+      "filename": "1478898995863305961.jpg"
+    },
+    "runtime": 11.864687204360962,
+    "generations_completed": 1,
+    "early_stop_generation": 1,
+    "baseline_iou": 0.50884,
+    "genome": [
+      0.051425407492900116,
+      3.2998818118758995e-05,
+      0.00047273081575288693,
+      0.0020184241479206865,
+      0.0018240693984101861,
+      0.008568708685772641,
+      0.004628119653408789,
+      0.0064652890336086,
+      0.0015680914515069527,
+      0.001388135101134161,
+      5.3153314700528993e-05,
+      0.01583024008066749
+    ],
+    "objectives": {
+      "iou": 0.17169,
+      "img_dist": 0.038,
+      "txt_dist": 0.0
+    },
+    "original_prompt": "Detect the object(s) \"car\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        147,
+        131,
+        238,
+        213
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"car\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[{\"label\": \"car\", \"bbox\": [310, 350, 500, 500]}]",
+      "parsed_predictions": [
+        {
+          "label": "car",
+          "bbox": [
+            310,
+            350,
+            500,
+            500
+          ]
+        }
+      ],
+      "matched_pred_boxes": null,
+      "prompt_objects": [
+        "car"
+      ]
+    }
+  }
+}

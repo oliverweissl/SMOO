@@ -1,0 +1,81 @@
+{
+  "survey_case_id": "case_098",
+  "model": "intern",
+  "modality": "multimodal",
+  "scene_type": "multi",
+  "testcase_id": "25",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/intern/multimodal/multi/25/best_result.json",
+    "adversarial_image": "defaults/mmm/results/intern/multimodal/multi/25/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/multi/25/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/multi/25",
+      "folder_id": "25",
+      "category": "multi",
+      "filename": "ILSVRC2012_val_00010502.JPEG"
+    },
+    "runtime": 65.31635332107544,
+    "generations_completed": 2,
+    "early_stop_generation": 2,
+    "baseline_iou": 0.56624,
+    "genome": [
+      0.055653544647345676,
+      0.0209106035993778,
+      0.010674463195123877,
+      0.013766899328047033,
+      0.014275139017353474,
+      0.00984298846367451,
+      0.00022002473029792292,
+      0.04234016141394861,
+      0.013179903746641573,
+      0.004204406139867729,
+      0.0537722579789554,
+      0.002494277265258937,
+      0.02941207176838373,
+      0.008056051386764709,
+      0.032827278711518346,
+      0.02871962074678715,
+      0.0684237600201511,
+      0.0022185804687934064,
+      0.0012814340392241362,
+      0.05815620954604707
+    ],
+    "objectives": {
+      "iou": 0.0,
+      "img_dist": 0.10037,
+      "txt_dist": 0.0
+    },
+    "original_prompt": "Detect the object(s) \"plastic bag, pomegranate\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        0,
+        93,
+        108,
+        252
+      ],
+      [
+        109,
+        58,
+        380,
+        330
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"plastic bag, pomegranate\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[{\"label\": \"pomegranate\", \"bbox\": [240, 170, 760, 850]}, {\"label\": \"plastic bag\", \"bbox\": [0, 250, 200, 650]}, {\"label\": \"plastic bag\", \"bbox\": [180, 600, 300, 800]}, {\"label\": \"plastic bag\", \"bbox\": [600, 550, 800, 800]}, {\"label\": \"plastic bag\", \"bbox\": [750, 650, 950, 900]}, {\"label\": \"plastic bag\", \"bbox\": [500, 850, 700, 990]}, {\"label\": \"plastic bag\", \"bbox\": [200, 850, 400, 990]}, {\"label\": \"plastic bag\", \"bbox\": [0, 650, 180, 990]}, {\"label\": \"plastic bag\", \"bbox\": [800, 400, 1000, 650]}, {\"label\": \"plastic bag\", \"bbox\": [800, 0, 1000, 470]}, {\"label\": \"plastic bag\", \"bbox\": [350, 0, 800, 200]}, {\"label\": \"plastic bag\", \"bbox\": [0, 0, 150, 180]}, {\"label\": \"plastic bag\", \"bbox\": [50, 0, 380, 450]}, {\"label\": \"plastic bag\", \"bbox\": [380, 200, 500, 400]}, {\"label\": \"plastic bag\", \"bbox\": [500, 200, 700, 400]}, {\"label\": \"plastic bag\", \"bbox\": [700, 200, 850, 600]}, {\"label\": \"plastic bag\", \"bbox\": [850, 200, 1000, 400]}, {\"label\": \"plastic bag\", \"bbox\": [100, 450, 200, 600]}, {\"label\": \"plastic bag\", \"bbox\": [200, 450, 300, 600]}, {\"label\": \"plastic bag\", \"bbox\": [300, 450, 400, 600]}, {\"label\": \"plastic bag\", \"bbox\": [400, ",
+      "parsed_predictions": [],
+      "matched_pred_boxes": [],
+      "prompt_objects": [
+        "plastic bag",
+        "pomegranate"
+      ]
+    },
+    "fail_code": "Failed to decode VLM JSON array: '[{\"label\": \"pomegranate\", \"bbox\": [240, 170, 760, 850]}, {\"label\": \"plastic bag\", \"bbox\": [0, 250, 200, 650]}, {\"label\": \"plastic bag\", \"bbox\": [180, 600, 300, 800]}, {\"label\": \"plastic bag\", \"bbox\": [600, 550, 800, 800]}, {\"label\": \"plastic bag\", \"bbox\": [750, 650, 950, 900]}, {\"label\": \"plastic bag\", \"bbox\": [500, 850, 700, 990]}, {\"label\": \"plastic bag\", \"bbox\": [200, 850, 400, 990]}, {\"label\":'"
+  }
+}

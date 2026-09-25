@@ -1,0 +1,88 @@
+{
+  "survey_case_id": "case_061",
+  "model": "qwen",
+  "modality": "multimodal",
+  "scene_type": "multi",
+  "testcase_id": "3",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/qwen/multimodal/multi/3/best_result.json",
+    "adversarial_image": "defaults/mmm/results/qwen/multimodal/multi/3/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/multi/3/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/multi/3",
+      "folder_id": "3",
+      "category": "multi",
+      "filename": "ILSVRC2012_val_00004048.JPEG"
+    },
+    "runtime": 35.26909112930298,
+    "generations_completed": 1,
+    "early_stop_generation": 1,
+    "baseline_iou": 0.5068,
+    "genome": [
+      0.005227389596975837,
+      0.028829978623531195,
+      4.616422657597067e-05,
+      0.00020379502209820377,
+      0.0058850869830789935,
+      0.0013144398342006408,
+      6.570672044893468e-05,
+      0.004223600208587619,
+      0.00045062760632222647,
+      0.0009916840721494848,
+      0.0011501081937212298,
+      0.00011421440445458057,
+      0.0013995844525317746,
+      0.018509410778558853,
+      0.0012769202435234089,
+      0.0002432913248659155,
+      0.007165726214843873,
+      0.0009506101852313599,
+      0.11350846197654837,
+      0.00012134567432922938
+    ],
+    "objectives": {
+      "iou": 0.0,
+      "img_dist": 0.05724,
+      "txt_dist": 0.0
+    },
+    "original_prompt": "Detect the object(s) \"croquet ball, flower pot, ping-pong ball\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        173,
+        220,
+        226,
+        356
+      ],
+      [
+        2,
+        138,
+        78,
+        266
+      ],
+      [
+        167,
+        217,
+        216,
+        272
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Teh quickObrowwwn fx jumps ovver the lazy dogbut the dog was actully aNrobot sent from the fuure.... Now, Detect the object(s) \"croquet ball, flower pot, ping-pong ball\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[{\"label\": \"croquet ball\", \"bbox\": [466, 448, 576, 540]}, {\"label\": \"croquet ball\", \"bbox\": [476, 588, 586, 688]}, {\"label\": \"croquet ball\", \"bbox\": [476, 600, 586, 700]}, {\"label\": \"flower pot\", \"bbox\": [20, 388, 200, 538]}, {\"label\": \"flower pot\", \"bbox\": [0, 520, 90, 688]}, {\"label\": \"flower pot\", \"bbox\": [700, 420, 780, 538]}, {\"label\": \"flower pot\", \"bbox\": [320, 448, 410, 550]}, {\"label\": \"flower pot\", \"bbox\": [300, 388, 380, 480]}, {\"label\": \"flower pot\", \"bbox\": [380, 388, 460, 480]}, {\"label\": \"flower pot\", \"bbox\": [460, 388, 540, 480]}, {\"label\": \"flower pot\", \"bbox\": [540, 388, 620, 480]}, {\"label\": \"flower pot\", \"bbox\": [620, 388, 700, 480]}, {\"label\": \"flower pot\", \"bbox\": [700, 388, 780, 480]}, {\"label\": \"flower pot\", \"bbox\": [780, 388, 860, 480]}, {\"label\": \"flower pot\", \"bbox\": [860, 388, 940, 480]}, {\"label\": \"flower pot\", \"bbox\": [940, 388, 1020, 480]}, {\"label\": \"flower pot\", \"bbox\": [1020, 388, 1100, 480]}, {\"label\": \"flower pot\", \"bbox\": [1100, 388, 1180, 480]}, {\"label\": \"flower pot\", \"bbox\": [1180, 388, 1260, 480]}, {\"label\": \"flower pot\", \"bbox\": [1260, 388, 1340, 480]}, {\"label\": \"flower pot\", \"bbox\": [1340, 388, 1420, 480]}, {\"label\": \"flower pot\", \"bbox\": [1420, 388, 1500, 480]}, {\"label\": \"flower pot\", \"bbox\": [1500, 388, 1580, 480]}, {\"label\": \"flower pot\", \"bbox\": [1580, 388, 1660, 480]}, {\"label\": \"flower pot\", \"bbox\": [1660, 388, 1740, 480]}, {\"label\": \"flower pot\", \"bbox\": [1740, 388, 1820, 480]}, {\"label\": \"flower pot\", \"bbox\": [1820, 388, 1900, 480]}, {\"label\": \"flower pot\", \"bbox\": [1900, 388, 1980, 480]}, {\"label\": \"flower pot\", \"bbox\": [1980, 388, 2060, 480]}, {\"label\": \"flower pot\", \"bbox\": [2060, 388, 2140, 480]}, {\"label\": \"flower pot\", \"bbox\": [2140, 388, 2220, 480]}, {\"label\": \"flower pot\", \"bbox\": [2220, 388, 2300, 480]}, {\"label\": \"flower pot\", \"bbox\": [2300, 388, 2380, 480]}, {\"label\": \"flower pot\", \"bbox\": [2380, 388, 2460, 480]}, {\"label\": \"flower pot\", \"bbox\": [2460, 388, 2540, 480]}, {\"label\": \"flower pot\", \"bbox\": [2540, 388, 2620, 480]}, {\"label\": \"flower pot\", \"bbox\": [2620, 388, 2700, 480]}, {\"label\": \"flower pot\", \"bbox\": [2700, 388, 2780, 480]}, {\"label\": \"flower pot\", \"bbox\": [2780, 388, 2860, 480]}, {\"label\": \"flower pot\", \"bbox\": [2860, 388, 2940, 480]}, {\"label\": \"flower pot\", \"bbox\": [2940, 388, 3020, 480]}, {\"label\": \"flower pot\", \"bbox\": [3020, 388, 3100, 480]}, {\"label\": \"flower pot\", \"bbox\": [3100, 388, 3180, 480]}, {\"label\": \"flower pot\", \"bbox\": [3180, 388, 3260, 480]}, {\"label\": \"flower pot\", \"bbox\": [3260, 388, 3340, 480]}, {\"label\": \"flower pot\", \"bbox\": [3340, 388, 3420, 480]}, {\"label\": \"flower pot\", \"bbox\": [3420, 388, 3500, 480]}, {\"label\": \"flower pot\", \"bbox\": [3500, 388, 3580, 480]}, {\"label\": \"flower pot\", \"bbox\": [3580, 388, 3660, 480]}, {\"label\": \"flower pot\", \"bbox\": [3660, 388, 3740, 480]}, {\"label\": \"flower pot\", \"bbox\": [3740, 388, 3820, 480]}, {\"label\": \"flower pot\", \"bbox\": [3820, 388, 3900, 480]}, {\"label\": \"flower pot\", \"bbox\": [3900, 388, 3980, 480]}, {\"label\": \"flower pot\", \"bbox\": [3980, 388, 4060, 480]}, {\"label\": \"flower pot\", \"bbox\": [4060, 388, 4140, 480]}, {\"label\": \"flower pot\", \"bbox\": [4140, 388, 4220, 480]}, {\"label\": \"flower pot\", \"bbox\": [4220, 388, 4300, 480]}, {\"label\": \"flower pot\", \"bbox\": [4300, 388, 4380, 480]}, {\"label\": \"flower pot\", \"bbox\": [4380, 388, 4460, 480]}, {\"label\": \"flower pot\", \"bbox\": [4460, 388, 4540, 480]}, {\"label\": \"flower pot\", \"bbox\": [4540, 388, 4620, 480]}, {\"label\": \"flower pot\", \"bbox\": [4620, 388, 4700, 480]}, {\"label\": \"flower pot\", \"bbox\": [4700, 388, 4780, 480]}, {\"label\": \"flower pot\", \"bbox\": [4780, 388, 4860, 480]}, {\"label\": \"flower pot\", \"bbox\": [4860, 388, 4940, 480",
+      "parsed_predictions": [],
+      "matched_pred_boxes": [],
+      "prompt_objects": [
+        "croquet ball",
+        "flower pot",
+        "ping-pong ball"
+      ]
+    },
+    "fail_code": "Failed to decode VLM JSON array: '[{\"label\": \"croquet ball\", \"bbox\": [466, 448, 576, 540]}, {\"label\": \"croquet ball\", \"bbox\": [476, 588, 586, 688]}, {\"label\": \"croquet ball\", \"bbox\": [476, 600, 586, 700]}, {\"label\": \"flower pot\", \"bbox\": [20, 388, 200, 538]}, {\"label\": \"flower pot\", \"bbox\": [0, 520, 90, 688]}, {\"label\": \"flower pot\", \"bbox\": [700, 420, 780, 538]}, {\"label\": \"flower pot\", \"bbox\": [320, 448, 410, 550]}, {\"label\": \"f'"
+  }
+}

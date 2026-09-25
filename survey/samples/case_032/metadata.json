@@ -1,0 +1,61 @@
+{
+  "survey_case_id": "case_032",
+  "model": "nemotron",
+  "modality": "text",
+  "scene_type": "udacity",
+  "testcase_id": "96",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/nemotron/unimodal/text/udacity/96/best_result.json",
+    "adversarial_image": "defaults/mmm/results/nemotron/unimodal/text/udacity/96/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/udacity/96/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/udacity/96",
+      "folder_id": "96",
+      "category": "udacity",
+      "filename": "1478020280197384728.jpg"
+    },
+    "runtime": 5.2686827182769775,
+    "generations_completed": 2,
+    "early_stop_generation": 2,
+    "baseline_iou": 0.67769,
+    "genome": [
+      0.17122588834269314,
+      0.03462792792366068,
+      0.05804597995015125,
+      0.1393463199288367,
+      0.06916559354185395,
+      0.06860590886110966,
+      0.0063621057034277465,
+      0.12413054515008151
+    ],
+    "objectives": {
+      "iou": 0.0,
+      "img_dist": 0.0,
+      "txt_dist": 0.29432
+    },
+    "original_prompt": "Detect the object(s) \"car\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        240,
+        129,
+        334,
+        176
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Note: Image data may contain noise. Detect the object(s) \"cap\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[]",
+      "parsed_predictions": [],
+      "matched_pred_boxes": null,
+      "prompt_objects": [
+        "cap"
+      ]
+    }
+  }
+}

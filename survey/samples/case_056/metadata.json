@@ -1,0 +1,104 @@
+{
+  "survey_case_id": "case_056",
+  "model": "qwen",
+  "modality": "image",
+  "scene_type": "multi",
+  "testcase_id": "41",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/qwen/unimodal/image/multi/41/best_result.json",
+    "adversarial_image": "defaults/mmm/results/qwen/unimodal/image/multi/41/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/multi/41/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/multi/41",
+      "folder_id": "41",
+      "category": "multi",
+      "filename": "ILSVRC2012_val_00004709.JPEG"
+    },
+    "runtime": 229.84166979789734,
+    "generations_completed": 100,
+    "early_stop_generation": null,
+    "baseline_iou": 0.8313,
+    "genome": [
+      0.012472414085197978,
+      0.08136120361945634,
+      0.013415575618765746,
+      0.000831300804026523,
+      0.006655978042121683,
+      0.00016503027335703502,
+      0.007921780562815655,
+      0.002780135962715041,
+      0.061750414567563715,
+      0.010173168021981186,
+      0.00022113630774770756,
+      0.03441392991012479
+    ],
+    "objectives": {
+      "iou": 0.62066,
+      "img_dist": 0.09357,
+      "txt_dist": -0.0
+    },
+    "original_prompt": "Detect the object(s) \"brassiere, person\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        90,
+        185,
+        245,
+        357
+      ],
+      [
+        7,
+        5,
+        330,
+        496
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"brassiere, person\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[{\"label\": \"brassiere\", \"bbox\": [500, 398, 880, 838]}, {\"label\": \"person\", \"bbox\": [0, 10, 990, 988]}]",
+      "parsed_predictions": [
+        {
+          "label": "brassiere",
+          "bbox": [
+            500,
+            398,
+            880,
+            838
+          ]
+        },
+        {
+          "label": "person",
+          "bbox": [
+            0,
+            10,
+            990,
+            988
+          ]
+        }
+      ],
+      "matched_pred_boxes": [
+        [
+          169.0,
+          199.0,
+          297.44,
+          419.0
+        ],
+        [
+          0.0,
+          5.0,
+          334.62,
+          494.0
+        ]
+      ],
+      "prompt_objects": [
+        "brassiere",
+        "person"
+      ]
+    }
+  }
+}

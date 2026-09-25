@@ -1,0 +1,121 @@
+{
+  "survey_case_id": "case_063",
+  "model": "qwen",
+  "modality": "multimodal",
+  "scene_type": "multi",
+  "testcase_id": "87",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/qwen/multimodal/multi/87/best_result.json",
+    "adversarial_image": "defaults/mmm/results/qwen/multimodal/multi/87/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/multi/87/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/multi/87",
+      "folder_id": "87",
+      "category": "multi",
+      "filename": "ILSVRC2012_val_00047487.JPEG"
+    },
+    "runtime": 2.807406425476074,
+    "generations_completed": 1,
+    "early_stop_generation": 1,
+    "baseline_iou": 0.96267,
+    "genome": [
+      0.222949062288883,
+      0.009571148169109454,
+      0.0008626843661275268,
+      5.5754552681819576e-05,
+      0.0022496246725820105,
+      0.0026561146182237515,
+      0.00040738009816737716,
+      0.00710363768538961,
+      0.003988375803396171,
+      0.04549062993463054,
+      0.20759394789281654,
+      0.0011519299383505822,
+      0.024480937988878806,
+      0.0008416349682032289,
+      0.23459702859638773,
+      0.009994587877935043,
+      0.0027935716857089223,
+      0.0003838923126330829,
+      0.027704042825888238,
+      0.0013137249887142704
+    ],
+    "objectives": {
+      "iou": 0.353,
+      "img_dist": 0.08882,
+      "txt_dist": 0.23791
+    },
+    "original_prompt": "Detect the object(s) \"dog, person\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        37,
+        65,
+        306,
+        266
+      ],
+      [
+        108,
+        0,
+        344,
+        237
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"dug, person\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[{\"label\": \"dug\", \"bbox\": [0, 100, 100, 170]}, {\"label\": \"person\", \"bbox\": [100, 0, 850, 920]}, {\"label\": \"person\", \"bbox\": [780, 0, 998, 280]}]",
+      "parsed_predictions": [
+        {
+          "label": "dug",
+          "bbox": [
+            0,
+            100,
+            100,
+            170
+          ]
+        },
+        {
+          "label": "person",
+          "bbox": [
+            100,
+            0,
+            850,
+            920
+          ]
+        },
+        {
+          "label": "person",
+          "bbox": [
+            780,
+            0,
+            998,
+            280
+          ]
+        }
+      ],
+      "matched_pred_boxes": [
+        [
+          40.0,
+          0.0,
+          340.0,
+          266.8
+        ],
+        [
+          312.0,
+          0.0,
+          399.2,
+          81.2
+        ]
+      ],
+      "prompt_objects": [
+        "dug",
+        "person"
+      ]
+    }
+  }
+}

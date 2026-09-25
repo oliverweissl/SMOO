@@ -1,0 +1,104 @@
+{
+  "survey_case_id": "case_055",
+  "model": "qwen",
+  "modality": "image",
+  "scene_type": "multi",
+  "testcase_id": "88",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/qwen/unimodal/image/multi/88/best_result.json",
+    "adversarial_image": "defaults/mmm/results/qwen/unimodal/image/multi/88/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/multi/88/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/multi/88",
+      "folder_id": "88",
+      "category": "multi",
+      "filename": "ILSVRC2012_val_00003176.JPEG"
+    },
+    "runtime": 223.48349046707153,
+    "generations_completed": 100,
+    "early_stop_generation": null,
+    "baseline_iou": 0.96006,
+    "genome": [
+      0.003142792031119157,
+      0.0019938127353739143,
+      0.009440195140422615,
+      0.001083999590137711,
+      0.0012756347931739075,
+      0.00017987743441068781,
+      0.0008022748164298317,
+      0.0016692041992826439,
+      0.12641258537075817,
+      0.13717163657517323,
+      0.001714348313831432,
+      0.0005568674551433835
+    ],
+    "objectives": {
+      "iou": 0.83996,
+      "img_dist": 0.09873,
+      "txt_dist": -0.0
+    },
+    "original_prompt": "Detect the object(s) \"bench, dog\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        33,
+        0,
+        239,
+        108
+      ],
+      [
+        181,
+        34,
+        401,
+        343
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"bench, dog\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[{\"label\": \"bench\", \"bbox\": [77, 0, 462, 220]}, {\"label\": \"dog\", \"bbox\": [357, 100, 798, 917]}]",
+      "parsed_predictions": [
+        {
+          "label": "bench",
+          "bbox": [
+            77,
+            0,
+            462,
+            220
+          ]
+        },
+        {
+          "label": "dog",
+          "bbox": [
+            357,
+            100,
+            798,
+            917
+          ]
+        }
+      ],
+      "matched_pred_boxes": [
+        [
+          38.5,
+          0.0,
+          231.0,
+          82.5
+        ],
+        [
+          178.5,
+          37.5,
+          399.0,
+          343.875
+        ]
+      ],
+      "prompt_objects": [
+        "bench",
+        "dog"
+      ]
+    }
+  }
+}

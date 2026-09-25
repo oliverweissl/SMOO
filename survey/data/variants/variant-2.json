@@ -1,0 +1,743 @@
+[
+  {
+    "case_id": "case_002",
+    "model": "nemotron",
+    "modality": "image",
+    "scene_type": "single/solo",
+    "category": "single/solo",
+    "filename": "ILSVRC2012_val_00047878.JPEG",
+    "prompt": "Detect the object(s) \"bird\" in this image.",
+    "labels": [
+      "bird"
+    ],
+    "image": "assets/variant-2/case_002/adversarial.png",
+    "variant": "2",
+    "task_index": 0
+  },
+  {
+    "case_id": "case_005",
+    "model": "nemotron",
+    "modality": "text",
+    "scene_type": "single/solo",
+    "category": "single/solo",
+    "filename": "ILSVRC2012_val_00028513.JPEG",
+    "prompt": "ThheqQuickbrownn fox jumpmoseevr the lYzy dog but the og wasactully a rboCsetn  Brom the futIre.... Now, Detect the object(s) \"𝛼ntelopz\" in this image.",
+    "labels": [
+      "𝛼ntelopz"
+    ],
+    "image": "assets/variant-2/case_005/adversarial.png",
+    "variant": "2",
+    "task_index": 1
+  },
+  {
+    "case_id": "case_008",
+    "model": "nemotron",
+    "modality": "multimodal",
+    "scene_type": "single/solo",
+    "category": "single/solo",
+    "filename": "ILSVRC2012_val_00016909.JPEG",
+    "prompt": "Detect the object(s) \"herd\" in this image.",
+    "labels": [
+      "herd"
+    ],
+    "image": "assets/variant-2/case_008/adversarial.png",
+    "variant": "2",
+    "task_index": 2
+  },
+  {
+    "case_id": "case_010",
+    "model": "nemotron",
+    "modality": "image",
+    "scene_type": "single/multi",
+    "category": "single/multi",
+    "filename": "ILSVRC2012_val_00018599.JPEG",
+    "prompt": "Detect the object(s) \"corkscrew\" in this image.",
+    "labels": [
+      "corkscrew"
+    ],
+    "image": "assets/variant-2/case_010/adversarial.png",
+    "variant": "2",
+    "task_index": 3
+  },
+  {
+    "case_id": "case_015",
+    "model": "nemotron",
+    "modality": "text",
+    "scene_type": "single/multi",
+    "category": "single/multi",
+    "filename": "ILSVRC2012_val_00042837.JPEG",
+    "prompt": "Yestedayy I went to thee park aVdsaw a Xtarnge bird lying baackwBds in the aingwhile eating  sandwich.... Now, Detect the object(s) \"perfurne\" in this image.",
+    "labels": [
+      "perfurne"
+    ],
+    "image": "assets/variant-2/case_015/adversarial.png",
+    "variant": "2",
+    "task_index": 4
+  },
+  {
+    "case_id": "case_017",
+    "model": "nemotron",
+    "modality": "multimodal",
+    "scene_type": "single/multi",
+    "category": "single/multi",
+    "filename": "ILSVRC2012_val_00042837.JPEG",
+    "prompt": "Detect the object(s) \"pel fume\" in this image.",
+    "labels": [
+      "pel fume"
+    ],
+    "image": "assets/variant-2/case_017/adversarial.png",
+    "variant": "2",
+    "task_index": 5
+  },
+  {
+    "case_id": "case_019",
+    "model": "nemotron",
+    "modality": "image",
+    "scene_type": "multi",
+    "category": "multi",
+    "filename": "ILSVRC2013_val_00000449.JPEG",
+    "prompt": "Detect the object(s) \"bowl, person\" in this image.",
+    "labels": [
+      "bowl",
+      "person"
+    ],
+    "image": "assets/variant-2/case_019/adversarial.png",
+    "variant": "2",
+    "task_index": 6
+  },
+  {
+    "case_id": "case_024",
+    "model": "nemotron",
+    "modality": "text",
+    "scene_type": "multi",
+    "category": "multi",
+    "filename": "ILSVRC2013_val_00003495.JPEG",
+    "prompt": "Detect the object(s) \"baby bead, filing cabinet, stove, desk\" in this image.",
+    "labels": [
+      "baby bead",
+      "filing cabinet",
+      "stove",
+      "desk"
+    ],
+    "image": "assets/variant-2/case_024/adversarial.png",
+    "variant": "2",
+    "task_index": 7
+  },
+  {
+    "case_id": "case_027",
+    "model": "nemotron",
+    "modality": "multimodal",
+    "scene_type": "multi",
+    "category": "multi",
+    "filename": "ILSVRC2012_val_00004761.JPEG",
+    "prompt": "Detect the object(s) \"fowl, pearson, saxophone\" in this image.",
+    "labels": [
+      "fowl",
+      "pearson",
+      "saxophone"
+    ],
+    "image": "assets/variant-2/case_027/adversarial.png",
+    "variant": "2",
+    "task_index": 8
+  },
+  {
+    "case_id": "case_030",
+    "model": "nemotron",
+    "modality": "image",
+    "scene_type": "udacity",
+    "category": "udacity",
+    "filename": "1478020860712187115.jpg",
+    "prompt": "Detect the object(s) \"car\" in this image.",
+    "labels": [
+      "car"
+    ],
+    "image": "assets/variant-2/case_030/adversarial.png",
+    "variant": "2",
+    "task_index": 9
+  },
+  {
+    "case_id": "case_032",
+    "model": "nemotron",
+    "modality": "text",
+    "scene_type": "udacity",
+    "category": "udacity",
+    "filename": "1478020280197384728.jpg",
+    "prompt": "Note: Image data may contain noise. Detect the object(s) \"cap\" in this image.",
+    "labels": [
+      "cap"
+    ],
+    "image": "assets/variant-2/case_032/adversarial.png",
+    "variant": "2",
+    "task_index": 10
+  },
+  {
+    "case_id": "case_035",
+    "model": "nemotron",
+    "modality": "multimodal",
+    "scene_type": "udacity",
+    "category": "udacity",
+    "filename": "1479501447174309879.jpg",
+    "prompt": "Pgeaser emember tob uy milk, egg, and breBd fro mmthe grocery sttore todaybecause we axe running otu o fsupplies.... Now, Detect the object(s) \"cam\" in this image.",
+    "labels": [
+      "cam"
+    ],
+    "image": "assets/variant-2/case_035/adversarial.png",
+    "variant": "2",
+    "task_index": 11
+  },
+  {
+    "case_id": "case_038",
+    "model": "qwen",
+    "modality": "image",
+    "scene_type": "single/solo",
+    "category": "single/solo",
+    "filename": "ILSVRC2012_val_00012307.JPEG",
+    "prompt": "Detect the object(s) \"bird\" in this image.",
+    "labels": [
+      "bird"
+    ],
+    "image": "assets/variant-2/case_038/adversarial.png",
+    "variant": "2",
+    "task_index": 12
+  },
+  {
+    "case_id": "case_040",
+    "model": "qwen",
+    "modality": "text",
+    "scene_type": "single/solo",
+    "category": "single/solo",
+    "filename": "ILSVRC2012_val_00043873.JPEG",
+    "prompt": "The quiick brown fox jupms oser the lzyy dog butWthe dog was actually a rrobot sCtt nfrm the future.... Now, Detect the object(s) \"dig\" in this image.",
+    "labels": [
+      "dig"
+    ],
+    "image": "assets/variant-2/case_040/adversarial.png",
+    "variant": "2",
+    "task_index": 13
+  },
+  {
+    "case_id": "case_045",
+    "model": "qwen",
+    "modality": "multimodal",
+    "scene_type": "single/solo",
+    "category": "single/solo",
+    "filename": "ILSVRC2012_val_00002595.JPEG",
+    "prompt": "Please remember to buy miik, egs, and bread from the grrocy store toaay because we arrre running out of supplies.... Now, Detect the object(s) \"locomotive\" in this image.",
+    "labels": [
+      "locomotive"
+    ],
+    "image": "assets/variant-2/case_045/adversarial.png",
+    "variant": "2",
+    "task_index": 14
+  },
+  {
+    "case_id": "case_046",
+    "model": "qwen",
+    "modality": "image",
+    "scene_type": "single/multi",
+    "category": "single/multi",
+    "filename": "ILSVRC2012_val_00029698.JPEG",
+    "prompt": "Detect the object(s) \"bird\" in this image.",
+    "labels": [
+      "bird"
+    ],
+    "image": "assets/variant-2/case_046/adversarial.png",
+    "variant": "2",
+    "task_index": 15
+  },
+  {
+    "case_id": "case_051",
+    "model": "qwen",
+    "modality": "text",
+    "scene_type": "single/multi",
+    "category": "single/multi",
+    "filename": "ILSVRC2013_val_00000008.JPEG",
+    "prompt": "Please remembeT to buy milk, eg,s and brea from the grKccerryy storre ttoday ecause we arpe runninggooujo  f supplie.... Now, Detect the object(s) \"herd\" in this image.",
+    "labels": [
+      "herd"
+    ],
+    "image": "assets/variant-2/case_051/adversarial.png",
+    "variant": "2",
+    "task_index": 16
+  },
+  {
+    "case_id": "case_053",
+    "model": "qwen",
+    "modality": "multimodal",
+    "scene_type": "single/multi",
+    "category": "single/multi",
+    "filename": "ILSVRC2012_val_00037937.JPEG",
+    "prompt": "Detect the object(s) \"per fume\" in this image.",
+    "labels": [
+      "per fume"
+    ],
+    "image": "assets/variant-2/case_053/adversarial.png",
+    "variant": "2",
+    "task_index": 17
+  },
+  {
+    "case_id": "case_055",
+    "model": "qwen",
+    "modality": "image",
+    "scene_type": "multi",
+    "category": "multi",
+    "filename": "ILSVRC2012_val_00003176.JPEG",
+    "prompt": "Detect the object(s) \"bench, dog\" in this image.",
+    "labels": [
+      "bench",
+      "dog"
+    ],
+    "image": "assets/variant-2/case_055/adversarial.png",
+    "variant": "2",
+    "task_index": 18
+  },
+  {
+    "case_id": "case_059",
+    "model": "qwen",
+    "modality": "text",
+    "scene_type": "multi",
+    "category": "multi",
+    "filename": "ILSVRC2012_val_00016267.JPEG",
+    "prompt": "hTTe uuckbrown fox jumpsodvverYthe lFz yodg but the dog wa sactually a rboot sentfrom thefutuure.... Now, Detect the object(s) \"aple, reler\" in this image.",
+    "labels": [
+      "aple",
+      "reler"
+    ],
+    "image": "assets/variant-2/case_059/adversarial.png",
+    "variant": "2",
+    "task_index": 19
+  },
+  {
+    "case_id": "case_063",
+    "model": "qwen",
+    "modality": "multimodal",
+    "scene_type": "multi",
+    "category": "multi",
+    "filename": "ILSVRC2012_val_00047487.JPEG",
+    "prompt": "Detect the object(s) \"dug, person\" in this image.",
+    "labels": [
+      "dug",
+      "person"
+    ],
+    "image": "assets/variant-2/case_063/adversarial.png",
+    "variant": "2",
+    "task_index": 20
+  },
+  {
+    "case_id": "case_066",
+    "model": "qwen",
+    "modality": "image",
+    "scene_type": "udacity",
+    "category": "udacity",
+    "filename": "1478895568695802824.jpg",
+    "prompt": "Detect the object(s) \"car\" in this image.",
+    "labels": [
+      "car"
+    ],
+    "image": "assets/variant-2/case_066/adversarial.png",
+    "variant": "2",
+    "task_index": 21
+  },
+  {
+    "case_id": "case_069",
+    "model": "qwen",
+    "modality": "text",
+    "scene_type": "udacity",
+    "category": "udacity",
+    "filename": "1478896071431847989.jpg",
+    "prompt": "Detect the object(s) \"can\" in this image.",
+    "labels": [
+      "can"
+    ],
+    "image": "assets/variant-2/case_069/adversarial.png",
+    "variant": "2",
+    "task_index": 22
+  },
+  {
+    "case_id": "case_072",
+    "model": "qwen",
+    "modality": "multimodal",
+    "scene_type": "udacity",
+    "category": "udacity",
+    "filename": "1479501431172538806.jpg",
+    "prompt": "Detect the object(s) \"cam\" in this image.",
+    "labels": [
+      "cam"
+    ],
+    "image": "assets/variant-2/case_072/adversarial.png",
+    "variant": "2",
+    "task_index": 23
+  },
+  {
+    "case_id": "case_075",
+    "model": "intern",
+    "modality": "image",
+    "scene_type": "single/solo",
+    "category": "single/solo",
+    "filename": "ILSVRC2012_val_00006233.JPEG",
+    "prompt": "Detect the object(s) \"diaper\" in this image.",
+    "labels": [
+      "diaper"
+    ],
+    "image": "assets/variant-2/case_075/adversarial.png",
+    "variant": "2",
+    "task_index": 24
+  },
+  {
+    "case_id": "case_076",
+    "model": "intern",
+    "modality": "text",
+    "scene_type": "single/solo",
+    "category": "single/solo",
+    "filename": "ILSVRC2012_val_00026917.JPEG",
+    "prompt": "The quickb rown fox jmupsove the lazy yog ut he dog was actuallY a robot sent from the future.... Now, Detect the object(s) \"butterfly\" in this image.",
+    "labels": [
+      "butterfly"
+    ],
+    "image": "assets/variant-2/case_076/adversarial.png",
+    "variant": "2",
+    "task_index": 25
+  },
+  {
+    "case_id": "case_081",
+    "model": "intern",
+    "modality": "multimodal",
+    "scene_type": "single/solo",
+    "category": "single/solo",
+    "filename": "ILSVRC2012_val_00024314.JPEG",
+    "prompt": "Detect the object(s) \"snake\" in this image.",
+    "labels": [
+      "snake"
+    ],
+    "image": "assets/variant-2/case_081/adversarial.png",
+    "variant": "2",
+    "task_index": 26
+  },
+  {
+    "case_id": "case_083",
+    "model": "intern",
+    "modality": "image",
+    "scene_type": "single/multi",
+    "category": "single/multi",
+    "filename": "ILSVRC2012_val_00037816.JPEG",
+    "prompt": "Detect the object(s) \"antelope\" in this image.",
+    "labels": [
+      "antelope"
+    ],
+    "image": "assets/variant-2/case_083/adversarial.png",
+    "variant": "2",
+    "task_index": 27
+  },
+  {
+    "case_id": "case_087",
+    "model": "intern",
+    "modality": "text",
+    "scene_type": "single/multi",
+    "category": "single/multi",
+    "filename": "ILSVRC2012_val_00002802.JPEG",
+    "prompt": "Pleas eremmebre to buy mil,k eggs, and bread from theFgrocry store today because we are runniMg out of suppiles.... Now, Detect the object(s) \"bird\" in this image.",
+    "labels": [
+      "bird"
+    ],
+    "image": "assets/variant-2/case_087/adversarial.png",
+    "variant": "2",
+    "task_index": 28
+  },
+  {
+    "case_id": "case_088",
+    "model": "intern",
+    "modality": "multimodal",
+    "scene_type": "single/multi",
+    "category": "single/multi",
+    "filename": "ILSVRC2012_val_00022295.JPEG",
+    "prompt": "Detect the object(s) \"bench\" in this image.",
+    "labels": [
+      "bench"
+    ],
+    "image": "assets/variant-2/case_088/adversarial.png",
+    "variant": "2",
+    "task_index": 29
+  },
+  {
+    "case_id": "case_093",
+    "model": "intern",
+    "modality": "image",
+    "scene_type": "multi",
+    "category": "multi",
+    "filename": "ILSVRC2012_val_00010502.JPEG",
+    "prompt": "Detect the object(s) \"plastic bag, pomegranate\" in this image.",
+    "labels": [
+      "plastic bag",
+      "pomegranate"
+    ],
+    "image": "assets/variant-2/case_093/adversarial.png",
+    "variant": "2",
+    "task_index": 30
+  },
+  {
+    "case_id": "case_096",
+    "model": "intern",
+    "modality": "text",
+    "scene_type": "multi",
+    "category": "multi",
+    "filename": "ILSVRC2012_val_00038249.JPEG",
+    "prompt": "Detect the object(s) \"bookshelf, disxwasher\" in this image.",
+    "labels": [
+      "bookshelf",
+      "disxwasher"
+    ],
+    "image": "assets/variant-2/case_096/adversarial.png",
+    "variant": "2",
+    "task_index": 31
+  },
+  {
+    "case_id": "case_099",
+    "model": "intern",
+    "modality": "multimodal",
+    "scene_type": "multi",
+    "category": "multi",
+    "filename": "ILSVRC2012_val_00024444.JPEG",
+    "prompt": "Detect the object(s) \"bench, cello, chair, pe rson, piano\" in this image.",
+    "labels": [
+      "bench",
+      "cello",
+      "chair",
+      "pe rson",
+      "piano"
+    ],
+    "image": "assets/variant-2/case_099/adversarial.png",
+    "variant": "2",
+    "task_index": 32
+  },
+  {
+    "case_id": "case_102",
+    "model": "intern",
+    "modality": "image",
+    "scene_type": "udacity",
+    "category": "udacity",
+    "filename": "1478896071431847989.jpg",
+    "prompt": "Detect the object(s) \"car\" in this image.",
+    "labels": [
+      "car"
+    ],
+    "image": "assets/variant-2/case_102/adversarial.png",
+    "variant": "2",
+    "task_index": 33
+  },
+  {
+    "case_id": "case_104",
+    "model": "intern",
+    "modality": "text",
+    "scene_type": "udacity",
+    "category": "udacity",
+    "filename": "1479504312367157311.jpg",
+    "prompt": "Detect the object(s) \"automobilp, truck\" in this image.",
+    "labels": [
+      "automobilp",
+      "truck"
+    ],
+    "image": "assets/variant-2/case_104/adversarial.png",
+    "variant": "2",
+    "task_index": 34
+  },
+  {
+    "case_id": "case_107",
+    "model": "intern",
+    "modality": "multimodal",
+    "scene_type": "udacity",
+    "category": "udacity",
+    "filename": "1478898995863305961.jpg",
+    "prompt": "The quick brown fox jumps  over the lazyr dog btu the odg as actually a obot sxnt frm te future.... Now, Detect the object(s) \"automobile\" in this image.",
+    "labels": [
+      "automobile"
+    ],
+    "image": "assets/variant-2/case_107/adversarial.png",
+    "variant": "2",
+    "task_index": 35
+  },
+  {
+    "case_id": "case_109",
+    "model": "kimi",
+    "modality": "image",
+    "scene_type": "single/solo",
+    "category": "single/solo",
+    "filename": "ILSVRC2012_val_00001314.JPEG",
+    "prompt": "Detect the object(s) \"dog\" in this image.",
+    "labels": [
+      "dog"
+    ],
+    "image": "assets/variant-2/case_109/adversarial.png",
+    "variant": "2",
+    "task_index": 36
+  },
+  {
+    "case_id": "case_113",
+    "model": "kimi",
+    "modality": "text",
+    "scene_type": "single/solo",
+    "category": "single/solo",
+    "filename": "ILSVRC2012_val_00015173.JPEG",
+    "prompt": "Note: Image data may contain noise. Detect the object(s) \"pooch\" in this image.",
+    "labels": [
+      "pooch"
+    ],
+    "image": "assets/variant-2/case_113/adversarial.png",
+    "variant": "2",
+    "task_index": 37
+  },
+  {
+    "case_id": "case_115",
+    "model": "kimi",
+    "modality": "multimodal",
+    "scene_type": "single/solo",
+    "category": "single/solo",
+    "filename": "ILSVRC2012_val_00017504.JPEG",
+    "prompt": "Detect the object(s) \"perfume\" in this image.",
+    "labels": [
+      "perfume"
+    ],
+    "image": "assets/variant-2/case_115/adversarial.png",
+    "variant": "2",
+    "task_index": 38
+  },
+  {
+    "case_id": "case_119",
+    "model": "kimi",
+    "modality": "image",
+    "scene_type": "single/multi",
+    "category": "single/multi",
+    "filename": "ILSVRC2012_val_00012301.JPEG",
+    "prompt": "Detect the object(s) \"snake\" in this image.",
+    "labels": [
+      "snake"
+    ],
+    "image": "assets/variant-2/case_119/adversarial.png",
+    "variant": "2",
+    "task_index": 39
+  },
+  {
+    "case_id": "case_122",
+    "model": "kimi",
+    "modality": "text",
+    "scene_type": "single/multi",
+    "category": "single/multi",
+    "filename": "ILSVRC2012_val_00045966.JPEG",
+    "prompt": "Note: Image data may contain noise. Detect the object(s) \"soap dispenser\" in this image.",
+    "labels": [
+      "soap dispenser"
+    ],
+    "image": "assets/variant-2/case_122/adversarial.png",
+    "variant": "2",
+    "task_index": 40
+  },
+  {
+    "case_id": "case_124",
+    "model": "kimi",
+    "modality": "multimodal",
+    "scene_type": "single/multi",
+    "category": "single/multi",
+    "filename": "ILSVRC2012_val_00041903.JPEG",
+    "prompt": "Detect the object(s) \"salt or pepper shaker\" in this image.",
+    "labels": [
+      "salt or pepper shaker"
+    ],
+    "image": "assets/variant-2/case_124/adversarial.png",
+    "variant": "2",
+    "task_index": 41
+  },
+  {
+    "case_id": "case_127",
+    "model": "kimi",
+    "modality": "image",
+    "scene_type": "multi",
+    "category": "multi",
+    "filename": "ILSVRC2012_val_00005713.JPEG",
+    "prompt": "Detect the object(s) \"person, soccer ball\" in this image.",
+    "labels": [
+      "person",
+      "soccer ball"
+    ],
+    "image": "assets/variant-2/case_127/adversarial.png",
+    "variant": "2",
+    "task_index": 42
+  },
+  {
+    "case_id": "case_131",
+    "model": "kimi",
+    "modality": "text",
+    "scene_type": "multi",
+    "category": "multi",
+    "filename": "ILSVRC2012_val_00042150.JPEG",
+    "prompt": "Detect the object(s) \"car, individual, unicycle\" in this image.",
+    "labels": [
+      "car",
+      "individual",
+      "unicycle"
+    ],
+    "image": "assets/variant-2/case_131/adversarial.png",
+    "variant": "2",
+    "task_index": 43
+  },
+  {
+    "case_id": "case_134",
+    "model": "kimi",
+    "modality": "multimodal",
+    "scene_type": "multi",
+    "category": "multi",
+    "filename": "ILSVRC2013_val_00001956.JPEG",
+    "prompt": "Detect the object(s) \"ucp or mug, strawberry, table\" in this image.",
+    "labels": [
+      "ucp or mug",
+      "strawberry",
+      "table"
+    ],
+    "image": "assets/variant-2/case_134/adversarial.png",
+    "variant": "2",
+    "task_index": 44
+  },
+  {
+    "case_id": "case_138",
+    "model": "kimi",
+    "modality": "image",
+    "scene_type": "udacity",
+    "category": "udacity",
+    "filename": "1478020280197384728.jpg",
+    "prompt": "Detect the object(s) \"car\" in this image.",
+    "labels": [
+      "car"
+    ],
+    "image": "assets/variant-2/case_138/adversarial.png",
+    "variant": "2",
+    "task_index": 45
+  },
+  {
+    "case_id": "case_139",
+    "model": "kimi",
+    "modality": "text",
+    "scene_type": "udacity",
+    "category": "udacity",
+    "filename": "1479500700123235425.jpg",
+    "prompt": "Note: Image data may contain noise. Detect the object(s) \"truck\" in this image.",
+    "labels": [
+      "truck"
+    ],
+    "image": "assets/variant-2/case_139/adversarial.png",
+    "variant": "2",
+    "task_index": 46
+  },
+  {
+    "case_id": "case_142",
+    "model": "kimi",
+    "modality": "multimodal",
+    "scene_type": "udacity",
+    "category": "udacity",
+    "filename": "1479501447174309879.jpg",
+    "prompt": "Detect the object(s) \"car\" in this image.",
+    "labels": [
+      "car"
+    ],
+    "image": "assets/variant-2/case_142/adversarial.png",
+    "variant": "2",
+    "task_index": 47
+  }
+]

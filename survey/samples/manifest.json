@@ -1,0 +1,1177 @@
+{
+  "seed": 20260828,
+  "source_results_dir": "defaults/mmm/results",
+  "models": [
+    "nemotron",
+    "qwen",
+    "intern",
+    "kimi"
+  ],
+  "scene_types": [
+    "single/solo",
+    "single/multi",
+    "multi",
+    "udacity"
+  ],
+  "modalities": [
+    "image",
+    "text",
+    "multimodal"
+  ],
+  "cases_per_model_scene_modality": 3,
+  "case_count": 144,
+  "cases": [
+    {
+      "survey_case_id": "case_001",
+      "model": "nemotron",
+      "modality": "image",
+      "scene_type": "single/solo",
+      "testcase_id": "52",
+      "directory": "case_001"
+    },
+    {
+      "survey_case_id": "case_002",
+      "model": "nemotron",
+      "modality": "image",
+      "scene_type": "single/solo",
+      "testcase_id": "49",
+      "directory": "case_002"
+    },
+    {
+      "survey_case_id": "case_003",
+      "model": "nemotron",
+      "modality": "image",
+      "scene_type": "single/solo",
+      "testcase_id": "34",
+      "directory": "case_003"
+    },
+    {
+      "survey_case_id": "case_004",
+      "model": "nemotron",
+      "modality": "text",
+      "scene_type": "single/solo",
+      "testcase_id": "42",
+      "directory": "case_004"
+    },
+    {
+      "survey_case_id": "case_005",
+      "model": "nemotron",
+      "modality": "text",
+      "scene_type": "single/solo",
+      "testcase_id": "64",
+      "directory": "case_005"
+    },
+    {
+      "survey_case_id": "case_006",
+      "model": "nemotron",
+      "modality": "text",
+      "scene_type": "single/solo",
+      "testcase_id": "9",
+      "directory": "case_006"
+    },
+    {
+      "survey_case_id": "case_007",
+      "model": "nemotron",
+      "modality": "multimodal",
+      "scene_type": "single/solo",
+      "testcase_id": "79",
+      "directory": "case_007"
+    },
+    {
+      "survey_case_id": "case_008",
+      "model": "nemotron",
+      "modality": "multimodal",
+      "scene_type": "single/solo",
+      "testcase_id": "85",
+      "directory": "case_008"
+    },
+    {
+      "survey_case_id": "case_009",
+      "model": "nemotron",
+      "modality": "multimodal",
+      "scene_type": "single/solo",
+      "testcase_id": "36",
+      "directory": "case_009"
+    },
+    {
+      "survey_case_id": "case_010",
+      "model": "nemotron",
+      "modality": "image",
+      "scene_type": "single/multi",
+      "testcase_id": "18",
+      "directory": "case_010"
+    },
+    {
+      "survey_case_id": "case_011",
+      "model": "nemotron",
+      "modality": "image",
+      "scene_type": "single/multi",
+      "testcase_id": "6",
+      "directory": "case_011"
+    },
+    {
+      "survey_case_id": "case_012",
+      "model": "nemotron",
+      "modality": "image",
+      "scene_type": "single/multi",
+      "testcase_id": "43",
+      "directory": "case_012"
+    },
+    {
+      "survey_case_id": "case_013",
+      "model": "nemotron",
+      "modality": "text",
+      "scene_type": "single/multi",
+      "testcase_id": "50",
+      "directory": "case_013"
+    },
+    {
+      "survey_case_id": "case_014",
+      "model": "nemotron",
+      "modality": "text",
+      "scene_type": "single/multi",
+      "testcase_id": "45",
+      "directory": "case_014"
+    },
+    {
+      "survey_case_id": "case_015",
+      "model": "nemotron",
+      "modality": "text",
+      "scene_type": "single/multi",
+      "testcase_id": "80",
+      "directory": "case_015"
+    },
+    {
+      "survey_case_id": "case_016",
+      "model": "nemotron",
+      "modality": "multimodal",
+      "scene_type": "single/multi",
+      "testcase_id": "32",
+      "directory": "case_016"
+    },
+    {
+      "survey_case_id": "case_017",
+      "model": "nemotron",
+      "modality": "multimodal",
+      "scene_type": "single/multi",
+      "testcase_id": "80",
+      "directory": "case_017"
+    },
+    {
+      "survey_case_id": "case_018",
+      "model": "nemotron",
+      "modality": "multimodal",
+      "scene_type": "single/multi",
+      "testcase_id": "62",
+      "directory": "case_018"
+    },
+    {
+      "survey_case_id": "case_019",
+      "model": "nemotron",
+      "modality": "image",
+      "scene_type": "multi",
+      "testcase_id": "2",
+      "directory": "case_019"
+    },
+    {
+      "survey_case_id": "case_020",
+      "model": "nemotron",
+      "modality": "image",
+      "scene_type": "multi",
+      "testcase_id": "88",
+      "directory": "case_020"
+    },
+    {
+      "survey_case_id": "case_021",
+      "model": "nemotron",
+      "modality": "image",
+      "scene_type": "multi",
+      "testcase_id": "35",
+      "directory": "case_021"
+    },
+    {
+      "survey_case_id": "case_022",
+      "model": "nemotron",
+      "modality": "text",
+      "scene_type": "multi",
+      "testcase_id": "85",
+      "directory": "case_022"
+    },
+    {
+      "survey_case_id": "case_023",
+      "model": "nemotron",
+      "modality": "text",
+      "scene_type": "multi",
+      "testcase_id": "21",
+      "directory": "case_023"
+    },
+    {
+      "survey_case_id": "case_024",
+      "model": "nemotron",
+      "modality": "text",
+      "scene_type": "multi",
+      "testcase_id": "93",
+      "directory": "case_024"
+    },
+    {
+      "survey_case_id": "case_025",
+      "model": "nemotron",
+      "modality": "multimodal",
+      "scene_type": "multi",
+      "testcase_id": "64",
+      "directory": "case_025"
+    },
+    {
+      "survey_case_id": "case_026",
+      "model": "nemotron",
+      "modality": "multimodal",
+      "scene_type": "multi",
+      "testcase_id": "56",
+      "directory": "case_026"
+    },
+    {
+      "survey_case_id": "case_027",
+      "model": "nemotron",
+      "modality": "multimodal",
+      "scene_type": "multi",
+      "testcase_id": "4",
+      "directory": "case_027"
+    },
+    {
+      "survey_case_id": "case_028",
+      "model": "nemotron",
+      "modality": "image",
+      "scene_type": "udacity",
+      "testcase_id": "74",
+      "directory": "case_028"
+    },
+    {
+      "survey_case_id": "case_029",
+      "model": "nemotron",
+      "modality": "image",
+      "scene_type": "udacity",
+      "testcase_id": "36",
+      "directory": "case_029"
+    },
+    {
+      "survey_case_id": "case_030",
+      "model": "nemotron",
+      "modality": "image",
+      "scene_type": "udacity",
+      "testcase_id": "93",
+      "directory": "case_030"
+    },
+    {
+      "survey_case_id": "case_031",
+      "model": "nemotron",
+      "modality": "text",
+      "scene_type": "udacity",
+      "testcase_id": "81",
+      "directory": "case_031"
+    },
+    {
+      "survey_case_id": "case_032",
+      "model": "nemotron",
+      "modality": "text",
+      "scene_type": "udacity",
+      "testcase_id": "96",
+      "directory": "case_032"
+    },
+    {
+      "survey_case_id": "case_033",
+      "model": "nemotron",
+      "modality": "text",
+      "scene_type": "udacity",
+      "testcase_id": "74",
+      "directory": "case_033"
+    },
+    {
+      "survey_case_id": "case_034",
+      "model": "nemotron",
+      "modality": "multimodal",
+      "scene_type": "udacity",
+      "testcase_id": "16",
+      "directory": "case_034"
+    },
+    {
+      "survey_case_id": "case_035",
+      "model": "nemotron",
+      "modality": "multimodal",
+      "scene_type": "udacity",
+      "testcase_id": "74",
+      "directory": "case_035"
+    },
+    {
+      "survey_case_id": "case_036",
+      "model": "nemotron",
+      "modality": "multimodal",
+      "scene_type": "udacity",
+      "testcase_id": "88",
+      "directory": "case_036"
+    },
+    {
+      "survey_case_id": "case_037",
+      "model": "qwen",
+      "modality": "image",
+      "scene_type": "single/solo",
+      "testcase_id": "9",
+      "directory": "case_037"
+    },
+    {
+      "survey_case_id": "case_038",
+      "model": "qwen",
+      "modality": "image",
+      "scene_type": "single/solo",
+      "testcase_id": "21",
+      "directory": "case_038"
+    },
+    {
+      "survey_case_id": "case_039",
+      "model": "qwen",
+      "modality": "image",
+      "scene_type": "single/solo",
+      "testcase_id": "12",
+      "directory": "case_039"
+    },
+    {
+      "survey_case_id": "case_040",
+      "model": "qwen",
+      "modality": "text",
+      "scene_type": "single/solo",
+      "testcase_id": "86",
+      "directory": "case_040"
+    },
+    {
+      "survey_case_id": "case_041",
+      "model": "qwen",
+      "modality": "text",
+      "scene_type": "single/solo",
+      "testcase_id": "69",
+      "directory": "case_041"
+    },
+    {
+      "survey_case_id": "case_042",
+      "model": "qwen",
+      "modality": "text",
+      "scene_type": "single/solo",
+      "testcase_id": "48",
+      "directory": "case_042"
+    },
+    {
+      "survey_case_id": "case_043",
+      "model": "qwen",
+      "modality": "multimodal",
+      "scene_type": "single/solo",
+      "testcase_id": "47",
+      "directory": "case_043"
+    },
+    {
+      "survey_case_id": "case_044",
+      "model": "qwen",
+      "modality": "multimodal",
+      "scene_type": "single/solo",
+      "testcase_id": "84",
+      "directory": "case_044"
+    },
+    {
+      "survey_case_id": "case_045",
+      "model": "qwen",
+      "modality": "multimodal",
+      "scene_type": "single/solo",
+      "testcase_id": "13",
+      "directory": "case_045"
+    },
+    {
+      "survey_case_id": "case_046",
+      "model": "qwen",
+      "modality": "image",
+      "scene_type": "single/multi",
+      "testcase_id": "2",
+      "directory": "case_046"
+    },
+    {
+      "survey_case_id": "case_047",
+      "model": "qwen",
+      "modality": "image",
+      "scene_type": "single/multi",
+      "testcase_id": "84",
+      "directory": "case_047"
+    },
+    {
+      "survey_case_id": "case_048",
+      "model": "qwen",
+      "modality": "image",
+      "scene_type": "single/multi",
+      "testcase_id": "79",
+      "directory": "case_048"
+    },
+    {
+      "survey_case_id": "case_049",
+      "model": "qwen",
+      "modality": "text",
+      "scene_type": "single/multi",
+      "testcase_id": "3",
+      "directory": "case_049"
+    },
+    {
+      "survey_case_id": "case_050",
+      "model": "qwen",
+      "modality": "text",
+      "scene_type": "single/multi",
+      "testcase_id": "13",
+      "directory": "case_050"
+    },
+    {
+      "survey_case_id": "case_051",
+      "model": "qwen",
+      "modality": "text",
+      "scene_type": "single/multi",
+      "testcase_id": "11",
+      "directory": "case_051"
+    },
+    {
+      "survey_case_id": "case_052",
+      "model": "qwen",
+      "modality": "multimodal",
+      "scene_type": "single/multi",
+      "testcase_id": "15",
+      "directory": "case_052"
+    },
+    {
+      "survey_case_id": "case_053",
+      "model": "qwen",
+      "modality": "multimodal",
+      "scene_type": "single/multi",
+      "testcase_id": "91",
+      "directory": "case_053"
+    },
+    {
+      "survey_case_id": "case_054",
+      "model": "qwen",
+      "modality": "multimodal",
+      "scene_type": "single/multi",
+      "testcase_id": "22",
+      "directory": "case_054"
+    },
+    {
+      "survey_case_id": "case_055",
+      "model": "qwen",
+      "modality": "image",
+      "scene_type": "multi",
+      "testcase_id": "88",
+      "directory": "case_055"
+    },
+    {
+      "survey_case_id": "case_056",
+      "model": "qwen",
+      "modality": "image",
+      "scene_type": "multi",
+      "testcase_id": "41",
+      "directory": "case_056"
+    },
+    {
+      "survey_case_id": "case_057",
+      "model": "qwen",
+      "modality": "image",
+      "scene_type": "multi",
+      "testcase_id": "91",
+      "directory": "case_057"
+    },
+    {
+      "survey_case_id": "case_058",
+      "model": "qwen",
+      "modality": "text",
+      "scene_type": "multi",
+      "testcase_id": "71",
+      "directory": "case_058"
+    },
+    {
+      "survey_case_id": "case_059",
+      "model": "qwen",
+      "modality": "text",
+      "scene_type": "multi",
+      "testcase_id": "61",
+      "directory": "case_059"
+    },
+    {
+      "survey_case_id": "case_060",
+      "model": "qwen",
+      "modality": "text",
+      "scene_type": "multi",
+      "testcase_id": "53",
+      "directory": "case_060"
+    },
+    {
+      "survey_case_id": "case_061",
+      "model": "qwen",
+      "modality": "multimodal",
+      "scene_type": "multi",
+      "testcase_id": "3",
+      "directory": "case_061"
+    },
+    {
+      "survey_case_id": "case_062",
+      "model": "qwen",
+      "modality": "multimodal",
+      "scene_type": "multi",
+      "testcase_id": "50",
+      "directory": "case_062"
+    },
+    {
+      "survey_case_id": "case_063",
+      "model": "qwen",
+      "modality": "multimodal",
+      "scene_type": "multi",
+      "testcase_id": "87",
+      "directory": "case_063"
+    },
+    {
+      "survey_case_id": "case_064",
+      "model": "qwen",
+      "modality": "image",
+      "scene_type": "udacity",
+      "testcase_id": "64",
+      "directory": "case_064"
+    },
+    {
+      "survey_case_id": "case_065",
+      "model": "qwen",
+      "modality": "image",
+      "scene_type": "udacity",
+      "testcase_id": "93",
+      "directory": "case_065"
+    },
+    {
+      "survey_case_id": "case_066",
+      "model": "qwen",
+      "modality": "image",
+      "scene_type": "udacity",
+      "testcase_id": "14",
+      "directory": "case_066"
+    },
+    {
+      "survey_case_id": "case_067",
+      "model": "qwen",
+      "modality": "text",
+      "scene_type": "udacity",
+      "testcase_id": "74",
+      "directory": "case_067"
+    },
+    {
+      "survey_case_id": "case_068",
+      "model": "qwen",
+      "modality": "text",
+      "scene_type": "udacity",
+      "testcase_id": "15",
+      "directory": "case_068"
+    },
+    {
+      "survey_case_id": "case_069",
+      "model": "qwen",
+      "modality": "text",
+      "scene_type": "udacity",
+      "testcase_id": "64",
+      "directory": "case_069"
+    },
+    {
+      "survey_case_id": "case_070",
+      "model": "qwen",
+      "modality": "multimodal",
+      "scene_type": "udacity",
+      "testcase_id": "3",
+      "directory": "case_070"
+    },
+    {
+      "survey_case_id": "case_071",
+      "model": "qwen",
+      "modality": "multimodal",
+      "scene_type": "udacity",
+      "testcase_id": "50",
+      "directory": "case_071"
+    },
+    {
+      "survey_case_id": "case_072",
+      "model": "qwen",
+      "modality": "multimodal",
+      "scene_type": "udacity",
+      "testcase_id": "36",
+      "directory": "case_072"
+    },
+    {
+      "survey_case_id": "case_073",
+      "model": "intern",
+      "modality": "image",
+      "scene_type": "single/solo",
+      "testcase_id": "14",
+      "directory": "case_073"
+    },
+    {
+      "survey_case_id": "case_074",
+      "model": "intern",
+      "modality": "image",
+      "scene_type": "single/solo",
+      "testcase_id": "44",
+      "directory": "case_074"
+    },
+    {
+      "survey_case_id": "case_075",
+      "model": "intern",
+      "modality": "image",
+      "scene_type": "single/solo",
+      "testcase_id": "34",
+      "directory": "case_075"
+    },
+    {
+      "survey_case_id": "case_076",
+      "model": "intern",
+      "modality": "text",
+      "scene_type": "single/solo",
+      "testcase_id": "71",
+      "directory": "case_076"
+    },
+    {
+      "survey_case_id": "case_077",
+      "model": "intern",
+      "modality": "text",
+      "scene_type": "single/solo",
+      "testcase_id": "65",
+      "directory": "case_077"
+    },
+    {
+      "survey_case_id": "case_078",
+      "model": "intern",
+      "modality": "text",
+      "scene_type": "single/solo",
+      "testcase_id": "14",
+      "directory": "case_078"
+    },
+    {
+      "survey_case_id": "case_079",
+      "model": "intern",
+      "modality": "multimodal",
+      "scene_type": "single/solo",
+      "testcase_id": "77",
+      "directory": "case_079"
+    },
+    {
+      "survey_case_id": "case_080",
+      "model": "intern",
+      "modality": "multimodal",
+      "scene_type": "single/solo",
+      "testcase_id": "13",
+      "directory": "case_080"
+    },
+    {
+      "survey_case_id": "case_081",
+      "model": "intern",
+      "modality": "multimodal",
+      "scene_type": "single/solo",
+      "testcase_id": "61",
+      "directory": "case_081"
+    },
+    {
+      "survey_case_id": "case_082",
+      "model": "intern",
+      "modality": "image",
+      "scene_type": "single/multi",
+      "testcase_id": "63",
+      "directory": "case_082"
+    },
+    {
+      "survey_case_id": "case_083",
+      "model": "intern",
+      "modality": "image",
+      "scene_type": "single/multi",
+      "testcase_id": "27",
+      "directory": "case_083"
+    },
+    {
+      "survey_case_id": "case_084",
+      "model": "intern",
+      "modality": "image",
+      "scene_type": "single/multi",
+      "testcase_id": "2",
+      "directory": "case_084"
+    },
+    {
+      "survey_case_id": "case_085",
+      "model": "intern",
+      "modality": "text",
+      "scene_type": "single/multi",
+      "testcase_id": "67",
+      "directory": "case_085"
+    },
+    {
+      "survey_case_id": "case_086",
+      "model": "intern",
+      "modality": "text",
+      "scene_type": "single/multi",
+      "testcase_id": "72",
+      "directory": "case_086"
+    },
+    {
+      "survey_case_id": "case_087",
+      "model": "intern",
+      "modality": "text",
+      "scene_type": "single/multi",
+      "testcase_id": "93",
+      "directory": "case_087"
+    },
+    {
+      "survey_case_id": "case_088",
+      "model": "intern",
+      "modality": "multimodal",
+      "scene_type": "single/multi",
+      "testcase_id": "48",
+      "directory": "case_088"
+    },
+    {
+      "survey_case_id": "case_089",
+      "model": "intern",
+      "modality": "multimodal",
+      "scene_type": "single/multi",
+      "testcase_id": "44",
+      "directory": "case_089"
+    },
+    {
+      "survey_case_id": "case_090",
+      "model": "intern",
+      "modality": "multimodal",
+      "scene_type": "single/multi",
+      "testcase_id": "66",
+      "directory": "case_090"
+    },
+    {
+      "survey_case_id": "case_091",
+      "model": "intern",
+      "modality": "image",
+      "scene_type": "multi",
+      "testcase_id": "73",
+      "directory": "case_091"
+    },
+    {
+      "survey_case_id": "case_092",
+      "model": "intern",
+      "modality": "image",
+      "scene_type": "multi",
+      "testcase_id": "80",
+      "directory": "case_092"
+    },
+    {
+      "survey_case_id": "case_093",
+      "model": "intern",
+      "modality": "image",
+      "scene_type": "multi",
+      "testcase_id": "25",
+      "directory": "case_093"
+    },
+    {
+      "survey_case_id": "case_094",
+      "model": "intern",
+      "modality": "text",
+      "scene_type": "multi",
+      "testcase_id": "10",
+      "directory": "case_094"
+    },
+    {
+      "survey_case_id": "case_095",
+      "model": "intern",
+      "modality": "text",
+      "scene_type": "multi",
+      "testcase_id": "20",
+      "directory": "case_095"
+    },
+    {
+      "survey_case_id": "case_096",
+      "model": "intern",
+      "modality": "text",
+      "scene_type": "multi",
+      "testcase_id": "58",
+      "directory": "case_096"
+    },
+    {
+      "survey_case_id": "case_097",
+      "model": "intern",
+      "modality": "multimodal",
+      "scene_type": "multi",
+      "testcase_id": "34",
+      "directory": "case_097"
+    },
+    {
+      "survey_case_id": "case_098",
+      "model": "intern",
+      "modality": "multimodal",
+      "scene_type": "multi",
+      "testcase_id": "25",
+      "directory": "case_098"
+    },
+    {
+      "survey_case_id": "case_099",
+      "model": "intern",
+      "modality": "multimodal",
+      "scene_type": "multi",
+      "testcase_id": "15",
+      "directory": "case_099"
+    },
+    {
+      "survey_case_id": "case_100",
+      "model": "intern",
+      "modality": "image",
+      "scene_type": "udacity",
+      "testcase_id": "3",
+      "directory": "case_100"
+    },
+    {
+      "survey_case_id": "case_101",
+      "model": "intern",
+      "modality": "image",
+      "scene_type": "udacity",
+      "testcase_id": "15",
+      "directory": "case_101"
+    },
+    {
+      "survey_case_id": "case_102",
+      "model": "intern",
+      "modality": "image",
+      "scene_type": "udacity",
+      "testcase_id": "64",
+      "directory": "case_102"
+    },
+    {
+      "survey_case_id": "case_103",
+      "model": "intern",
+      "modality": "text",
+      "scene_type": "udacity",
+      "testcase_id": "64",
+      "directory": "case_103"
+    },
+    {
+      "survey_case_id": "case_104",
+      "model": "intern",
+      "modality": "text",
+      "scene_type": "udacity",
+      "testcase_id": "77",
+      "directory": "case_104"
+    },
+    {
+      "survey_case_id": "case_105",
+      "model": "intern",
+      "modality": "text",
+      "scene_type": "udacity",
+      "testcase_id": "60",
+      "directory": "case_105"
+    },
+    {
+      "survey_case_id": "case_106",
+      "model": "intern",
+      "modality": "multimodal",
+      "scene_type": "udacity",
+      "testcase_id": "3",
+      "directory": "case_106"
+    },
+    {
+      "survey_case_id": "case_107",
+      "model": "intern",
+      "modality": "multimodal",
+      "scene_type": "udacity",
+      "testcase_id": "15",
+      "directory": "case_107"
+    },
+    {
+      "survey_case_id": "case_108",
+      "model": "intern",
+      "modality": "multimodal",
+      "scene_type": "udacity",
+      "testcase_id": "14",
+      "directory": "case_108"
+    },
+    {
+      "survey_case_id": "case_109",
+      "model": "kimi",
+      "modality": "image",
+      "scene_type": "single/solo",
+      "testcase_id": "63",
+      "directory": "case_109"
+    },
+    {
+      "survey_case_id": "case_110",
+      "model": "kimi",
+      "modality": "image",
+      "scene_type": "single/solo",
+      "testcase_id": "58",
+      "directory": "case_110"
+    },
+    {
+      "survey_case_id": "case_111",
+      "model": "kimi",
+      "modality": "image",
+      "scene_type": "single/solo",
+      "testcase_id": "30",
+      "directory": "case_111"
+    },
+    {
+      "survey_case_id": "case_112",
+      "model": "kimi",
+      "modality": "text",
+      "scene_type": "single/solo",
+      "testcase_id": "71",
+      "directory": "case_112"
+    },
+    {
+      "survey_case_id": "case_113",
+      "model": "kimi",
+      "modality": "text",
+      "scene_type": "single/solo",
+      "testcase_id": "15",
+      "directory": "case_113"
+    },
+    {
+      "survey_case_id": "case_114",
+      "model": "kimi",
+      "modality": "text",
+      "scene_type": "single/solo",
+      "testcase_id": "4",
+      "directory": "case_114"
+    },
+    {
+      "survey_case_id": "case_115",
+      "model": "kimi",
+      "modality": "multimodal",
+      "scene_type": "single/solo",
+      "testcase_id": "87",
+      "directory": "case_115"
+    },
+    {
+      "survey_case_id": "case_116",
+      "model": "kimi",
+      "modality": "multimodal",
+      "scene_type": "single/solo",
+      "testcase_id": "82",
+      "directory": "case_116"
+    },
+    {
+      "survey_case_id": "case_117",
+      "model": "kimi",
+      "modality": "multimodal",
+      "scene_type": "single/solo",
+      "testcase_id": "61",
+      "directory": "case_117"
+    },
+    {
+      "survey_case_id": "case_118",
+      "model": "kimi",
+      "modality": "image",
+      "scene_type": "single/multi",
+      "testcase_id": "55",
+      "directory": "case_118"
+    },
+    {
+      "survey_case_id": "case_119",
+      "model": "kimi",
+      "modality": "image",
+      "scene_type": "single/multi",
+      "testcase_id": "86",
+      "directory": "case_119"
+    },
+    {
+      "survey_case_id": "case_120",
+      "model": "kimi",
+      "modality": "image",
+      "scene_type": "single/multi",
+      "testcase_id": "18",
+      "directory": "case_120"
+    },
+    {
+      "survey_case_id": "case_121",
+      "model": "kimi",
+      "modality": "text",
+      "scene_type": "single/multi",
+      "testcase_id": "80",
+      "directory": "case_121"
+    },
+    {
+      "survey_case_id": "case_122",
+      "model": "kimi",
+      "modality": "text",
+      "scene_type": "single/multi",
+      "testcase_id": "45",
+      "directory": "case_122"
+    },
+    {
+      "survey_case_id": "case_123",
+      "model": "kimi",
+      "modality": "text",
+      "scene_type": "single/multi",
+      "testcase_id": "62",
+      "directory": "case_123"
+    },
+    {
+      "survey_case_id": "case_124",
+      "model": "kimi",
+      "modality": "multimodal",
+      "scene_type": "single/multi",
+      "testcase_id": "43",
+      "directory": "case_124"
+    },
+    {
+      "survey_case_id": "case_125",
+      "model": "kimi",
+      "modality": "multimodal",
+      "scene_type": "single/multi",
+      "testcase_id": "92",
+      "directory": "case_125"
+    },
+    {
+      "survey_case_id": "case_126",
+      "model": "kimi",
+      "modality": "multimodal",
+      "scene_type": "single/multi",
+      "testcase_id": "81",
+      "directory": "case_126"
+    },
+    {
+      "survey_case_id": "case_127",
+      "model": "kimi",
+      "modality": "image",
+      "scene_type": "multi",
+      "testcase_id": "31",
+      "directory": "case_127"
+    },
+    {
+      "survey_case_id": "case_128",
+      "model": "kimi",
+      "modality": "image",
+      "scene_type": "multi",
+      "testcase_id": "23",
+      "directory": "case_128"
+    },
+    {
+      "survey_case_id": "case_129",
+      "model": "kimi",
+      "modality": "image",
+      "scene_type": "multi",
+      "testcase_id": "56",
+      "directory": "case_129"
+    },
+    {
+      "survey_case_id": "case_130",
+      "model": "kimi",
+      "modality": "text",
+      "scene_type": "multi",
+      "testcase_id": "12",
+      "directory": "case_130"
+    },
+    {
+      "survey_case_id": "case_131",
+      "model": "kimi",
+      "modality": "text",
+      "scene_type": "multi",
+      "testcase_id": "10",
+      "directory": "case_131"
+    },
+    {
+      "survey_case_id": "case_132",
+      "model": "kimi",
+      "modality": "text",
+      "scene_type": "multi",
+      "testcase_id": "76",
+      "directory": "case_132"
+    },
+    {
+      "survey_case_id": "case_133",
+      "model": "kimi",
+      "modality": "multimodal",
+      "scene_type": "multi",
+      "testcase_id": "48",
+      "directory": "case_133"
+    },
+    {
+      "survey_case_id": "case_134",
+      "model": "kimi",
+      "modality": "multimodal",
+      "scene_type": "multi",
+      "testcase_id": "84",
+      "directory": "case_134"
+    },
+    {
+      "survey_case_id": "case_135",
+      "model": "kimi",
+      "modality": "multimodal",
+      "scene_type": "multi",
+      "testcase_id": "50",
+      "directory": "case_135"
+    },
+    {
+      "survey_case_id": "case_136",
+      "model": "kimi",
+      "modality": "image",
+      "scene_type": "udacity",
+      "testcase_id": "64",
+      "directory": "case_136"
+    },
+    {
+      "survey_case_id": "case_137",
+      "model": "kimi",
+      "modality": "image",
+      "scene_type": "udacity",
+      "testcase_id": "29",
+      "directory": "case_137"
+    },
+    {
+      "survey_case_id": "case_138",
+      "model": "kimi",
+      "modality": "image",
+      "scene_type": "udacity",
+      "testcase_id": "96",
+      "directory": "case_138"
+    },
+    {
+      "survey_case_id": "case_139",
+      "model": "kimi",
+      "modality": "text",
+      "scene_type": "udacity",
+      "testcase_id": "39",
+      "directory": "case_139"
+    },
+    {
+      "survey_case_id": "case_140",
+      "model": "kimi",
+      "modality": "text",
+      "scene_type": "udacity",
+      "testcase_id": "43",
+      "directory": "case_140"
+    },
+    {
+      "survey_case_id": "case_141",
+      "model": "kimi",
+      "modality": "text",
+      "scene_type": "udacity",
+      "testcase_id": "74",
+      "directory": "case_141"
+    },
+    {
+      "survey_case_id": "case_142",
+      "model": "kimi",
+      "modality": "multimodal",
+      "scene_type": "udacity",
+      "testcase_id": "74",
+      "directory": "case_142"
+    },
+    {
+      "survey_case_id": "case_143",
+      "model": "kimi",
+      "modality": "multimodal",
+      "scene_type": "udacity",
+      "testcase_id": "38",
+      "directory": "case_143"
+    },
+    {
+      "survey_case_id": "case_144",
+      "model": "kimi",
+      "modality": "multimodal",
+      "scene_type": "udacity",
+      "testcase_id": "16",
+      "directory": "case_144"
+    }
+  ]
+}

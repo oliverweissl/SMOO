@@ -1,0 +1,73 @@
+{
+  "survey_case_id": "case_093",
+  "model": "intern",
+  "modality": "image",
+  "scene_type": "multi",
+  "testcase_id": "25",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/intern/unimodal/image/multi/25/best_result.json",
+    "adversarial_image": "defaults/mmm/results/intern/unimodal/image/multi/25/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/multi/25/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/multi/25",
+      "folder_id": "25",
+      "category": "multi",
+      "filename": "ILSVRC2012_val_00010502.JPEG"
+    },
+    "runtime": 34.69419765472412,
+    "generations_completed": 1,
+    "early_stop_generation": 1,
+    "baseline_iou": 0.56624,
+    "genome": [
+      0.017152921094223096,
+      0.03226349838425652,
+      0.009408653083342844,
+      0.010402702830398139,
+      0.09881706521708297,
+      0.02802831852896041,
+      0.06699120537577076,
+      0.06552114055435418,
+      0.11188101268426398,
+      0.03773852256472627,
+      0.04767005451059443,
+      0.08577040559728549
+    ],
+    "objectives": {
+      "iou": 0.0,
+      "img_dist": 0.1867,
+      "txt_dist": 0.0
+    },
+    "original_prompt": "Detect the object(s) \"plastic bag, pomegranate\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        0,
+        93,
+        108,
+        252
+      ],
+      [
+        109,
+        58,
+        380,
+        330
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"plastic bag, pomegranate\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[{\"label\": \"pomegranate\", \"bbox\": [250, 170, 750, 850]}, {\"label\": \"plastic bag\", \"bbox\": [0, 270, 200, 700]}, {\"label\": \"plastic bag\", \"bbox\": [700, 580, 1000, 900]}, {\"label\": \"plastic bag\", \"bbox\": [200, 600, 400, 900]}, {\"label\": \"plastic bag\", \"bbox\": [450, 850, 650, 1000]}, {\"label\": \"plastic bag\", \"bbox\": [650, 650, 800, 850]}, {\"label\": \"plastic bag\", \"bbox\": [800, 400, 950, 600]}, {\"label\": \"plastic bag\", \"bbox\": [850, 0, 1000, 470]}, {\"label\": \"plastic bag\", \"bbox\": [0, 650, 200, 1000]}, {\"label\": \"plastic bag\", \"bbox\": [200, 0, 300, 480]}, {\"label\": \"plastic bag\", \"bbox\": [300, 850, 450, 1000]}, {\"label\": \"plastic bag\", \"bbox\": [500, 0, 700, 180]}, {\"label\": \"plastic bag\", \"bbox\": [700, 150, 850, 600]}, {\"label\": \"plastic bag\", \"bbox\": [300, 0, 450, 150]}, {\"label\": \"plastic bag\", \"bbox\": [450, 0, 600, 150]}, {\"label\": \"plastic bag\", \"bbox\": [600, 0, 750, 150]}, {\"label\": \"plastic bag\", \"bbox\": [100, 0, 250, 450]}, {\"label\": \"plastic bag\", \"bbox\": [0, 0, 150, 180]}, {\"label\": \"plastic bag\", \"bbox\": [150, 450, 250, 500]}, {\"label\": \"plastic bag\", \"bbox\": [250, 450, 300, 500]}, {\"label\": \"plastic bag\", \"bbox\": [350, 450, ",
+      "parsed_predictions": [],
+      "matched_pred_boxes": [],
+      "prompt_objects": [
+        "plastic bag",
+        "pomegranate"
+      ]
+    },
+    "fail_code": "Failed to decode VLM JSON array: '[{\"label\": \"pomegranate\", \"bbox\": [250, 170, 750, 850]}, {\"label\": \"plastic bag\", \"bbox\": [0, 270, 200, 700]}, {\"label\": \"plastic bag\", \"bbox\": [700, 580, 1000, 900]}, {\"label\": \"plastic bag\", \"bbox\": [200, 600, 400, 900]}, {\"label\": \"plastic bag\", \"bbox\": [450, 850, 650, 1000]}, {\"label\": \"plastic bag\", \"bbox\": [650, 650, 800, 850]}, {\"label\": \"plastic bag\", \"bbox\": [800, 400, 950, 600]}, {\"label'"
+  }
+}

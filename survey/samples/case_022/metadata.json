@@ -1,0 +1,78 @@
+{
+  "survey_case_id": "case_022",
+  "model": "nemotron",
+  "modality": "text",
+  "scene_type": "multi",
+  "testcase_id": "85",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/nemotron/unimodal/text/multi/85/best_result.json",
+    "adversarial_image": "defaults/mmm/results/nemotron/unimodal/text/multi/85/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/multi/85/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/multi/85",
+      "folder_id": "85",
+      "category": "multi",
+      "filename": "ILSVRC2012_val_00039154.JPEG"
+    },
+    "runtime": 3.5960853099823,
+    "generations_completed": 1,
+    "early_stop_generation": 1,
+    "baseline_iou": 0.91056,
+    "genome": [
+      0.06834772719149597,
+      0.00048151313725609975,
+      0.0021147213584326845,
+      0.13254626538601008,
+      0.4888684357932551,
+      0.008195849824803241,
+      0.08425687469835061,
+      0.09782965210489396
+    ],
+    "objectives": {
+      "iou": 0.41279,
+      "img_dist": 0.0,
+      "txt_dist": 0.17038
+    },
+    "original_prompt": "Detect the object(s) \"person, racket\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        34,
+        18,
+        322,
+        372
+      ],
+      [
+        271,
+        203,
+        341,
+        375
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"pirson, racket\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "[{\"label\": \"pirson, racket\", \"bbox_2d\": [560, 541, 676, 998]}]",
+      "parsed_predictions": [
+        {
+          "label": "pirson, racket",
+          "bbox_2d": [
+            560,
+            541,
+            676,
+            998
+          ]
+        }
+      ],
+      "matched_pred_boxes": null,
+      "prompt_objects": [
+        "pirson",
+        "racket"
+      ]
+    }
+  }
+}

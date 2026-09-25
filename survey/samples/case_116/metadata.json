@@ -1,0 +1,74 @@
+{
+  "survey_case_id": "case_116",
+  "model": "kimi",
+  "modality": "multimodal",
+  "scene_type": "single/solo",
+  "testcase_id": "82",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/kimi/multimodal/single/solo/82/best_result.json",
+    "adversarial_image": "defaults/mmm/results/kimi/multimodal/single/solo/82/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/single/solo/82/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/single/solo/82",
+      "folder_id": "82",
+      "category": "single/solo",
+      "filename": "ILSVRC2012_val_00029356.JPEG"
+    },
+    "runtime": 3.030306339263916,
+    "generations_completed": 1,
+    "early_stop_generation": 1,
+    "baseline_iou": 0.59438,
+    "genome": [
+      0.0008933518958003614,
+      0.0015740289098383166,
+      0.0011725673141405471,
+      0.0014048594110171444,
+      7.941264908767874e-05,
+      0.0038801877864923645,
+      0.0002917003748805295,
+      0.0001735016624775937,
+      0.00015708762922857865,
+      0.014766146618795014,
+      0.0010918964971137089,
+      0.0011273701131626127,
+      0.0011416637352729053,
+      0.012024397970589972,
+      0.008056297305416515,
+      0.0012206321934275688,
+      0.0005341723618757302,
+      0.0017227178393204225,
+      0.0006457319792598287,
+      0.0030761303033836267
+    ],
+    "objectives": {
+      "iou": 0.0,
+      "img_dist": 0.07258,
+      "txt_dist": 0.0
+    },
+    "original_prompt": "Detect the object(s) \"bird\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        141,
+        221,
+        246,
+        396
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"bird\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "{\"label\": \"bird\", \"bbox\": [0.350, 0.450, 0.550, 0.800]}}",
+      "parsed_predictions": [],
+      "matched_pred_boxes": null,
+      "prompt_objects": [
+        "bird"
+      ]
+    },
+    "fail_code": "Failed to decode VLM JSON array: '{\"label\": \"bird\", \"bbox\": [0.350, 0.450, 0.550, 0.800]}}'"
+  }
+}

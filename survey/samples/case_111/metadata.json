@@ -1,0 +1,66 @@
+{
+  "survey_case_id": "case_111",
+  "model": "kimi",
+  "modality": "image",
+  "scene_type": "single/solo",
+  "testcase_id": "30",
+  "images": {
+    "clean": "clean.JPEG",
+    "adversarial": "adversarial.png"
+  },
+  "source": {
+    "result_json": "defaults/mmm/results/kimi/unimodal/image/single/solo/30/best_result.json",
+    "adversarial_image": "defaults/mmm/results/kimi/unimodal/image/single/solo/30/best_result.png",
+    "clean_image": "defaults/mmm/results/selection/single/solo/30/data_point.JPEG"
+  },
+  "result": {
+    "data_source": {
+      "folder_path": "defaults/mmm/results/selection/single/solo/30",
+      "folder_id": "30",
+      "category": "single/solo",
+      "filename": "ILSVRC2013_val_00001634.JPEG"
+    },
+    "runtime": 143.39909529685974,
+    "generations_completed": 56,
+    "early_stop_generation": 56,
+    "baseline_iou": 0.93096,
+    "genome": [
+      0.002074437331341732,
+      4.0667209647862095e-05,
+      0.0005471126595082518,
+      0.0006970289333683574,
+      0.001931003747530271,
+      0.0006831219152701362,
+      0.007680839893012374,
+      0.0033212105112444138,
+      0.002676178133004561,
+      0.04565148201258334,
+      0.0017336591472009947,
+      0.0027343874473892017
+    ],
+    "objectives": {
+      "iou": 0.0,
+      "img_dist": 0.07846,
+      "txt_dist": 0.0
+    },
+    "original_prompt": "Detect the object(s) \"table\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+    "ground_truth_bboxes": [
+      [
+        0,
+        0,
+        402,
+        496
+      ]
+    ],
+    "vlm_output": {
+      "perturbed_prompt": "Detect the object(s) \"table\" in this image. Return ONLY a JSON array — no markdown, no commentary. Each element must have exactly two keys: \"label\" (string, one of the requested objects) and \"bbox\" ([x1, y1, x2, y2] bounding box coordinates). Example: [{\"label\": \"cat\", \"bbox\": [10, 20, 150, 200]}, {\"label\": \"dog\", \"bbox\": [300, 50, 480, 400]}]",
+      "raw_response": "{\"label\": \"table\", \"bbox\": [0.000, 0.000, 0.800, 0.980]}}",
+      "parsed_predictions": [],
+      "matched_pred_boxes": null,
+      "prompt_objects": [
+        "table"
+      ]
+    },
+    "fail_code": "Failed to decode VLM JSON array: '{\"label\": \"table\", \"bbox\": [0.000, 0.000, 0.800, 0.980]}}'"
+  }
+}
