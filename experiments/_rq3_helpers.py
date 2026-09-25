@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from irrCAC.raw import CAC
 from scipy.optimize import linear_sum_assignment
+from statsmodels.stats.inter_rater import fleiss_kappa
 
 MODELS = ["qwen", "nemotron", "intern", "kimi"]
 MODEL_LABELS = {"qwen": "Qwen3-VL", "kimi": "Kimi-VL", "intern": "InternVL-3.5", "nemotron": "Nemotron3-ON"}
@@ -260,12 +261,14 @@ def _raw_ratings_table(df: pd.DataFrame) -> pd.DataFrame:
 
     `label` (a task's full, possibly multi-object target description, e.g. "bench, dog")
     together with (category, filename) identifies one rated item; `label_index` is not
-    used as it is always null in this survey export. Different annotators/variants rate
-    the same item a variable number of times (observed range ~10-38).
+    used as it is always null in this survey export. `variant` is part of the key:
+    15 (category, filename, label) triples are shared by 2-3 different cases across
+    variants, so leaving it out would pool ratings of distinct stimuli into one item
+    (144 cases -> 127 items). Each case is rated 11-27 times.
     """
     df = df.copy()
     df["response_class"] = df.apply(_response_class, axis=1)
-    item_cols = ["category", "filename", "label"]
+    item_cols = ["variant", "category", "filename", "label"]
     per_item = df.groupby(item_cols)["response_class"].apply(list)
     width = per_item.map(len).max()
     return pd.DataFrame(
@@ -294,6 +297,39 @@ def krippendorff_alpha_by_category(df_valid: pd.DataFrame) -> dict:
     result = {"overall": _alpha(df_valid)}
     for category, group in df_valid.groupby("category"):
         result[category] = _alpha(group)
+    return result
+
+
+def randolph_kappa(df: pd.DataFrame) -> dict:
+    """Randolph's free-marginal multirater kappa on the binary decision "gave bboxes"
+    vs. "did not" (any reject reason or skip), via statsmodels' `fleiss_kappa(...,
+    method="randolph")`.
+
+    Chance agreement is fixed at 1/q = 0.5 instead of being estimated from the
+    marginals, so the skewed bbox/no-bbox split (~2:1) does not drag kappa down the
+    way it does for Fleiss'/Krippendorff (the kappa paradox). Items are cases, keyed as
+    in `_raw_ratings_table`.
+
+    statsmodels asserts an equal rater count per item, but cases here are rated 11, 12,
+    24 or 27 times. Since kappa is linear in P_o, the mean per-item pairwise agreement,
+    computing it per rater-count stratum and taking the item-weighted mean is exactly
+    the pooled variable-rater Randolph kappa.
+    """
+    gave_bbox = (df["response_type"] == "bbox").astype(int)
+    counts = gave_bbox.groupby([df[c] for c in ["variant", "category", "filename", "label"]]).agg(["sum", "count"])
+    counts = counts[counts["count"] >= 2]
+    table = np.column_stack([counts["sum"], counts["count"] - counts["sum"]])
+    n_raters = table.sum(axis=1)
+    strata = np.unique(n_raters)
+    kappas = [fleiss_kappa(table[n_raters == k], method="randolph") for k in strata]
+    weights = [(n_raters == k).sum() for k in strata]
+    return {"kappa": float(np.average(kappas, weights=weights)), "n_items": len(table), "n_ratings": int(n_raters.sum())}
+
+
+def randolph_kappa_by_category(df_valid: pd.DataFrame) -> dict:
+    result = {"overall": randolph_kappa(df_valid)}
+    for category, group in df_valid.groupby("category"):
+        result[category] = randolph_kappa(group)
     return result
 
 
